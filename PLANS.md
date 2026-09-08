@@ -1,22 +1,33 @@
 # LazyChromeExtension PLANS
 
 ## Project goal
-[Fill by Chat.]
+Establish a Windows caller and Chrome extension integration that keeps a launched
+Web application session associated with its window across ordinary navigation.
 
 ## Version roadmap
 
-### V0 — [Version goal]
+### V0 — Browser-session integration foundation
 Goal:
-[Fill by Chat.]
+Prove and establish the browser-session integration foundation, initially with
+ChatGPT in Chrome and CallerHarness as the reference/test launching application.
 
 Exit Criteria:
-- [Criterion]
+- The caller/extension foundation can be built, launched, and loaded locally.
+- Session/window ownership survives ordinary navigation for the window's lifetime.
+- Window geometry can be stored/restored according to the launch URL/profile.
+- Human-only visual-monitoring feasibility is evaluated within the adopted boundaries;
+  limitations and any proposed mechanism are reviewed before adoption.
 
 Milestones:
 
 | Milestone | Goal | Exit Criteria | Status |
 | --- | --- | --- | --- |
-| M001 — [Name] | [Goal] | [Exit Criteria] | Planned |
+| M001 — Session-bound browser-window foundation | Establish the scaffold, then select transport and bind caller sessions to launched Chrome windows. | Caller builds/runs, extension loads, and session/window ownership survives navigation in an agreed validation flow. | In Progress |
+| M002 — Window geometry | Store and restore position/size according to launch URL/profile. | Agreed geometry behavior is demonstrated without redefining session ownership. | Planned |
+| M003 — Human-only visual-monitoring investigation | Evaluate monitoring while a window is away from the normal visible desktop area. | Human-visible feasibility and limitations are documented; no DOM/OCR/semantic extraction is used; mechanism adoption is a separate decision. | Planned |
+
+This roadmap does not advance runtime planning state. PLAN.md retains its existing
+bootstrap milestone goal and baseline until Chat acceptance updates planning.
 
 ## Planning rules
 - PLANS.md contains Version/Milestone roadmap only.
@@ -29,5 +40,4 @@ Milestones:
 - At a Milestone boundary, review achieved behavior, remaining issues, discoveries, and planning changes before finalizing the next Milestone.
 
 ## Future versions
-### V1 — [Future version goal]
-[Add Milestones when ready.]
+Deferred until V0 evidence supports a concrete next goal.

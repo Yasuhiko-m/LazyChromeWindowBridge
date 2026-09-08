@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "LazyChromeExtension",
+  "version": "0.0.1",
+  "description": "Minimal foundation for a Windows caller and Chrome session integration.",
+  "background": {
+    "service_worker": "service-worker.js"
+  }
+}

@@ -1,0 +1,9 @@
+# .NET build output and local IDE state.
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# Root transient task handoff.
+/CHANGELOG.md
