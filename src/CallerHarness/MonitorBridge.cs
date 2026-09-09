@@ -26,9 +26,10 @@ internal static class MonitorBridge
             {
                 while (!receiver.IsCompleted && socket.State == WebSocketState.Open)
                 {
+                    var changed = host.Monitor.Changed;
                     var message = JsonSerializer.SerializeToUtf8Bytes(host.Monitor.Control(id), Json);
                     await socket.SendAsync(message, WebSocketMessageType.Text, true, lifetime.Token);
-                    await Task.WhenAny(receiver, Task.Delay(500, lifetime.Token));
+                    await Task.WhenAny(receiver, changed, Task.Delay(500, lifetime.Token));
                     lifetime.Token.ThrowIfCancellationRequested();
                 }
                 await receiver;
@@ -46,7 +47,7 @@ internal static class MonitorBridge
                     if (root.GetProperty("type").GetString() == "frame")
                     {
                         try { host.Monitor.Accept(id, connection, generation, root.GetProperty("windowId").GetInt32(), root.GetProperty("tabId").GetInt32(),
-                            root.GetProperty("data").GetString()!, root.GetProperty("captureMilliseconds").GetDouble()); }
+                            root.GetProperty("identity").Deserialize<NativeIdentity>(Json), root.GetProperty("data").GetString()!, root.GetProperty("captureMilliseconds").GetDouble()); }
                         catch (Exception e) when (e is ArgumentException or FormatException or OutOfMemoryException)
                         { host.Monitor.Status(id, connection, generation, "Invalid monitor image.", false); }
                     }

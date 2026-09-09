@@ -28,6 +28,7 @@ internal sealed class SessionHost : IAsyncDisposable
         Geometry = new GeometryCoordinator(Sessions, new NativeWindows(), new GeometryStore(chrome.GeometryDirectory ??
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LazyChromeExtension", "Geometry")), chrome.Executable);
         Monitor = new MonitorCoordinator(Sessions, Geometry);
+        Geometry.Changed += Monitor.Reconcile;
         expiryTimer = new System.Threading.Timer(_ => { Sessions.Sweep(DateTimeOffset.UtcNow); Geometry.Poll(DateTimeOffset.UtcNow); }, null, 500, 500);
     }
     public static async Task<SessionHost> StartAsync(ChromeOptions chrome)

@@ -11,6 +11,8 @@ import assert from 'node:assert/strict';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const chromeExe = path.resolve(process.argv[2]);
 const gui = process.argv.includes('--gui');
+const testWindowPosition = process.env.LAZY_TEST_WINDOW_POSITION;
+if (testWindowPosition) assert.match(testWindowPosition, /^-?\d+,-?\d+$/);
 assert.equal(path.basename(chromeExe).toLowerCase(), 'chrome.exe');
 await fs.access(chromeExe);
 // Chrome's Windows singleton identity must use the same canonical path as .NET Path.GetFullPath.
@@ -25,8 +27,10 @@ async function until(read, accept, label, timeout = 20000) {
 async function localPageServer() {
   const server = http.createServer((request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
-    const blue = request.url.startsWith('/dynamic-b');
-    response.end(request.url.startsWith('/dynamic') ? `<!doctype html><title>Local live monitor fixture</title><style>body{margin:0;background:${blue ? '#2020b0' : '#b02020'};color:white;font:36px sans-serif}main{padding:40px}</style><main>Neutral ${blue ? 'B' : 'A'} live fixture <span id="tick"></span></main><script>let tick=0;setInterval(()=>{let v=60+(++tick*17)%180;document.body.style.background=${blue ? '"rgb(20,20,"+v+")"' : '"rgb("+v+",20,20)"'};document.getElementById("tick").textContent=tick;},250)</script>` : '<!doctype html><title>Local R002 acceptance page</title><p>Neutral local navigation target.</p>');
+    const letter = /^\/dynamic-([a-e])/.exec(request.url)?.[1] ?? 'a';
+    const channels = { a: [1,0,0], b: [0,0,1], c: [0,1,0], d: [1,1,0], e: [1,0,1] }[letter];
+    response.end(request.url.startsWith('/dynamic') ? `<!doctype html><title>Local live monitor fixture</title><style>body{margin:0;background:rgb(${channels.map(c => c ? 150 : 20).join(',')});color:white;font:20px sans-serif}main{padding:12px}</style><main>Neutral ${letter.toUpperCase()} live fixture <span id="tick"></span></main><script>let tick=0;const channels=${JSON.stringify(channels)};setInterval(()=>{let v=60+(++tick*17)%180;document.body.style.background='rgb('+channels.map(c=>c?v:20).join(',')+')';document.getElementById('tick').textContent=tick;},250)</script>` : '<!doctype html><title>Local R002 acceptance page</title><p>Neutral local navigation target.</p>');
+
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return { server, url: `http://127.0.0.1:${server.address().port}` };
@@ -88,7 +92,7 @@ async function caller(operation, argumentsOrUrl) {
 }
 function evidence(label, value) { console.log(JSON.stringify({ check: label, ...value })); }
 try {
-  browser = spawn(chromeExe, [`--user-data-dir=${profile}`, `--load-extension=${path.join(root, 'src/Extension')}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: false });
+  browser = spawn(chromeExe, [`--user-data-dir=${profile}`, `--load-extension=${path.join(root, 'src/Extension')}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check', ...(testWindowPosition ? ['--window-position=' + testWindowPosition] : []), 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: false });
   browser.on('exit', () => { browserExited = true; });
   browser.stderr.on('data', bytes => { browserStderr += bytes.toString(); });
   const port = await until(async () => {
@@ -99,7 +103,7 @@ try {
   const manifest = await cdp.extension('chrome.runtime.getManifest()');
   assert.equal(manifest.name, 'LazyChromeExtension');
   assert.equal(manifest.manifest_version, 3);
-  evidence('browser', { version: version.Browser, profile, manifest });
+  evidence('browser', { version: version.Browser, profile, manifest, testWindowPosition });
   if (gui) {
     driver = spawn(path.join(root, 'src/CallerHarness/bin/Debug/net10.0-windows/CallerHarness.exe'), ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
     driver.on('exit', () => { driverExited = true; });
@@ -118,7 +122,10 @@ try {
     if (driverWaiters.length) driverWaiters.shift()(payload); else driverLines.push(payload);
   });
   assert.equal(JSON.parse(await nextDriverLine()).ready, true);
-  if (process.argv.includes('--monitor')) {
+  if (process.argv.includes('--multi-monitor')) {
+    const { testMultiMonitor } = await import('./Test-R005.mjs');
+    await testMultiMonitor({ caller, cdp, until, delay, evidence, pageA, pageB });
+  } else if (process.argv.includes('--monitor')) {
     const { testMonitor } = await import('./Test-R004.mjs');
     await testMonitor({ caller, cdp, until, delay, evidence, pageA, pageB });
   } else {
@@ -189,6 +196,7 @@ try {
   process.exitCode = 1;
   console.error(error.stack);
   if (driver && !driverExited && !gui) evidence('failed-caller-state', { sessions: await caller('sessions') });
+  if (driver && !driverExited && !gui) evidence('failed-monitor-state', { monitor: await caller('monitor') });
   if (cdp.ws?.readyState === WebSocket.OPEN) {
     const targets = (await cdp.call('Target.getTargets')).targetInfos;
     evidence('failed-targets', { targets: targets.map(t => ({ type: t.type, url: t.url.split('#')[0] })) });

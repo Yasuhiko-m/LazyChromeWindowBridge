@@ -20,8 +20,9 @@ CallerHarness to exercise the contract intended for a future real launching appl
 The product consists of a C# reference/test caller and a Chrome extension.
 The reference implementation binds a stable application-session identity to a launched Chrome
 window, preserves that relationship through navigation, and restores window geometry
-according to the launch URL/profile. Human-only visual monitoring provides pixels
-from the owned window while it is away from the normal visible desktop area.
+according to the launch URL/profile. Human-only visual monitoring provides independent
+thumbnails of PARKED owned windows. Visible windows need no capture. The Windows
+caller controls manual physical-pixel bounds as well as explicit PARK/RESTORE.
 SPEC.md distinguishes established behavior, review candidates, and future behavior.
 
 ## Platform / runtime

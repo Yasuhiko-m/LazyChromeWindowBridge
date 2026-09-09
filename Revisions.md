@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V0-M003-R004`
+- Current VMR: `V0-M004-R005`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -145,6 +145,37 @@ normal authenticated Chrome/ChatGPT smoke was skipped without accessing that pro
 Remaining:
 M003 complete. M004 final runtime tuning/multi-window/manual geometry begins.
 M005 productization/rename/refactor is roadmap only and has no Revision assigned.
+
+Git Commit:
+Recorded externally by Git checkpoint; see repository history.
+
+### LazyChromeExtension_V0-M004-R005 — parked-monitor-control
+
+Purpose:
+Align the reference runtime with one Visible ACTIVE window and four independently
+monitored PARKED windows, reduce thumbnail load and establish manual native bounds.
+
+Result:
+Accepted by Chat. Global monitoring captures only eligible PARKED sessions with
+independent connections/generations/native identity checks. Visible windows have
+zero image traffic and no monitoring debugger attachment. The default is 2 fps,
+maximum 240×135, JPEG quality 70, aspect-preserving without capture upscale.
+Native PARK shrinking was measured and rejected; production preserves full native
+size and protected Normal geometry. Windows-side Get and Visible-only physical-
+pixel SetWindowBounds support exact ownership and reachable negative coordinates.
+Restore/re-PARK, tab change/close, MV3 recovery and shutdown preserve isolation.
+
+Build / Test:
+Build PASS, 0 warnings / 0 errors; 96 caller checks and 17 extension checks PASS;
+R002/R003/R004 regressions, five-session real native/browser acceptance and WinForms
+GUI PASS. Four streams remained fresh at about 1.97 fps; ACTIVE had zero frames/
+bytes and no debugger. Real negative Set and same-HWND Restore measured 0 px error.
+Shutdown detached all targets/connections and restored Normal with 0 px error.
+Product remains human-view-only, with no DOM/OCR/semantic/output extraction.
+
+Remaining:
+M004 complete. M005 productization/refactoring begins as R006 candidate. Short local
+measurements and simulated mixed-DPI/topology coverage retain their stated limits.
 
 Git Commit:
 Recorded externally by Git checkpoint; see repository history.

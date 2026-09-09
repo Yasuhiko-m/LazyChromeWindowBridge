@@ -2,7 +2,7 @@ namespace CallerHarness;
 
 internal enum PlacementState { Visible, Parking, Parked, Restoring, Closed }
 internal sealed record GeometrySnapshot(Guid AppSessionId, int? WindowId, string LaunchUrl, NativeIdentity Identity,
-    PlacementState State, PixelRect Normal, PixelRect? Current, uint Dpi, string? Error);
+    PlacementState State, PixelRect Normal, PixelRect? Current, uint Dpi, string? Error, long PlacementGeneration);
 
 internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindows native, GeometryStore store, string chromeExecutable) : IDisposable
 {
@@ -15,10 +15,15 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
         public PixelRect? Candidate, Saved;
         public DateTimeOffset CandidateSince;
         public string? Error;
+        public long Generation;
+        public PixelRect? ParkSize;
     }
     private readonly object gate = new();
     private readonly Dictionary<Guid, Entry> entries = [];
     private bool disposed;
+    private readonly List<GeometrySnapshot> shutdownResults = [];
+    public GeometrySnapshot[] ShutdownResults { get { lock (gate) return shutdownResults.ToArray(); } }
+    public event Action? Changed;
     public static string Marker(Guid id) => "LazyChromeExtension Session " + id.ToString("D");
     public MonitorGeometry[] Monitors() => native.Monitors();
     public GeometryProfile? Profile(string url) => store.Load(SessionRegistry.ValidateLaunchUrl(url));
@@ -70,9 +75,14 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
         try { if (alive) { current = native.Read(entry.Identity); dpi = native.Dpi(entry.Identity); } }
         catch (Exception error) { entry.Error = error.Message; alive = native.Alive(entry.Identity); }
         return new(entry.Session.AppSessionId, entry.Session.WindowId, entry.Session.LaunchUrl, entry.Identity,
-            alive ? entry.State : PlacementState.Closed, entry.Normal, current, dpi, entry.Error);
+            alive ? entry.State : PlacementState.Closed, entry.Normal, current, dpi, entry.Error, entry.Generation);
     }
     public GeometrySnapshot Park(Guid id)
+    {
+        try { return ParkCore(id); }
+        finally { Changed?.Invoke(); }
+    }
+    private GeometrySnapshot ParkCore(Guid id)
     {
         lock (gate)
         {
@@ -83,6 +93,7 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
             if (entry.State == PlacementState.Visible && native.Normal(entry.Identity) && GeometryMath.Reachable(current, monitors)) Save(entry, current);
             else Save(entry, entry.Normal);
             entry.State = PlacementState.Parking;
+            entry.Generation++;
             try
             {
                 native.Move(entry.Identity, GeometryMath.Park(entry.Normal, monitors));
@@ -96,17 +107,24 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
     }
     public GeometrySnapshot Restore(Guid id)
     {
+        try { return RestoreCore(id); }
+        finally { Changed?.Invoke(); }
+    }
+    private GeometrySnapshot RestoreCore(Guid id)
+    {
         lock (gate)
         {
             var entry = Active(id);
             if (entry.State == PlacementState.Visible) return Snapshot(entry);
             entry.State = PlacementState.Restoring;
+            entry.Generation++;
             try
             {
                 var normal = GeometryMath.VisibleFallback(entry.Normal, native.Monitors());
                 native.Move(entry.Identity, normal);
                 Save(entry, native.Read(entry.Identity));
                 entry.State = PlacementState.Visible;
+                entry.ParkSize = null;
                 entry.Error = null;
             }
             catch (Exception error) { entry.Error = error.Message; throw; }
@@ -134,7 +152,7 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
                     var current = native.Read(entry.Identity);
                     if (entry.State == PlacementState.Parked)
                     {
-                        if (monitors.Any(m => current.Intersects(m.Bounds))) native.Move(entry.Identity, GeometryMath.Park(entry.Normal, monitors));
+                        if (monitors.Any(m => current.Intersects(m.Bounds))) native.Move(entry.Identity, GeometryMath.Park(entry.ParkSize ?? entry.Normal, monitors));
                         continue;
                     }
                     if (entry.State != PlacementState.Visible || !native.Normal(entry.Identity)) continue;
@@ -147,14 +165,37 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
             }
             foreach (var id in entries.Where(pair => pair.Value.State == PlacementState.Closed && sessions.Get(pair.Key) is null).Select(pair => pair.Key).ToArray()) entries.Remove(id);
         }
+        Changed?.Invoke();
     }
     internal GeometrySnapshot MoveForTest(Guid id, PixelRect rect)
+        => SetWindowBounds(id, rect);
+    // Consumer contract: physical pixels, exact live identity, Visible only. Existing
+    // stable-geometry observer remains the persistence path; there is no new mode.
+    public GeometrySnapshot SetWindowBounds(Guid id, PixelRect rect)
     {
         lock (gate)
         {
             var entry = Active(id);
-            if (entry.State != PlacementState.Visible) throw new InvalidOperationException("Test movement requires a visible session.");
+            if (entry.State != PlacementState.Visible) throw new InvalidOperationException("Restore the session before setting normal window bounds.");
+            if (!rect.Valid || !GeometryMath.Reachable(rect, native.Monitors())) throw new ArgumentException("Window bounds must be valid physical pixels with a reachable title bar.");
             native.Move(entry.Identity, rect);
+            entry.Error = null;
+            return Snapshot(entry);
+        }
+    }
+    // Comparative Source test only. Never changes remembered Normal or writes a profile.
+    internal GeometrySnapshot ResizeParkedForTest(Guid id, int width, int height)
+    {
+        lock (gate)
+        {
+            var entry = Active(id);
+            if (entry.State != PlacementState.Parked) throw new InvalidOperationException("Parked-size experiment requires PARKED state.");
+            var size = entry.Normal with { Width = width, Height = height };
+            native.Move(entry.Identity, GeometryMath.Park(size, native.Monitors()));
+            var actual = native.Read(entry.Identity);
+            native.Move(entry.Identity, GeometryMath.Park(actual, native.Monitors()));
+            if (native.Monitors().Any(m => native.Read(entry.Identity).Intersects(m.Bounds))) throw new InvalidOperationException("Experimental PARK intersects a monitor.");
+            entry.ParkSize = actual;
             return Snapshot(entry);
         }
     }
@@ -175,7 +216,7 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
                         Save(entry, native.Read(entry.Identity));
                 }
                 catch (Exception error) { entry.Error = error.Message; }
-                finally { native.Release(entry.Identity); }
+                finally { shutdownResults.Add(Snapshot(entry)); native.Release(entry.Identity); }
             }
         }
     }

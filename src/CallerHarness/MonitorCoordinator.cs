@@ -3,7 +3,7 @@ using System.Drawing.Imaging;
 
 namespace CallerHarness;
 
-internal sealed record CaptureOptions(int FramesPerSecond = 2, int MaxWidth = 960, int MaxHeight = 540)
+internal sealed record CaptureOptions(int FramesPerSecond = 2, int MaxWidth = 240, int MaxHeight = 135)
 {
     public void Validate()
     {
@@ -11,51 +11,104 @@ internal sealed record CaptureOptions(int FramesPerSecond = 2, int MaxWidth = 96
             throw new ArgumentException("Monitor supports 1–10 fps and output up to 1920×1080.");
     }
 }
-internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing);
+internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing, NativeIdentity? Identity);
 internal sealed record MonitorFrame(Guid AppSessionId, NativeIdentity Identity, int WindowId, int TabId,
     long Generation, long Sequence, int Width, int Height, byte[] Jpeg, DateTimeOffset ReceivedAt, double CaptureMilliseconds);
-internal sealed record MonitorSnapshot(Guid? AppSessionId, long Generation, string State, long Frames, long Bytes,
-    double ElapsedSeconds, DateTimeOffset? LastFrameAt, int Width, int Height, string? Error, int Connections, int CapturingConnections);
+internal sealed record SessionMonitorSnapshot(Guid AppSessionId, int? WindowId, NativeIdentity? Identity, long Generation,
+    string State, long Frames, long Bytes, DateTimeOffset? LastFrameAt, int Width, int Height, string? Error, bool Connected, bool Capturing);
+internal sealed record MonitorSnapshot(bool Enabled, long Frames, long Bytes, int Connections, int CapturingConnections, SessionMonitorSnapshot[] Sessions);
 
 internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoordinator geometry)
 {
+    private sealed class Entry
+    {
+        public NativeIdentity? Identity;
+        public Guid? Connection;
+        public long Generation, PlacementGeneration = -1, Frames, Bytes;
+        public PlacementState? Placement;
+        public bool Eligible, Capturing;
+        public MonitorFrame? Latest;
+        public string? Error;
+        public string State = "Unavailable";
+    }
     private readonly object gate = new();
-    private readonly Dictionary<Guid, (Guid Connection, bool Capturing)> connections = [];
-    private Guid? selected;
-    private long generation, frames, bytes;
+    private readonly Dictionary<Guid, Entry> entries = [];
+    private bool enabled, disposed;
+    private long generation;
     private CaptureOptions options = new();
-    private MonitorFrame? latest;
-    private string state = "Stopped";
-    private string? error;
-    private DateTimeOffset started = DateTimeOffset.UtcNow;
-    private bool disposed;
-    public void Start(Guid id, CaptureOptions requested)
+    private TaskCompletionSource changed = NewSignal();
+    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public Task Changed { get { lock (gate) return changed.Task; } }
+    private void Signal() { var previous = changed; changed = NewSignal(); previous.TrySetResult(); }
+    private void Invalidate(Entry entry, bool clearError = true)
+    {
+        entry.Generation = ++generation; entry.Latest = null;
+        if (clearError) entry.Error = null;
+    }
+    private Entry Sync(Guid id)
+    {
+        if (!entries.TryGetValue(id, out var entry)) entries.Add(id, entry = new());
+        var session = sessions.Get(id);
+        var window = geometry.Get(id);
+        entry.Identity ??= window?.Identity;
+        var live = session?.State == SessionState.Bound && window is { Current: not null, State: not PlacementState.Closed } && window.Identity == entry.Identity;
+        var eligible = enabled && !disposed && live && window!.State == PlacementState.Parked;
+        if (entry.Eligible != eligible || entry.Placement != window?.State || entry.PlacementGeneration != (window?.PlacementGeneration ?? -1))
+        {
+            entry.Eligible = eligible; entry.Placement = window?.State; entry.PlacementGeneration = window?.PlacementGeneration ?? -1;
+            Invalidate(entry); Signal();
+        }
+        if (!live) { entry.Latest = null; entry.State = "Unavailable"; }
+        else if (window!.State == PlacementState.Visible) { entry.Latest = null; entry.State = "ACTIVE"; }
+        else if (!enabled || disposed) { entry.Latest = null; entry.State = "Stopped"; }
+        else if (!eligible) { entry.Latest = null; entry.State = window.State.ToString(); }
+        else if (entry.Error is not null) entry.State = "Error";
+        else if (entry.Connection is null) entry.State = "Disconnected";
+        else entry.State = entry.Latest is null ? "Waiting" : "Live";
+        return entry;
+    }
+    public void Reconcile()
+    {
+        lock (gate)
+        {
+            foreach (var session in sessions.GetAll()) Sync(session.AppSessionId);
+            foreach (var id in entries.Keys.Where(id => sessions.Get(id) is null && entries[id].Connection is null).ToArray()) entries.Remove(id);
+        }
+    }
+    public void Start(CaptureOptions requested)
     {
         requested.Validate();
         lock (gate)
         {
-            if (disposed) throw new ObjectDisposedException(nameof(MonitorCoordinator));
-            if (!Live(id)) throw new InvalidOperationException("Select a bound session with a live native window.");
-            if (selected == id && requested == options && state != "Error") return;
-            selected = id; options = requested; generation++; frames = bytes = 0; latest = null;
-            error = null; state = "Waiting"; started = DateTimeOffset.UtcNow;
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var reset = !enabled || options != requested;
+            enabled = true; options = requested;
+            foreach (var session in sessions.GetAll())
+            {
+                var entry = Sync(session.AppSessionId);
+                if (reset || entry.Error is not null) Invalidate(entry);
+            }
+            Signal();
         }
     }
     public void Stop()
     {
         lock (gate)
         {
-            if (selected is not null) generation++;
-            selected = null; latest = null; state = "Stopped"; error = null;
+            if (!enabled) return;
+            enabled = false;
+            foreach (var id in entries.Keys.ToArray()) Sync(id);
+            Signal();
         }
     }
-    private bool Live(Guid id) => sessions.Get(id)?.State == SessionState.Bound && geometry.Get(id) is { State: not PlacementState.Closed, Current: not null };
     public bool Connect(Guid id, Guid connection)
     {
         lock (gate)
         {
-            if (disposed || !Live(id) || connections.ContainsKey(id)) return false;
-            connections[id] = (connection, false);
+            if (disposed || sessions.Get(id)?.State != SessionState.Bound || geometry.Get(id) is not { Current: not null, State: not PlacementState.Closed }) return false;
+            var entry = Sync(id);
+            if (entry.Connection is not null) return false;
+            entry.Connection = connection; Invalidate(entry, false); Signal();
             return true;
         }
     }
@@ -63,31 +116,46 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
     {
         lock (gate)
         {
-            if (!connections.TryGetValue(id, out var current) || current.Connection != connection) return;
-            connections.Remove(id);
-            if (selected == id && !disposed) { state = "Disconnected"; latest = null; }
+            if (!entries.TryGetValue(id, out var entry) || entry.Connection != connection) return;
+            entry.Connection = null; entry.Capturing = false; Invalidate(entry, false); Sync(id); Signal();
         }
     }
     public MonitorControl Control(Guid id)
     {
-        lock (gate) return new(!disposed && selected == id && state != "Error" && Live(id), generation, options, disposed);
+        lock (gate)
+        {
+            var entry = Sync(id);
+            return new(entry.Eligible && entry.Error is null, entry.Generation, options, disposed, entry.Identity);
+        }
     }
     public void Status(Guid id, Guid connection, long frameGeneration, string? failure, bool capturing)
     {
         lock (gate)
         {
-            if (!connections.TryGetValue(id, out var current) || current.Connection != connection) return;
-            connections[id] = (connection, capturing);
-            if (selected != id || generation != frameGeneration || disposed) return;
-            if (failure is not null) { state = "Error"; error = failure[..Math.Min(240, failure.Length)]; latest = null; }
+            if (!entries.TryGetValue(id, out var entry) || entry.Connection != connection) return;
+            // A stopped old generation confirms detach even after eligibility changed.
+            if (!capturing) entry.Capturing = false;
+            entry = Sync(id);
+            if (entry.Generation != frameGeneration || !entry.Eligible || disposed) return;
+            entry.Capturing = capturing;
+            if (failure is not null)
+            {
+                entry.Error = failure[..Math.Min(240, failure.Length)]; entry.Latest = null; entry.State = "Error"; Signal();
+            }
         }
     }
-    public void Accept(Guid id, Guid connection, long frameGeneration, int windowId, int tabId, string data, double captureMilliseconds)
+    private bool Expected(Guid id, Guid connection, long frameGeneration, int windowId, NativeIdentity? identity)
+    {
+        var entry = Sync(id);
+        return !disposed && entry.Eligible && entry.Error is null && entry.Connection == connection &&
+            entry.Generation == frameGeneration && identity is not null && entry.Identity == identity && sessions.Get(id)?.WindowId == windowId;
+    }
+    public void Accept(Guid id, Guid connection, long frameGeneration, int windowId, int tabId, NativeIdentity? identity, string data, double captureMilliseconds)
     {
         CaptureOptions settings;
         lock (gate)
         {
-            if (!Expected(id, connection, frameGeneration, windowId)) return;
+            if (!Expected(id, connection, frameGeneration, windowId, identity)) return;
             settings = options;
         }
         if (data.Length > 2800000 || tabId < 0 || !double.IsFinite(captureMilliseconds)) throw new ArgumentException("Invalid monitor frame metadata.");
@@ -107,35 +175,34 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         }
         lock (gate)
         {
-            if (!Expected(id, connection, frameGeneration, windowId)) return; // Selection may change during decoding.
-            var identity = geometry.Get(id)!.Identity;
-            latest = new(id, identity, windowId, tabId, generation, ++frames, width, height, jpeg, DateTimeOffset.UtcNow, captureMilliseconds);
-            bytes += data.Length; // Base64 transfer payload bytes, excluding small JSON/WebSocket overhead.
-            state = "Live"; error = null;
-            connections[id] = (connection, true);
+            if (!Expected(id, connection, frameGeneration, windowId, identity)) return;
+            var entry = entries[id];
+            entry.Latest = new(id, entry.Identity!, windowId, tabId, entry.Generation, ++entry.Frames, width, height, jpeg, DateTimeOffset.UtcNow, captureMilliseconds);
+            entry.Bytes += data.Length; entry.State = "Live"; entry.Capturing = true;
         }
     }
-    private bool Expected(Guid id, Guid connection, long frameGeneration, int windowId) => !disposed && selected == id && generation == frameGeneration &&
-        connections.TryGetValue(id, out var current) && current.Connection == connection && Live(id) && sessions.Get(id)?.WindowId == windowId;
-    public MonitorFrame? Latest()
-    {
-        lock (gate) return selected is { } id && Live(id) ? latest : null;
-    }
+    public MonitorFrame? Latest(Guid id) { lock (gate) return Sync(id).Latest; }
     public MonitorSnapshot Snapshot()
     {
         lock (gate)
         {
-            var displayState = selected is { } id && !Live(id) ? "Unavailable" : state;
-            return new(selected, generation, displayState, frames, bytes, (DateTimeOffset.UtcNow - started).TotalSeconds,
-                latest?.ReceivedAt, latest?.Width ?? 0, latest?.Height ?? 0, error, connections.Count, connections.Values.Count(c => c.Capturing));
+            Reconcile();
+            var rows = sessions.GetAll().Select(session =>
+            {
+                var entry = Sync(session.AppSessionId);
+                return new SessionMonitorSnapshot(session.AppSessionId, session.WindowId, entry.Identity, entry.Generation, entry.State,
+                    entry.Frames, entry.Bytes, entry.Latest?.ReceivedAt, entry.Latest?.Width ?? 0, entry.Latest?.Height ?? 0, entry.Error,
+                    entry.Connection is not null, entry.Capturing);
+            }).ToArray();
+            return new(enabled, rows.Sum(r => r.Frames), rows.Sum(r => r.Bytes), entries.Values.Count(e => e.Connection is not null),
+                entries.Values.Count(e => e.Capturing), rows);
         }
     }
     public async Task ShutdownAsync()
     {
         Stop();
-        lock (gate) disposed = true;
-        // The bridge remains alive briefly so extensions can detach before the listener closes.
-        var until = DateTimeOffset.UtcNow.AddSeconds(3);
+        lock (gate) { disposed = true; Signal(); }
+        var until = DateTimeOffset.UtcNow.AddSeconds(7); // Includes bounded five-second in-flight acquisition.
         while (Snapshot().Connections != 0 && DateTimeOffset.UtcNow < until) await Task.Delay(50);
     }
 }

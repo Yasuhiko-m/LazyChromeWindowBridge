@@ -5,12 +5,14 @@ ProjectID: LazyChromeExtension.
 Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another Source root.
 
-The established baseline is **V0-M003-R004 — human-monitor-integration**, accepted
+The established baseline is **V0-M004-R005 — parked-monitor-control**, accepted
 by Chat with its build, real-browser/native integration, and Windows GUI evidence.
 R001 was the scaffold; R002 established session/window binding; R003 established
 the geometry/native additions specified below; R004 established the human preview.
-M001, M002 and M003 are Complete. M004 runtime tuning is In Progress; M005 remains
-roadmap only. PLAN.md / Revisions.md remain at R004 during subsequent candidate work.
+M001 through M004 are Complete. M005 productization/refactoring is In Progress.
+PLAN.md / Revisions.md remain at R005 during R006 candidate work. Accepted R005
+supersedes R004's single-selected/Visible capture behavior with the PARKED-only
+multi-session contract below.
 
 PROJECT.md owns stable project facts; PLANS.md owns the three-milestone roadmap;
 PLAN.md / Revisions.md own established revision authority. CHANGELOG.md is a
@@ -19,7 +21,7 @@ transient implementation/test handoff, not acceptance authority.
 ## R002 components and runtime
 - Windows .NET 10 WinForms caller plus Microsoft.AspNetCore.App shared framework
   for the built-in Kestrel loopback HTTP server. No third-party NuGet packages.
-- Chrome 120+ and a Manifest V3 extension, candidate package version 0.0.4 (not a Project VMR).
+- Chrome 120+ and a Manifest V3 extension, candidate package version 0.0.5 (not a Project VMR).
 - Production uses normal installed Chrome with the extension enabled.
 - Ordinary Chrome windows contain the requested WebApp. App-mode chrome, Native
   Messaging registration, administrator privileges, and fixed ports are not required.
@@ -110,8 +112,8 @@ geometry/PARK/RESTORE only. Capture and preview first appear in the R004 candida
 No product revision implements DOM scraping, OCR, semantic analysis, ChatGPT
 selectors/output extraction, response interception, or page-content automation.
 Desktop monitor enumeration is placement topology, distinct from visual monitoring.
-M002 — Geometry / Park / Restore is Complete. M003 — Human monitor + integrated
-V0 acceptance is In Progress.
+M002 — Geometry / Park / Restore and M003 — Human monitor + integrated reference
+acceptance are Complete. M004 runtime tuning is In Progress.
 
 ## Caller GUI and configuration
 The GUI provides Launch URL (default https://chatgpt.com/), Launch, status detail,
@@ -140,6 +142,7 @@ From the Source root:
     .\Scripts\Test-R002.ps1 -ChromeExecutable '<official portable Chrome for Testing chrome.exe>'
     .\Scripts\Test-R003.ps1 -ChromeExecutable '<official portable Chrome for Testing chrome.exe>'
     .\Scripts\Test-R004.ps1 -ChromeExecutable '<official portable Chrome for Testing chrome.exe>'
+    .\Scripts\Test-R005.ps1 -ChromeExecutable '<official portable Chrome for Testing chrome.exe>'
 
 The test entry requires PowerShell 7 and Node.js 22+ built-in modules only. It runs
 caller/HTTP checks, deterministic tests of the production extension rehydration
@@ -259,7 +262,11 @@ negative/above-primary, mixed-DPI, changed-work-area, and monitor-removal simula
 - https://developer.chrome.com/docs/extensions/reference/api/alarms
 - https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle
 
-## R004 candidate: human monitor architecture
+## Accepted R004 history: human monitor architecture
+The following R004 capture-selection and default-size behavior is historical;
+the R005 candidate contract below replaces those parts. Pixel-only exclusions,
+permission tradeoff, exact native ownership and prior evidence remain applicable.
+
 One selected session per CallerHarness has a live PictureBox preview, with Start
 monitor / Stop monitor controls. The target label includes the window ID and short
 session ID; the table includes full session IDs and Visible / Parked / Closed. The monitor label reports
@@ -411,3 +418,151 @@ References:
 - https://developer.chrome.com/docs/extensions/reference/api/debugger
 - https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-captureScreenshot
 - https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-getLayoutMetrics
+
+## R005 candidate: PARKED-only multi-session overview
+Global Start monitoring requests every eligible PARKED session independently;
+Stop disables all captures. Visible windows always display ACTIVE, receive no
+capture request, attach no debugger for monitoring, and accept no image frames.
+The session-table selection controls Park/Restore only; it never determines capture
+ownership. At least four PARKED windows can capture concurrently alongside a fifth
+ACTIVE window. Each session has one aspect-preserving Zoom thumbnail tile with
+short session/window identity, state, frame count/age, and local error information.
+The overview wraps/scrolls and resizes tiles around 200–300 display pixels. Source
+JPEG dimensions remain stable independent of tile layout; images are replaced only
+when a new frame is available, without deliberately blanking between frames.
+
+MonitorCoordinator owns independent connection IDs, generations, latest frame,
+counters and errors per session. A generation is invalidated on PARK/RESTORE,
+eligibility changes, connection replacement and settings changes. Geometry also
+exposes a placement generation so an unobserved quick Restore/re-PARK cannot accept
+an earlier frame. The expected HWND/PID/property identity is included in capture
+control, echoed with a frame, and checked against the caller's retained live native
+identity before and after decode. WindowId, session capability, connection and
+generation must all match. No URL/title/page content determines any monitor target.
+
+RESTORE clears the corresponding preview and sends disabled control immediately
+after the native transition; it wakes an idle frame-period wait rather than waiting
+for another capture interval. An already in-flight capture may finish but is rejected
+by caller eligibility/generation and discarded by the extension. Close/unavailable
+clears pixels, and one capture failure neither changes geometry nor stops peers.
+Re-PARK acquires a new generation of the same exact session. Existing MV3 persistence
+and cleanup recover only currently requested PARKED targets. Visible sessions may
+retain authenticated control sockets, but never image traffic or debugger capture.
+Closing the attached active tab permits reacquisition only through an active-tab
+query restricted to the already-owned window. A canceled-by-user detach remains
+blocked until a new explicit generation; closing a tab does not override that block.
+Late acquisition errors retain their original generation. Normal caller shutdown
+waits up to seven seconds for transport/debugger cleanup, then restores retained
+Normal geometry before stopping the server.
+
+The adopted capture stack remains chrome.debugger Page.getLayoutMetrics and
+Page.captureScreenshot with JPEG quality 70. No DOM/Runtime/network-content command,
+OCR, image decisions, completion/output extraction, archive, cloud or telemetry is
+added. Normal Chrome debugger permission and notice remain accepted requirements.
+Final small-image defaults and comparative native PARK-size evidence are recorded
+in the R005 measurement section and current handoff.
+
+## R005 Windows-side manual geometry contract
+GeometryCoordinator.Get(appSessionId) returns GeometrySnapshot: session ID, Chrome
+WindowId, original immutable launch/profile URL, retained HWND/PID/property identity,
+PlacementState, current physical-pixel bounds, remembered Normal bounds, DPI, error
+and placement generation. Unmapped sessions return null; stale native identities
+appear Closed with no current rectangle. No alternate window is rediscovered.
+
+SetWindowBounds(appSessionId, PixelRect) requires a live Bound, mapped, exact native
+identity in Visible state. It validates physical bounds and title-bar reachability,
+including ordinary negative-coordinate monitor positions, then uses the existing
+native checked move (2-pixel tolerance, bounded retries) and returns the actual
+snapshot. Closed/unmapped/stale identities fail explicitly. PARKED/transition states
+require Restore before a consumer Set; setting bounds never silently changes logical
+PARK state. There is no Auto mode, extension geometry authority, or new persistence
+mode. The existing stable observer learns and persists normal placement; immediate
+Get after Set can still show the previous remembered Normal until that debounce.
+
+The Source-only parked-size comparison path is separate from the consumer Set
+contract. It only moves an already PARKED owned window, recomputes placement from
+actual dimensions, verifies zero monitor intersection and never writes Normal or
+GeometryStore. The final product strategy is selected from real four-session data.
+Final namespace/package/public API organization is deliberately deferred to M005.
+
+## R005 validation contract
+Test-R005.ps1 reruns R002/R003 browser regressions, retained R004 monitor lifecycle,
+freshness, navigation/identity, worker recovery and cleanup cases, then the five-
+session R005 workload. R004's Visible-capture and selected-only expectations are
+explicitly superseded: the updated path asserts ACTIVE/no pixels after RESTORE and
+independent per-session pixels while PARKED. The original accepted R004 tests were
+also run before these behavior changes and remain available at the R004 checkpoint.
+
+The local fixtures use five deterministic color families and changing backgrounds.
+Only test tooling checks frame colors/hashes. Concurrent measurements report each
+session's fps, gap, capture latency and identity, plus aggregate Base64 traffic and
+owned caller/Chrome process-tree CPU and working/private memory. Native PARK-size
+comparisons use the same four targets and 2-fps settings, alternating normal and
+512×320 native rectangles with 320×180 and 240×135 thumbnail limits. Real negative-
+monitor manual placement, restore/re-PARK, active-tab changes, close/relaunch and
+normal shutdown are also exercised. Captured bytes do not include browser chrome.
+Mixed DPI/topology changes retain deterministic simulated coverage; physical tests
+on this host use three 96-DPI monitors.
+
+## R005 selected runtime defaults
+The final default is 2 fps, maximum 240×135 pixels, JPEG quality 70. Capture scale is
+bounded at one and preserves the viewport aspect ratio; these are maxima, not a
+forced 16:9 crop or upscale. Tiles remain roughly 200–300 display pixels and use Zoom
+independently of the transferred JPEG dimensions. The four-session comparison
+showed fresh updates at both 240 and 320 classes; 240 reduced aggregate Base64
+traffic by roughly 18–25% across the measured samples and was selected for the
+small status tiles. This is a fixture observation, not a universal bandwidth bound.
+
+Native PARK shrinking was evaluated but rejected for production. The accepted
+512×320 test rectangle stayed fully offscreen and protected Normal correctly, but
+did not provide a consistent material Chrome CPU/capture-latency benefit. Reflow
+increased thumbnail payload for this fixture. Production retains the normal native
+window size while PARKED and downscales only the captured pixels. The internal
+park-size test path remains solely to reproduce that comparison and Normal-safety
+regressions; it is not invoked by monitoring or exposed as consumer placement.
+
+Final Source acceptance: Scripts/Outputs/20260909-153823546-Test-R005.log (exit 0).
+Four simultaneous PARKED captures, one Visible ACTIVE session, 2 fps / quality 70;
+CPU is percentage of one core and includes test-only frame-hash sampling. Memory
+is working/private MiB; traffic is Base64 bytes/s, excluding JSON/WebSocket headers.
+Each comparison follows a one-second settling interval and samples about six seconds.
+
+| Native PARK | JPEG maxima | Base64 B/s | Caller / Chrome CPU % | Caller MiB | Chrome tree MiB | Mean capture ms | Max gap s |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1280×800 | 320×180 | 15,817 | 3.85 / 24.40 | 77.7 / 29.6 | 1042.2 / 621.3 | 67.65 | 0.548 |
+| 512×320 | 320×180 | 22,821 | 3.08 / 27.18 | 81.6 / 33.6 | 1059.6 / 620.7 | 75.05 | 0.547 |
+| 1280×800 | 240×135 | 12,640 | 2.83 / 31.61 | 78.0 / 30.0 | 1066.2 / 626.0 | 67.98 | 0.538 |
+| 512×320 | 240×135 | 16,179 | 2.32 / 27.29 | 78.7 / 31.7 | 1069.6 / 611.0 | 66.76 | 0.539 |
+| 1280×800 repeat | 240×135 | 13,022 | 3.34 / 25.14 | 80.4 / 33.1 | 1072.0 / 620.1 | 70.12 | 0.546 |
+
+All four targets produced 12 new frames per comparison, 1.969–1.977 effective fps,
+and 13 distinct sampled center hashes including the initial sample. The native
+shrink increased traffic 44% at 320 and 28% at 240 in this final run; CPU/latency
+varied without a repeatable aggregate win. One target retained a small viewport
+aspect after its native bounds returned to 1280×800 (240×83 rather than 240×123);
+freshness and native geometry remained correct. This additional offscreen reflow
+variability supports rejecting native shrinking. The comparison does not claim
+pixel-identical viewport content after native resize.
+
+Before any experimental resize, the selected default produced four 240×123 images,
+1.993 fps each, 12,006 aggregate Base64 B/s, 13 distinct hashes each and a worst
+sampled gap of 0.723 s. Initial CPU was higher (Caller 21.28%, Chrome tree 62.03%)
+than warmed comparison samples; initial memory was 79.1/31.7 and 1178.3/757.7 MiB.
+Startup/JIT/browser warm-up and test overhead are included, not hidden by the table.
+Short neutral-page measurements do not establish long-run leak behavior, worst-case
+video costs, or mixed-DPI physical validation; no invented CPU threshold is applied.
+
+Real acceptance kept A at zero frames/bytes with no attached debugger in every
+sample, checked four distinct session/window/HWND/property identities and color
+families, and passed worker recovery, parked navigation, active-tab switch/close,
+isolated Restore/re-PARK and window close/relaunch. B restored with 0-pixel error;
+the observed native Restore plus debugger-detach check took 271.54 ms. Manual A
+placement to (-1820,80,1100,720) on DISPLAY3 had 0-pixel error and preserved B.
+Normal shutdown reported zero connections/capturing connections, no owned debugger
+targets and 0-pixel restoration error for B/C/D, including a shrunken test target.
+
+WinForms acceptance: Scripts/Outputs/20260909-154226484-Test-R005.log (exit 0),
+on DISPLAY3. Five launches, ACTIVE labels, four changing LIVE tiles, selection
+independence, individual Restore/re-PARK, global Stop/Start, wrapping at narrow width
+and a single horizontal row at wider width were observed. Stop counters remained
+fixed; normal close completed and the isolated browser/test caller both exited.

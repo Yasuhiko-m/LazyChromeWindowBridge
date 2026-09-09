@@ -4,7 +4,8 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   const near = (a, b) => ['left', 'top', 'width', 'height'].every(k => Math.abs(a[k] - b[k]) <= 2);
   const monitors = await caller('monitors');
   const outside = r => monitors.every(m => r.left + r.width <= m.bounds.left || r.left >= m.bounds.left + m.bounds.width || r.top + r.height <= m.bounds.top || r.top >= m.bounds.top + m.bounds.height);
-  const work = monitors.find(m => m.primary).workArea;
+  const preferred = process.env.LAZY_TEST_WINDOW_POSITION?.split(',').map(Number);
+  const work = monitors.find(m => preferred && preferred[0] >= m.bounds.left && preferred[0] < m.bounds.right && preferred[1] >= m.bounds.top && preferred[1] < m.bounds.bottom)?.workArea ?? monitors.find(m => m.primary).workArea;
   const rectA = { left: work.left + 40, top: work.top + 50, width: Math.min(1280, work.width - 100), height: Math.min(800, work.height - 100) };
   const rectB = { ...rectA, left: rectA.left + 80, top: rectA.top + 70, width: rectA.width - 120 };
   const geometry = s => caller('geometry', { id: s.appSessionId });
@@ -15,11 +16,19 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
     await until(() => cdp.extension('chrome.tabs.get(' + s.tabId + ').then(t=>({url:t.url,status:t.status}))'), t => t.url === url && t.status === 'complete', 'dynamic launch page');
     return s;
   }
+  const snapshot = async s => (await caller('monitor')).sessions.find(row => row.appSessionId === s.appSessionId);
+  const frame = s => caller('monitor-frame', { id: s.appSessionId });
+  async function active(s) {
+    await until(() => snapshot(s), row => row.state === 'ACTIVE' && !row.capturing, 'Visible has no capture');
+    assert.equal(await frame(s), null);
+  }
   async function start(s, options = { framesPerSecond: 2, maxWidth: 960, maxHeight: 540 }) {
-    const started = await caller('monitor-start', { id: s.appSessionId, options });
-    const duplicate = await caller('monitor-start', { id: s.appSessionId, options });
-    assert.equal(duplicate.generation, started.generation, 'start is idempotent');
-    await until(() => caller('monitor-frame'), f => f?.appSessionId === s.appSessionId && f.generation === started.generation, 'selected-session first frame', 45000);
+    await caller('park', { id: s.appSessionId });
+    await caller('monitor-start', { options });
+    await until(() => frame(s), f => f?.appSessionId === s.appSessionId, 'parked-session first frame', 45000);
+    const started = await snapshot(s);
+    await caller('monitor-start', { options });
+    assert.equal((await snapshot(s)).generation, started.generation, 'start is idempotent');
     return started;
   }
   async function stats() {
@@ -27,16 +36,16 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
     return caller('process-stats', { pids: processes.map(p => p.id) });
   }
   async function sample(label, s, seconds = 5, expectedBlue = false) {
-    const begin = await caller('monitor'), before = await stats(), t0 = performance.now();
+    const begin = await snapshot(s), before = await stats(), t0 = performance.now();
     const samples = new Map();
     while (performance.now() - t0 < seconds * 1000) {
-      const frame = await caller('monitor-frame');
+      const frame = await caller('monitor-frame', { id: s.appSessionId });
       if (frame && frame.appSessionId === s.appSessionId) samples.set(frame.sequence, frame);
       await delay(90);
     }
-    const elapsed = (performance.now() - t0) / 1000, end = await caller('monitor'), after = await stats();
+    const elapsed = (performance.now() - t0) / 1000, end = await snapshot(s), after = await stats();
     const frames = [...samples.values()], unique = new Set(frames.map(f => f.centerHash)).size;
-    assert(frames.length >= 3 && unique >= 2, label + ' requires multiple fresh content frames');
+    assert(frames.length >= 3 && unique >= 2, label + ' requires multiple fresh content frames: ' + JSON.stringify({ begin, end, sampled: frames.length, unique }));
     const identity = (await geometry(s)).identity;
     for (const f of frames) {
       assert.equal(f.appSessionId, s.appSessionId); assert.equal(f.windowId, s.windowId);
@@ -70,8 +79,9 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   const b = await launch(pageB.url + '/dynamic-b');
   await caller('move', { id: b.appSessionId, rect: rectB });
   const beforeB = await geometry(b), beforeA = await geometry(a);
+  await caller('monitor-start'); await active(a);
+  evidence('A-visible-ACTIVE-no-capture', { result: 'PASS', monitor: await snapshot(a) });
   await start(a);
-  await sample('A-visible-monitor', a);
   const parked = await caller('park', { id: a.appSessionId });
   assert(outside(parked.current));
   assert(near((await geometry(b)).current, beforeB.current));
@@ -87,7 +97,8 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   assert(near((await caller('profile', a.launchUrl)).normal, rectA));
   const restored = await caller('restore', { id: a.appSessionId });
   assert(near(restored.current, rectA)); assert.deepEqual(restored.identity, beforeA.identity);
-  await sample('D-restored-monitor', a);
+  await active(a);
+  evidence('D-restored-ACTIVE-monitor-detached', { result: 'PASS', restored });
   await start(b); await sample('E-selected-B-isolation', b, 5, true);
   assert(near((await geometry(a)).current, rectA));
   await start(a);
@@ -95,18 +106,18 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   const matrix = [];
   for (const [fps, maxWidth, maxHeight] of [[1, 960, 540], [2, 960, 540], [5, 1280, 720], [10, 1280, 720]]) {
     await start(a, { framesPerSecond: fps, maxWidth, maxHeight });
-    matrix.push({ fps, maxWidth, maxHeight, state: 'Visible', ...await sample('performance-visible-' + fps, a, 4) });
+    await caller('restore', { id: a.appSessionId }); await active(a);
     await caller('park', { id: a.appSessionId });
     assert(outside((await geometry(a)).current));
     matrix.push({ fps, maxWidth, maxHeight, state: 'Parked', ...await sample('performance-parked-' + fps, a, 4) });
     await caller('restore', { id: a.appSessionId });
   }
-  evidence('performance-matrix', { matrix, cpuBasis: 'percent of one CPU core; test caller includes frame-hash sampling', default: { framesPerSecond: 2, maxWidth: 960, maxHeight: 540 } });
+  evidence('performance-matrix', { matrix, cpuBasis: 'percent of one CPU core; test caller includes frame-hash sampling', default: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135 } });
 
   const stopped = await caller('monitor-stop');
-  assert.equal((await caller('monitor-stop')).generation, stopped.generation);
+  assert.deepEqual((await caller('monitor-stop')).sessions.map(s => s.generation), stopped.sessions.map(s => s.generation));
   await until(() => caller('monitor'), s => s.capturingConnections === 0, 'debugger detach on stop');
-  assert.equal(await caller('monitor-frame'), null);
+  assert.equal(await frame(a), null);
   const ownedTabs = [a.tabId, b.tabId];
   async function attached() {
     return cdp.extension('chrome.debugger.getTargets().then(ts=>ts.filter(t=>' + JSON.stringify(ownedTabs) + '.includes(t.tabId)&&t.attached).map(t=>t.tabId))');
@@ -123,17 +134,18 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   await cdp.call('Target.detachFromTarget', { sessionId });
   const restarted = await cdp.worker();
   assert.notEqual(restarted.targetId, oldWorker.targetId);
-  await until(() => caller('monitor-frame'), f => f?.appSessionId === a.appSessionId && Date.now() - Date.parse(f.receivedAt) < 1500, 'monitor rehydrates after worker restart', 45000);
+  await until(() => frame(a), f => f?.appSessionId === a.appSessionId && Date.now() - Date.parse(f.receivedAt) < 1500, 'monitor rehydrates after worker restart', 45000);
   await sample('worker-restart-monitor-recovery', a, 4);
 
   await start(b); await close(b);
-  await until(() => caller('monitor'), s => s.state === 'Unavailable' && s.capturingConnections === 0, 'selected close cleans capture');
-  assert.equal(await caller('monitor-frame'), null);
-  assert(near((await geometry(a)).current, rectA));
+  await until(() => snapshot(b), s => s.state === 'Unavailable' && !s.capturing, 'selected close cleans capture');
+  assert.equal(await frame(b), null);
+  assert(near((await geometry(a)).normal, rectA));
   await start(a); await caller('park', { id: a.appSessionId });
   await sample('F-integrated-final-park', a, 4);
   const finalRestore = await caller('restore', { id: a.appSessionId });
   assert(near(finalRestore.current, rectA));
+  await start(a);
   // Keep one live capture during real SessionHost shutdown, verifying detach before browser cleanup.
   const shutdown = await caller('shutdown-host');
   assert.equal(shutdown.connections, 0); assert.equal(shutdown.capturingConnections, 0);
