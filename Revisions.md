@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V0-M001-R002`
+- Current VMR: `V0-M002-R003`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -85,6 +85,34 @@ stop/restart PASS; Windows GUI acceptance PASS.
 
 Remaining:
 M001 is complete. M002 begins with geometry / PARK / RESTORE.
+
+Git Commit:
+Recorded externally by Git checkpoint; see repository history.
+
+### LazyChromeExtension_V0-M002-R003 — geometry-park-restore
+
+Purpose:
+Complete launch-profile geometry persistence and exact PARK / RESTORE for the
+bound Chrome Window.
+
+Result:
+Accepted by Chat. Geometry belongs to the original launch URL and normal placement
+survives navigation. Exact HWND mapping is established before leaving the caller's
+bootstrap. Native PARK moves that Window outside every active monitor; logical
+PARK state prevents normal geometry contamination. RESTORE returns the same Window
+to remembered normal placement. Concurrent sessions remain isolated and topology
+fallback is deterministic. Monitoring remains unimplemented.
+
+Build / Test:
+Accepted evidence: build PASS (0 warnings / 0 errors); 57 caller checks PASS;
+8 extension checks PASS; real negative-coordinate hardware PASS; geometry
+save/relaunch PASS; PARK isolation PASS; navigation while PARKED PASS; RESTORE
+PASS (maximum measured error 0 pixels); relaunch after PARK PASS; GUI acceptance
+PASS. Mixed-DPI and monitor-removal cases have deterministic simulated coverage,
+not physical hardware evidence. M001 regressions remain passing.
+
+Remaining:
+M002 is complete. M003 begins.
 
 Git Commit:
 Recorded externally by Git checkpoint; see repository history.

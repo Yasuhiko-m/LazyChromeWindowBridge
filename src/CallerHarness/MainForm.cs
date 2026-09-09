@@ -4,6 +4,11 @@ internal sealed class MainForm : Form
 {
     private readonly TextBox launchUrl = new() { Text = "https://chatgpt.com/", Dock = DockStyle.Fill, AccessibleName = "Launch URL" };
     private readonly Button launchButton = new() { Text = "&Launch", AutoSize = true, Enabled = false };
+    private readonly Button parkButton = new() { Text = "&Park selected", AutoSize = true, Enabled = false };
+    private readonly Button restoreButton = new() { Text = "&Restore selected", AutoSize = true, Enabled = false };
+    private readonly Label selected = new() { Text = "Select a session to control its window.", AutoSize = true };
+    private bool operating;
+    private Guid? pendingLaunchStatus;
     private readonly Label status = new() { Text = "Status: Starting caller", AutoSize = true, Dock = DockStyle.Fill };
     private readonly DataGridView sessions = new()
     {
@@ -19,7 +24,7 @@ internal sealed class MainForm : Form
     public MainForm(ChromeOptions chrome)
     {
         Text = "LazyChromeExtension Caller Harness";
-        ClientSize = new Size(920, 350);
+        ClientSize = new Size(1080, 400);
         MinimumSize = new Size(700, 300);
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterScreen;
@@ -50,13 +55,16 @@ internal sealed class MainForm : Form
 
         layout.Controls.Add(urlLabel, 0, 0);
         layout.Controls.Add(launchUrl, 1, 0);
-        layout.Controls.Add(launchButton, 1, 1);
+        var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
+        actions.Controls.AddRange([launchButton, parkButton, restoreButton, selected]);
+        layout.Controls.Add(actions, 0, 1);
+        layout.SetColumnSpan(actions, 2);
         layout.Controls.Add(status, 0, 2);
         layout.SetColumnSpan(status, 2);
-        var note = new Label { Text = "Each Launch opens a new session window. Closing this caller leaves Chrome windows open and stops tracking.", AutoSize = true, Margin = new Padding(3, 8, 3, 8) };
+        var note = new Label { Text = "Placement follows the original launch URL. Caller exit restores parked windows and leaves Chrome open.", AutoSize = true, Margin = new Padding(3, 8, 3, 8) };
         layout.Controls.Add(note, 0, 3);
         layout.SetColumnSpan(note, 2);
-        foreach (var (name, width) in new[] { ("Session", 270), ("Window", 105), ("State", 95), ("Launch URL", 360) })
+        foreach (var (name, width) in new[] { ("Session", 270), ("Window", 105), ("State", 155), ("Launch URL", 450) })
             sessions.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = name, Width = width, SortMode = DataGridViewColumnSortMode.NotSortable });
         layout.Controls.Add(sessions, 0, 4);
         layout.SetColumnSpan(sessions, 2);
@@ -82,12 +90,15 @@ internal sealed class MainForm : Form
             try
             {
                 var session = await host.LaunchAsync(launchUrl.Text.Trim());
-                if (!closing) { status.Text = $"Status: {session.State} — {session.AppSessionId}"; RefreshSessions(); }
+                if (!closing) { pendingLaunchStatus = session.AppSessionId; status.Text = $"Status: {session.State} — {session.AppSessionId}"; RefreshSessions(); }
             }
             catch (Exception error) { if (!closing) status.Text = "Status: " + error.Message; }
             finally { if (!closing) launchButton.Enabled = true; }
         };
         refresh.Tick += (_, _) => RefreshSessions();
+        sessions.SelectionChanged += (_, _) => RefreshSelection();
+        parkButton.Click += async (_, _) => await Operate(true);
+        restoreButton.Click += async (_, _) => await Operate(false);
         FormClosing += async (_, args) =>
         {
             if (shutdownComplete) return;
@@ -95,6 +106,7 @@ internal sealed class MainForm : Form
             if (closing) return;
             closing = true;
             launchButton.Enabled = false;
+            parkButton.Enabled = restoreButton.Enabled = false;
             refresh.Stop();
             if (host is not null) await host.DisposeAsync();
             shutdownComplete = true;
@@ -111,10 +123,44 @@ internal sealed class MainForm : Form
         {
             if (sessions.Rows.Count <= i) sessions.Rows.Add();
             var session = current[i];
-            sessions.Rows[i].SetValues(session.AppSessionId, session.WindowId?.ToString() ?? "—", session.State, session.LaunchUrl);
-            sessions.Rows[i].Cells[2].ToolTipText = session.Detail;
+            var geometry = host.Geometry.Get(session.AppSessionId);
+            var placement = session.State == SessionState.Bound ? $"Bound / {geometry?.State.ToString() ?? "Mapping"}" : session.State.ToString();
+            sessions.Rows[i].Tag = session.AppSessionId;
+            sessions.Rows[i].SetValues(session.AppSessionId, session.WindowId?.ToString() ?? "—", placement, session.LaunchUrl);
+            sessions.Rows[i].Cells[2].ToolTipText = geometry?.Error ?? session.Detail;
         }
         while (sessions.Rows.Count > current.Length) sessions.Rows.RemoveAt(sessions.Rows.Count - 1);
-        if (current.LastOrDefault() is { } latest) status.Text = $"Status: {latest.State} — {latest.Detail}";
+        if (pendingLaunchStatus is { } pending && host.Sessions.Get(pending) is { } launched && launched.State != SessionState.Launching)
+        {
+            status.Text = $"Status: {launched.State} — {launched.AppSessionId}";
+            pendingLaunchStatus = null;
+        }
+        RefreshSelection();
+    }
+    private Guid? SelectedId => sessions.CurrentRow?.Tag is Guid id ? id : null;
+    private void RefreshSelection()
+    {
+        var id = SelectedId;
+        var session = id is null ? null : host?.Sessions.Get(id.Value);
+        var geometry = id is null ? null : host?.Geometry.Get(id.Value);
+        selected.Text = session is null ? "Select a session." : $"Window {session.WindowId} · {session.AppSessionId.ToString()[..8]}";
+        var active = !closing && !operating && session?.State == SessionState.Bound && geometry is not null && geometry.State != PlacementState.Closed;
+        parkButton.Enabled = active && geometry?.State == PlacementState.Visible;
+        restoreButton.Enabled = active && geometry?.State != PlacementState.Visible;
+    }
+    private async Task Operate(bool park)
+    {
+        if (host is null || SelectedId is not { } id) return;
+        pendingLaunchStatus = null;
+        operating = true;
+        refresh.Stop();
+        RefreshSelection();
+        try
+        {
+            var result = await Task.Run(() => park ? host.Geometry.Park(id) : host.Geometry.Restore(id));
+            if (!closing) status.Text = $"Status: Window {result.WindowId} / {result.State} — {result.AppSessionId}";
+        }
+        catch (Exception error) { if (!closing) status.Text = "Status: " + error.Message; }
+        finally { operating = false; if (!closing) { RefreshSessions(); refresh.Start(); } }
     }
 }

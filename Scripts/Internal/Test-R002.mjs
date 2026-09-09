@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const chromeExe = path.resolve(process.argv[2]);
+const gui = process.argv.includes('--gui');
 assert.equal(path.basename(chromeExe).toLowerCase(), 'chrome.exe');
 await fs.access(chromeExe);
 // Chrome's Windows singleton identity must use the same canonical path as .NET Path.GetFullPath.
@@ -78,8 +79,8 @@ function nextDriverLine() {
     driverWaiters.push(value => { clearTimeout(timer); resolve(value); });
   });
 }
-async function caller(operation, url) {
-  driver.stdin.write(JSON.stringify({ operation, url }) + '\n');
+async function caller(operation, argumentsOrUrl) {
+  driver.stdin.write(JSON.stringify({ operation, ...(typeof argumentsOrUrl === 'string' ? { url: argumentsOrUrl } : argumentsOrUrl) }) + '\n');
   const response = JSON.parse(await nextDriverLine());
   if (response.error) throw Error(response.error);
   return response.result;
@@ -98,7 +99,15 @@ try {
   assert.equal(manifest.name, 'LazyChromeExtension');
   assert.equal(manifest.manifest_version, 3);
   evidence('browser', { version: version.Browser, profile, manifest });
-  driver = spawn('dotnet', [path.join(root, 'tests/CallerHarness.Tests/bin/Debug/net10.0-windows/CallerHarness.Tests.dll'), '--browser-driver', '--chrome-executable', chromeExe, '--chrome-user-data-dir', profile], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+  if (gui) {
+    driver = spawn(path.join(root, 'src/CallerHarness/bin/Debug/net10.0-windows/CallerHarness.exe'), ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
+    driver.on('exit', () => { driverExited = true; });
+    driver.stderr.on('data', bytes => process.stderr.write(bytes));
+    evidence('GUI-ready', { callerPid: driver.pid, launchUrlA: pageA.url + '/gui-a', launchUrlB: pageB.url + '/gui-b', debuggingPort: port, profile });
+    await until(async () => driverExited, Boolean, 'operator closes CallerHarness after GUI acceptance', 900000);
+    console.log('GUI fixture closed normally. Record observed GUI checks separately.');
+  } else {
+  driver = spawn('dotnet', [path.join(root, 'tests/CallerHarness.Tests/bin/Debug/net10.0-windows/CallerHarness.Tests.dll'), '--browser-driver', '--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
   driver.on('exit', () => { driverExited = true; });
   driver.stderr.on('data', bytes => process.stderr.write(bytes));
   createInterface({ input: driver.stdout }).on('line', line => {
@@ -165,10 +174,15 @@ try {
   await cdp.extension(`chrome.windows.remove(${boundB.windowId})`);
   await until(() => caller('sessions'), list => list.every(s => s.state === 'Closed'), 'both sessions close');
   console.log('PASS: real Chrome integration, same-URL concurrent sessions, cross-origin navigation, close, and MV3 restart.');
+  if (process.argv.includes('--geometry')) {
+    const { testGeometry } = await import('./Test-R003.mjs');
+    await testGeometry({ caller, cdp, until, delay, evidence, pageA, pageB });
+  }
+  }
 } catch (error) {
   process.exitCode = 1;
   console.error(error.stack);
-  if (driver && !driverExited) evidence('failed-caller-state', { sessions: await caller('sessions') });
+  if (driver && !driverExited && !gui) evidence('failed-caller-state', { sessions: await caller('sessions') });
   if (cdp.ws?.readyState === WebSocket.OPEN) {
     const targets = (await cdp.call('Target.getTargets')).targetInfos;
     evidence('failed-targets', { targets: targets.map(t => ({ type: t.type, url: t.url.split('#')[0] })) });

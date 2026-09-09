@@ -42,7 +42,7 @@ Scope when this milestone begins:
 Exit Criteria: the adopted geometry profile and full PARK / RESTORE behavior pass
 validation across supported monitor/DPI configurations without altering ownership.
 
-Status: **In Progress**.
+Status: **Complete**. Chat accepted R003 and its geometry/PARK/RESTORE evidence.
 
 ### M003 — Human monitor + integrated V0 acceptance
 Goal: provide human-only visual monitoring of the PARKED WebApp and complete the
@@ -57,11 +57,11 @@ Scope when this milestone begins:
 Exit Criteria: the complete integrated flow passes acceptance with usable monitoring
 and measured limits; no DOM/OCR/semantic/output extraction or page-content automation.
 
-Status: **Planned**.
+Status: **In Progress**.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- PLAN.md and Revisions.md retain the established R002 authority during candidate work.
+- PLAN.md and Revisions.md retain the established R003 authority during candidate work.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

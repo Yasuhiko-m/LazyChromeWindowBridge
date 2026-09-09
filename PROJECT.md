@@ -18,11 +18,11 @@ CallerHarness to exercise the contract intended for a future real launching appl
 
 ## Product scope
 The product consists of a C# reference/test caller and a Chrome extension.
-Planned behavior binds a stable application-session identity to a launched Chrome
+The reference implementation binds a stable application-session identity to a launched Chrome
 window, preserves that relationship through navigation, and restores window geometry
 according to the launch URL/profile. Later investigation concerns human-only visual
 monitoring while the window is away from the normal visible desktop area.
-These are product goals; SPEC.md separates the scaffold from future behavior.
+SPEC.md distinguishes established behavior, review candidates, and future behavior.
 
 ## Platform / runtime
 Windows, C# / .NET 10 Windows Forms (`net10.0-windows`), and current Google Chrome
@@ -68,7 +68,8 @@ Remotes and pushes require explicit authorization.
 - Monitoring imagery is for the human user only. Monitoring must not use DOM
   scraping, OCR, semantic image analysis, ChatGPT output extraction, or page-content automation.
 - Caller/extension communication uses an authenticated loopback HTTP bootstrap; the
-  established contract is specified in SPEC.md. Special PARK/offscreen mechanisms remain undecided.
+  established contract is specified in SPEC.md. Native placement uses built-in Windows APIs
+  in the caller, with Chrome window ownership retained by the extension contract.
 - Keep the foundation small and request extension permissions only for implemented needs.
 
 ## External dependencies

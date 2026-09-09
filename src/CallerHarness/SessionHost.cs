@@ -16,13 +16,16 @@ internal sealed class SessionHost : IAsyncDisposable
     private readonly ChromeOptions chrome;
     private readonly System.Threading.Timer expiryTimer;
     public SessionRegistry Sessions { get; } = new();
+    public GeometryCoordinator Geometry { get; }
     public Guid BridgeId { get; } = Guid.NewGuid();
     public Uri BaseUri { get; private set; } = null!;
     private SessionHost(WebApplication server, ChromeOptions chrome)
     {
         this.server = server;
         this.chrome = chrome;
-        expiryTimer = new System.Threading.Timer(_ => Sessions.Sweep(DateTimeOffset.UtcNow), null, 1000, 1000);
+        Geometry = new GeometryCoordinator(Sessions, new NativeWindows(), new GeometryStore(chrome.GeometryDirectory ??
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LazyChromeExtension", "Geometry")), chrome.Executable);
+        expiryTimer = new System.Threading.Timer(_ => { Sessions.Sweep(DateTimeOffset.UtcNow); Geometry.Poll(DateTimeOffset.UtcNow); }, null, 500, 500);
     }
     public static async Task<SessionHost> StartAsync(ChromeOptions chrome)
     {
@@ -44,9 +47,9 @@ internal sealed class SessionHost : IAsyncDisposable
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";
             await next(context);
         });
-        server.MapGet(Prefix + "/bootstrap", () => Results.Content("""
+        server.MapGet(Prefix + "/bootstrap", (HttpContext context) => Results.Content($"""
             <!doctype html><html lang="en"><meta charset="utf-8">
-            <meta name="referrer" content="no-referrer"><title>LazyChromeExtension session launch</title>
+            <meta name="referrer" content="no-referrer"><title>{(Guid.TryParse(context.Request.Query["session"], out var id) ? GeometryCoordinator.Marker(id) : "LazyChromeExtension session launch")}</title>
             <h1>Opening your session</h1><p>LazyChromeExtension will bind this window and open the launch URL.</p>
             <p>If this page remains, check CallerHarness and enable the extension in this Chrome profile.</p></html>
             """, "text/html"));
@@ -55,17 +58,22 @@ internal sealed class SessionHost : IAsyncDisposable
             if (!host.Authorized(context, id)) return Results.Unauthorized();
             var session = host.Sessions.Get(id)!;
             if (session.State is SessionState.Closed or SessionState.Failed) return Results.Conflict();
-            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl });
+            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl, nativeGeometry = true });
         });
         server.MapPost(Prefix + "/api/sessions/{id:guid}/{action}", async (Guid id, string action, HttpContext context) =>
         {
             if (!host.Authorized(context, id)) return Results.Unauthorized();
-            if (action is not ("bind" or "closed")) return Results.NotFound();
+            if (action is not ("bind" or "closed" or "native")) return Results.NotFound();
             if (!context.Request.HasJsonContentType()) return Results.StatusCode(415);
             WindowReport? report;
             try { report = await context.Request.ReadFromJsonAsync<WindowReport>(context.RequestAborted); }
             catch (System.Text.Json.JsonException) { return Results.BadRequest(); }
             if (report is null || !host.Sessions.Report(id, report, action == "closed", DateTimeOffset.UtcNow)) return Results.Conflict();
+            if (action == "native")
+            {
+                try { return await Task.Run(() => host.Geometry.EnsureMapped(id)) ? Results.Ok() : Results.StatusCode(503); }
+                catch (Exception) { return Results.StatusCode(503); }
+            }
             return Results.Ok();
         });
         try
@@ -86,7 +94,7 @@ internal sealed class SessionHost : IAsyncDisposable
     internal (SessionSnapshot Session, Uri Bootstrap) PrepareLaunch(string url)
     {
         var (session, token) = Sessions.Create(url, DateTimeOffset.UtcNow);
-        var bootstrap = new Uri(BaseUri, Prefix + $"/bootstrap#v=1&bridge={BridgeId:D}&session={session.AppSessionId:D}&token={token}");
+        var bootstrap = new Uri(BaseUri, Prefix + $"/bootstrap?session={session.AppSessionId:D}#v=1&bridge={BridgeId:D}&session={session.AppSessionId:D}&token={token}");
         return (session, bootstrap);
     }
     public async Task<SessionSnapshot> LaunchAsync(string url)
@@ -99,6 +107,7 @@ internal sealed class SessionHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await expiryTimer.DisposeAsync();
+        await Task.Run(Geometry.Dispose);
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         try { await server.StopAsync(stop.Token); }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }

@@ -36,12 +36,13 @@ export class BindingManager {
     const url = new URL(message.url);
     if (sender.id !== this.browser.runtime.id || sender.frameId !== 0 || !sender.tab || sender.tab.incognito ||
         sender.url !== url.href || url.protocol !== "http:" || url.hostname !== "127.0.0.1" ||
-        !url.port || url.username || url.password || url.pathname !== PREFIX + "/bootstrap" || url.search)
+        !url.port || url.username || url.password || url.pathname !== PREFIX + "/bootstrap")
       throw new Error("Invalid bootstrap sender.");
     const fragment = new URLSearchParams(url.hash.slice(1));
     const appSessionId = fragment.get("session"), bridgeId = fragment.get("bridge"), token = fragment.get("token");
     if (fragment.get("v") !== "1" || !GUID.test(appSessionId ?? "") || !GUID.test(bridgeId ?? "") || !/^[A-F0-9]{64}$/.test(token ?? ""))
       throw new Error("Invalid bootstrap capability.");
+    if (url.search && url.search !== `?session=${appSessionId}`) throw new Error("Invalid bootstrap marker.");
     const records = await this.records();
     const existing = records.find(record => record.appSessionId === appSessionId);
     if (existing) {
@@ -59,6 +60,7 @@ export class BindingManager {
     if (description.appSessionId !== appSessionId || description.bridgeId !== bridgeId ||
         !["http:", "https:"].includes(new URL(description.launchUrl).protocol)) throw new Error("Caller identity mismatch.");
     record.launchUrl = description.launchUrl;
+    record.nativePending = description.nativeGeometry === true;
     // Persist before acknowledging to the caller; a worker restart can replay the idempotent bind.
     await this.save(record);
     await this.reconcileRecord(record);
@@ -71,6 +73,11 @@ export class BindingManager {
       }
       await this.requestSession(record, record.closed ? "closed" : "bind");
       if (record.closed) { await this.remove(record); return; }
+      if (record.nativePending) {
+        await this.requestSession(record, "native");
+        record.nativePending = false;
+        await this.save(record);
+      }
       if (record.navigationPending) {
         let tab;
         try { tab = await this.browser.tabs.get(record.tabId); } catch { /* The window, not this tab, owns the session. */ }

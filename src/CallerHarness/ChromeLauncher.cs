@@ -3,11 +3,11 @@ using Microsoft.Win32;
 
 namespace CallerHarness;
 
-internal sealed record ChromeOptions(string Executable, string? UserDataDirectory)
+internal sealed record ChromeOptions(string Executable, string? UserDataDirectory, string? GeometryDirectory = null)
 {
     public static ChromeOptions Parse(string[] args)
     {
-        string? executable = null, profile = null;
+        string? executable = null, profile = null, geometry = null;
         for (var i = 0; i < args.Length; i++)
         {
             if (i + 1 >= args.Length) throw new ArgumentException("Expected a value after the Chrome option.");
@@ -15,6 +15,7 @@ internal sealed record ChromeOptions(string Executable, string? UserDataDirector
             {
                 case "--chrome-executable": executable = args[++i]; break;
                 case "--chrome-user-data-dir": profile = args[++i]; break;
+                case "--geometry-directory": geometry = args[++i]; break;
                 default: throw new ArgumentException($"Unknown option: {args[i]}");
             }
         }
@@ -22,7 +23,7 @@ internal sealed record ChromeOptions(string Executable, string? UserDataDirector
         if (!File.Exists(executable) || !string.Equals(Path.GetFileName(executable), "chrome.exe", StringComparison.OrdinalIgnoreCase) ||
             !((FileVersionInfo.GetVersionInfo(executable).ProductName ?? "").Contains("Chrome", StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException("Select an existing Google Chrome or Chrome for Testing chrome.exe.");
-        return new ChromeOptions(executable, profile is null ? null : Path.GetFullPath(profile));
+        return new ChromeOptions(executable, profile is null ? null : Path.GetFullPath(profile), geometry is null ? null : Path.GetFullPath(geometry));
     }
     private static string FindInstalledChrome()
     {

@@ -41,7 +41,7 @@ function fixture() {
     tabs.set(tabId, { windowId, url });
     return { message: { url }, sender: { id: browser.runtime.id, frameId: 0, tab: { id: tabId, windowId }, url }, appSessionId };
   }
-  return { data, windows, tabs, reports, browser, request, bootstrap, setOffline(value) { offline = value; } };
+  return { data, windows, tabs, reports, descriptions, browser, request, bootstrap, setOffline(value) { offline = value; } };
 }
 
 test('same production rehydration path preserves two bindings and arbitrary navigation', async () => {
@@ -103,4 +103,34 @@ test('only the trusted top-frame local bootstrap sender is accepted', async () =
   for (const sender of [{ ...a.sender, frameId: 1 }, { ...a.sender, id: 'another-extension' }, { ...a.sender, url: 'https://example.test/' }])
     await assert.rejects(manager.bootstrap(a.message, sender));
   assert.equal((await manager.records()).length, 0);
+});
+
+test('native mapping must acknowledge before navigation; cold recovery retries the same window', async () => {
+  const f = fixture(), a = f.bootstrap(11, 101);
+  f.descriptions.get(a.appSessionId).nativeGeometry = true;
+  const url = new URL(a.message.url);
+  url.search = `?session=${a.appSessionId}`;
+  a.message.url = a.sender.url = url.href;
+  f.tabs.get(101).url = url.href;
+  let available = false;
+  const request = async (url, options) => url.endsWith('/native') && !available ? { ok: false, status: 503 } : f.request(url, options);
+  const manager = new BindingManager(f.browser, request);
+  await assert.rejects(manager.bootstrap(a.message, a.sender));
+  assert.equal(f.tabs.get(101).url, url.href);
+  assert.equal((await manager.records())[0].nativePending, true);
+  available = true;
+  await new BindingManager(f.browser, request).reconcile();
+  assert.equal(f.tabs.get(101).url, f.descriptions.get(a.appSessionId).launchUrl);
+  assert.equal(f.reports.at(-1).action, 'native');
+  assert.equal(f.reports.at(-1).windowId, 11);
+  assert.equal((await manager.records())[0].nativePending, false);
+});
+
+test('native marker query cannot claim another session or extra parameters', async () => {
+  const f = fixture(), a = f.bootstrap(11, 101);
+  for (const query of [`?session=${crypto.randomUUID()}`, `?session=${a.appSessionId}&extra=1`]) {
+    const url = new URL(a.message.url); url.search = query;
+    await assert.rejects(new BindingManager(f.browser, f.request).bootstrap({ url: url.href }, { ...a.sender, url: url.href }));
+  }
+  assert.equal(Object.keys(f.data).length, 0);
 });

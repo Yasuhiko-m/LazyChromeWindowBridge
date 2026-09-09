@@ -22,6 +22,12 @@ if (args.FirstOrDefault() == "--browser-driver")
             {
                 "launch" => await host.LaunchAsync(command.RootElement.GetProperty("url").GetString()!),
                 "sessions" => host.Sessions.GetAll(),
+                "geometry" => host.Geometry.Get(command.RootElement.GetProperty("id").GetGuid())!,
+                "park" => host.Geometry.Park(command.RootElement.GetProperty("id").GetGuid()),
+                "restore" => host.Geometry.Restore(command.RootElement.GetProperty("id").GetGuid()),
+                "move" => host.Geometry.MoveForTest(command.RootElement.GetProperty("id").GetGuid(), command.RootElement.GetProperty("rect").Deserialize<PixelRect>(json)!),
+                "monitors" => host.Geometry.Monitors(),
+                "profile" => host.Geometry.Profile(command.RootElement.GetProperty("url").GetString()!)!,
                 _ => throw new ArgumentException("Unknown test-driver operation.")
             };
             Console.WriteLine("R002 " + JsonSerializer.Serialize(new { result }, json));
@@ -92,3 +98,6 @@ await using (var host = await SessionHost.StartAsync(new ChromeOptions("unused-b
     Check(!(await client.SendAsync(preflight)).Headers.Contains("Access-Control-Allow-Origin"), "no website CORS grant");
 }
 Console.WriteLine($"PASS: {count} caller/transport checks.");
+var beforeGeometry = count;
+GeometryTests.Run(Check);
+Console.WriteLine($"PASS: {count - beforeGeometry} geometry checks; {count} total caller checks.");
