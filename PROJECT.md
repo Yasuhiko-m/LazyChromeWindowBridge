@@ -1,88 +1,50 @@
-# LazyChromeExtension — Project Definition
+# LazyChromeWindowBridge — Project Definition
 
 ## Identity
 - ProjectID: `LazyChromeExtension`
-- ProjectName: `LazyChromeExtension`
+- ProductName: `LazyChromeWindowBridge`
 - SourcePath: `C:\LazyAIDeckProjects\LazyChromeExtension`
 - Project Data Path: `C:\LazyAIDeckData\Projects\LazyChromeExtension`
 
-ProjectID is immutable. Do not substitute display name or folder for it. Web Project URLs and managed execution bindings are mutable Controller/runtime state, not stable Source identity.
+ProjectID and registered Source are immutable governance identity. Product/repository
+name is separate. Project Data is Controller-owned and is not an implementation root.
 
-## Purpose
-Establish Windows integration between a launching application and a Chrome
-window containing a Web application. The initial target Web application is ChatGPT.
+## Purpose and users
+Provide an independent reusable Windows application-to-Chrome bridge for deterministic
+session/window/native ownership, launch-URL Normal geometry, offscreen PARK/RESTORE,
+manual physical-pixel placement and human-only PARKED thumbnails. Consumers are
+Windows application developers and the humans using their launched web applications.
+Lazy AI Deck is one possible consumer, not the owner/container of this runtime.
 
-## Users
-The Windows user operating the launched Web application, and developers using
-CallerHarness to exercise the contract intended for a future real launching application.
+## Product structure
+Core is a net10.0-windows library with a public BridgeRuntime façade. It has no
+WinForms/WPF UI type dependency. The MV3 extension handles exact binding, worker
+recovery and pixel capture. SampleCaller is a separate WinForms public-API consumer.
+Core provides encoded frame bytes/metadata; presentation remains with the consumer.
 
-## Product scope
-The product consists of a C# reference/test caller and a Chrome extension.
-The reference implementation binds a stable application-session identity to a launched Chrome
-window, preserves that relationship through navigation, and restores window geometry
-according to the launch URL/profile. Human-only visual monitoring provides independent
-thumbnails of PARKED owned windows. Visible windows need no capture. The Windows
-caller controls manual physical-pixel bounds as well as explicit PARK/RESTORE.
-SPEC.md distinguishes established behavior, review candidates, and future behavior.
-
-## Platform / runtime
-Windows, C# / .NET 10 Windows Forms (`net10.0-windows`), and current Google Chrome
-with a Manifest V3 extension. Development uses an installed Windows .NET 10 SDK;
-the framework-dependent caller requires the .NET 10 Windows Desktop and ASP.NET Core
-shared runtimes. Kestrel supplies the caller-owned loopback HTTP/WebSocket listener.
-Chrome's debugger extension permission supplies bounded JPEG viewport capture;
-the caller renders the pixels with built-in Windows desktop imaging facilities.
-
-## Paths
-Source: `C:\LazyAIDeckProjects\LazyChromeExtension`
-Project Data: `C:\LazyAIDeckData\Projects\LazyChromeExtension`
-
-Source is versioned product/project authority.
-Project Data is Lazy AI Deck Controller operational space and not a second Codex root. WorkspacePath is legacy migration input only.
-
-## Roles
-Chat = decision/planning.
-Codex = Source Executor.
-Lazy AI Deck = local execution/observation/routing/state.
-
-## Project documents
-AGENTS.md
-PROJECT.md
-PLANS.md
-Revisions.md
-SPEC.md
-Exchange-Protocol.md
-CHATGPT-PARAMS.md
-CHANGELOG.md (transient)
-
-Legacy Projects may temporarily retain PLAN.md until VMR-authority migration completes.
-
-## Git policy
-Git mode: `ON` (local Source repository).
-
-Use active Project governance for completion rules. Implementation changes remain
-uncommitted for Chat review unless a task explicitly authorizes a local checkpoint.
-Remotes and pushes require explicit authorization.
+Runtime dependencies are the built-in .NET10, ASP.NET Core and Windows Desktop
+shared frameworks, native Windows APIs and Chrome120+. Desktop GDI+ supplies bounded
+JPEG decoding without a Core UI control dependency. No third-party NuGet/npm package
+is adopted. PowerShell7 and Node.js22+ support Source validation.
 
 ## Stable constraints
-- Source is the only implementation root; Project Data is Controller-owned.
-- Launch URL and application-session identity have distinct meanings. Later page
-  navigation must not redefine session ownership during the launched window's lifetime.
-- Monitoring imagery is for the human user only. Monitoring must not use DOM
-  scraping, OCR, semantic image analysis, ChatGPT output extraction, or page-content automation.
-- Caller/extension communication uses an authenticated loopback HTTP bootstrap and
-  capability-authenticated WebSocket pixel transport; the
-  established contract is specified in SPEC.md. Native placement uses built-in Windows APIs
-  in the caller, with Chrome window ownership retained by the extension contract.
-- Keep the foundation small and request extension permissions only for implemented needs.
+- Original launch URL is profile metadata; subsequent navigation never redefines ownership.
+- Manual bounds apply only to the exact live Visible native window, in physical pixels.
+- PARK/RESTORE are explicit; Normal cannot learn PARK geometry.
+- Monitoring is PARKED-only, independent per session and for human viewing only.
+- No DOM/OCR/semantic/output extraction, completion detection or autonomous page decisions.
+- Loopback transport is capability-authenticated; there is no cloud relay or telemetry.
+- Keep public integration small; internal coordinators are not a consumer contract.
+- No dependency installation, remote change or publication is implicit.
 
-## External dependencies
-Use built-in Windows/.NET desktop facilities and Chrome extension APIs. No third-party
-NuGet or JavaScript packages are adopted. Add external dependencies only when an
-explicit task permits them; do not install SDKs or system software implicitly.
+## Governance and distribution
+Chat owns acceptance/planning; Codex executes Source work. PLAN.md/Revisions.md record
+established VMR, PLANS.md the roadmap, SPEC.md the current contract, and CHANGELOG.md
+the transient current-task handoff. AGENTS.md and Exchange-Protocol.md govern execution.
+CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
-## Distribution
-Development scaffold only: a locally built caller and an unpacked extension.
-No installer, store publication, or public distribution is established.
-
-Do not store moving Current Revision state in PROJECT.md.
+Local Git is enabled. Candidate revisions remain unstaged/uncommitted for Chat review
+unless the active task explicitly authorizes an accepted-baseline checkpoint.
+The project is pre-release and prepared for a private repository baseline; repository
+creation/push waits for explicit accepted-task authorization. An eventual public
+license is not yet selected. No installer/store/package distribution is established.

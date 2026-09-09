@@ -1,0 +1,15 @@
+{
+  "purpose": "Immutable governance and historical Revision references only; no runtime exceptions.",
+  "rules": [
+    { "path": "AGENTS.md", "linePattern": ".*", "reason": "Protected inherited ProjectID/governance, byte integrity checked separately." },
+    { "path": "Exchange-Protocol.md", "linePattern": ".*", "reason": "Protected inherited wire/governance history, byte integrity checked separately." },
+    { "path": "PLAN.md", "linePattern": "^# <project-id> PLAN$", "reason": "Immutable established ProjectID authority header." },
+    { "path": "Revisions.md", "linePattern": ".*", "reason": "Established semantic Revision records preserve historical identifiers and paths." },
+    { "path": "PROJECT.md", "linePattern": "^- (ProjectID|SourcePath|Project Data Path):", "reason": "Immutable registered ProjectID and Source/Controller paths." },
+    { "path": "PLANS.md", "linePattern": "^ProjectID and registered Source stay <project-id>\\.", "reason": "Explicit unchanged governance identity in milestone roadmap." },
+    { "path": "SPEC.md", "linePattern": "^(ProjectID:|Source:)", "reason": "Immutable ProjectID and registered Source authority." },
+    { "path": "docs/identity.md", "linePattern": "^The permanent Lazy AI Deck ProjectID is", "reason": "Immutable ProjectID explanation." },
+    { "path": "docs/identity.md", "linePattern": "^The registered Source stays", "reason": "Immutable registered Source path explanation." },
+    { "path": "docs/identity.md", "linePattern": "^Historical pre-release <project-id> geometry data", "reason": "Explicit historical data non-migration boundary; not a runtime alias." }
+  ]
+}

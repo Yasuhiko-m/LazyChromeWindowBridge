@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V0-M004-R005`
+- Current VMR: `V0-M005-R006`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -179,3 +179,45 @@ measurements and simulated mixed-DPI/topology coverage retain their stated limit
 
 Git Commit:
 Recorded externally by Git checkpoint; see repository history.
+
+### LazyChromeExtension_V0-M005-R006 — productize-refactor
+
+Purpose:
+Establish LazyChromeWindowBridge as an independent reusable Windows-to-Chrome
+product while retaining the accepted R005 runtime behavior and immutable ProjectID.
+
+Result:
+Accepted by Chat as the final V0 Source Revision. Solution, projects, directories,
+namespaces, runtime markers, bootstrap paths and extension/sample display identity
+use LazyChromeWindowBridge. Core provides the public BridgeRuntime facade and
+encoded frame metadata/bytes without WinForms/WPF UI type references. The separate
+WinForms SampleCaller uses only that public API; the MV3 extension retains exact
+session/window ownership and PARKED-only capture. Stable Test-All validation and
+architecture/integration/security/limitations documentation are established.
+Defaults remain 2 fps, maximum 240x135, JPEG70; native shrinking remains rejected.
+
+Build / Test:
+Clean restore/build PASS, 0 warnings / 0 errors. 96 Core checks, 17 independent
+public API checks and 17 extension checks PASS. Complete real-browser/native
+regressions and five-session public-API GUI acceptance PASS. Four PARKED streams
+updated independently at approximately 1.98-1.99 fps; Visible remained ACTIVE with
+zero frames/bytes and no capture debugger attachment. Negative physical placement,
+same-HWND RESTORE and normal-shutdown restoration measured 0 px error. Shutdown
+left zero monitor connections/captures and detached all owned debugger targets.
+Source audit: 60 files, zero violations; 24 prior residual occurrences explicitly
+allowlisted as immutable governance/history. This new history heading is another
+intentional ProjectID reference. No runtime old-name aliases or new external
+NuGet/npm packages. Protected governance hashes and inherited diff were unchanged.
+
+Remaining:
+M005 Complete. V0 Complete. Two earlier initial offscreen captures timed out;
+the full final run and third-monitor GUI passed without weakening assertions or
+timeouts. The intermittent cause remains unconfirmed and documented. Short neutral
+page measurements, physical 96-DPI coverage, simulated mixed-DPI/topology cases,
+installed-Chrome consent, full-restart and forced-termination limits remain.
+Private GitHub baseline publication is authorized after checkpoint; public release
+and licensing are not established. No further implementation is authorized here.
+
+Git Commit:
+Checkpoint subject: feat: establish V0-M005-R006 LazyChromeWindowBridge.
+Exact commit and publication verification are recorded by Git and the task report.

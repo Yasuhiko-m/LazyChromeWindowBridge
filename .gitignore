@@ -8,3 +8,14 @@
 # Root transient task handoff.
 /CHANGELOG.md
 /Scripts/Outputs/
+
+# Local test/browser evidence, profiles and credentials are never repository Source.
+/artifacts/
+/evidence/
+/profiles/
+/tmp/
+/TEMP/
+*.log
+.env
+.env.*
+!.env.example

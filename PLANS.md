@@ -1,4 +1,4 @@
-# LazyChromeExtension PLANS
+# LazyChromeWindowBridge PLANS
 
 ## Project goal
 Complete a Windows caller / Chrome extension reference implementation that keeps
@@ -14,8 +14,11 @@ Exit Criteria:
 - Geometry persistence and exact PARK / RESTORE behavior.
 - Human-only visual monitoring and integrated acceptance of the complete flow.
 
+Status: **Complete**. Chat accepted V0-M005-R006 as the final V0 Source Revision.
+M001 through M005 are complete; later product work requires a new task.
+
 ### M001 — Session-bound browser window
-Goal: CallerHarness launches/initiates a Chrome WebApp session and maintains a
+Goal: the Windows sample launches/initiates a Chrome WebApp session and maintains a
 stable appSessionId ↔ Chrome Window relationship across ordinary page navigation.
 
 Exit Criteria:
@@ -51,7 +54,7 @@ end-to-end V0 reference flow.
 Scope when this milestone begins:
 - Capture/stream implementation.
 - Practical resolution, fps, and load measurement.
-- CallerHarness preview and the human-view-only boundary.
+- the Windows sample preview and the human-view-only boundary.
 - Integrated flow: launch → bind → restore geometry → PARK → monitor → RESTORE.
 
 Exit Criteria: the complete integrated flow passes acceptance with usable monitoring
@@ -73,13 +76,17 @@ Goal: adopt final product name LazyChromeWindowBridge; complete class/file/direc
 namespace/project rename; reusable Core / Extension / Sample separation; public
 documentation/security/setup; private GitHub baseline and later public release.
 LazyAIDeck is a consumer, not the owner/container of this project.
-Status: **In Progress**. R006 productize-refactor is the final V0 candidate Revision.
-ProjectID and registered Source stay LazyChromeExtension. GitHub creation/push waits
-until Chat accepts R006.
+Status: **Complete**. Chat accepted R006 productize-refactor as
+the final V0 Source Revision: renamed clean build, 96 Core + 17 public API checks,
+17 extension tests, complete real-browser regressions and five-session sample GUI PASS.
+Initial offscreen capture timeout observations remain documented limitations.
+ProjectID and registered Source stay LazyChromeExtension. Private GitHub creation,
+main push and the v0.1.0 baseline tag are explicitly authorized after the accepted
+checkpoint. Public visibility and licensing remain deferred.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- PLAN.md and Revisions.md retain the established R005 authority during candidate work.
+- PLAN.md and Revisions.md establish accepted V0-M005-R006; V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.
