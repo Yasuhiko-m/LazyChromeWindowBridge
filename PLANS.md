@@ -107,9 +107,24 @@ on a fresh-profile rerun; the initial run reproduced the documented capture time
 The user explicitly authorizes normal push, PUBLIC visibility and Release v0.1.0.
 Publication is a subsequent operation verified against the accepted checkpoint.
 
+### M003 — Official Package Distribution
+Goal: prepare the Core 0.1.0 NuGet package and Chrome Web Store extension 0.1.0
+distribution without changing runtime functionality.
+Status: **Complete**. Chat accepted R009: package metadata/readme/icon/symbols,
+manual-only SHA-pinned OIDC Trusted Publishing, original extension icon family,
+real 1280x800 store screenshot, 440x280 promo, privacy policy, dashboard/reviewer
+copy and deterministic ten-file CWS ZIP. Clean standard full validation passed
+121 Core / 19 public API / 33 extension checks, local NuGet consumer and complete
+real browser/native/monitor/download regressions. The third-display initial capture
+timeout reproduced twice and remains unresolved; standard primary-display tests
+and the third-display real GUI capture passed. No assertions/timeouts were weakened.
+NuGet publication follows the accepted checkpoint, normal push and duplicate-version
+preflight. CWS upload and submission remain deferred to an interactive user task.
+The existing GitHub v0.1.0 tag/Release and runtime functionality are unchanged.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M002-R008; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M003-R009; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

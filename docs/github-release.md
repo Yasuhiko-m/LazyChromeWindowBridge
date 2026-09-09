@@ -1,5 +1,10 @@
 # GitHub release preparation
 
+This is the historical R008 GitHub-release procedure. For current R009 NuGet and
+Chrome Web Store candidate packaging, use the [distribution preparation notes](releases/v0.1.0-distribution.md).
+The current packaging wrapper emits the CWS ZIP; do not use these historical commands
+to replace the published GitHub assets or tag.
+
 These are post-acceptance maintainer instructions, not a script to run during candidate
 work. At R008 preparation the repository is PRIVATE. R008 does not push, tag, publish, change
 remote configuration, visibility, About settings or another website.

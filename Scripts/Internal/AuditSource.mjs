@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { publicImages } from './PublicImages.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const projectId = ['Lazy', 'Chrome', 'Extension'].join('');
@@ -14,13 +15,13 @@ const rules = policy.rules.map(r => ({ ...r, regex: new RegExp(r.linePattern.rep
 const listed = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
   { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))].sort();
 const files = [], residuals = [], violations = [];
-const publicImage = 'docs/images/monitor-overview.png'; // Independently hash/privacy checked by AuditPublicRelease.
+const publicImagePaths = new Set(publicImages.map(([name]) => name));
 for (const relative of listed) {
   let bytes;
   try { bytes = await fs.readFile(path.join(root, relative)); }
   catch (error) { if (error.code === 'ENOENT') continue; throw error; } // Deleted old paths are not current Source.
   files.push(relative);
-  if (relative === publicImage) continue;
+  if (publicImagePaths.has(relative)) continue; // Independently hash/privacy checked by AuditPublicRelease.
   if (oldTerms.some(term => relative.includes(term))) violations.push({ path: relative, kind: 'old-name-path' });
   if (/(^|\/)(bin|obj|Outputs|profiles|evidence|TEMP|tmp)(\/|$)|\.(log|png|jpg|jpeg|pdb|dll|exe)$/i.test(relative))
     violations.push({ path: relative, kind: 'generated-or-private-artifact' });
@@ -42,6 +43,9 @@ const extensionRoot = path.join(root, 'src/LazyChromeWindowBridge.Extension');
 const manifest = JSON.parse(await fs.readFile(path.join(extensionRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'LazyChromeWindowBridge');
 assert.equal(manifest.manifest_version, 3);
+assert.equal(manifest.version, '0.1.0');
+assert.deepEqual(manifest.icons, Object.fromEntries([16,32,48,128].map(size => [size, `icons/icon-${size}.png`])));
+assert(!Object.hasOwn(manifest, 'action'), 'No unnecessary toolbar action.');
 assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'downloads', 'storage']);
 assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1/*']);
 assert.deepEqual(manifest.content_scripts[0].matches, ['http://127.0.0.1/lazy-chrome-window-bridge/bootstrap*']);

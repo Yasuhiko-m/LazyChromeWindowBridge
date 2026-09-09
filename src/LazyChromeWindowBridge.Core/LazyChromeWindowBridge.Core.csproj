@@ -3,8 +3,26 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>LazyChromeWindowBridge.Core</PackageId>
+    <Title>LazyChromeWindowBridge.Core</Title>
+    <PackageProjectUrl>https://github.com/Yasuhiko-m/LazyChromeWindowBridge</PackageProjectUrl>
+    <PackageTags>chrome;windows;win32;browser-integration;window-management;multi-monitor</PackageTags>
+    <PackageIcon>icon-128.png</PackageIcon>
+    <Version>0.1.0</Version>
+    <Authors>Yasuhiko Mori</Authors>
+    <Description>Windows-to-Chrome session ownership, native PARK/RESTORE, human-only monitoring and read-only download lifecycle events.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Yasuhiko-m/LazyChromeWindowBridge</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <DebugType>portable</DebugType>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="../../docs/nuget.md" Pack="true" PackagePath="/README.md" />
+    <None Include="../LazyChromeWindowBridge.Extension/icons/icon-128.png" Pack="true" PackagePath="/icon-128.png" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <!-- Built-in Windows GDI+ image decoding; no WinForms/WPF UI types are used. -->
     <FrameworkReference Include="Microsoft.WindowsDesktop.App" />

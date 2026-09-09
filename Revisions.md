@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M002-R008`
+- Current VMR: `V1-M003-R009`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,53 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M003-R009 — official-package-distribution
+
+Purpose:
+Establish official Core NuGet and Chrome Web Store distribution preparation while
+preserving the accepted runtime and the already-published GitHub v0.1.0 baseline.
+
+Result:
+Accepted by Chat. M003 Official Package Distribution is Complete. Core 0.1.0 has
+MIT/readme/project/repository/tags/icon metadata, portable symbols and an isolated
+local PackageReference consumer gate. SDK 10.0.400 and publishing actions are pinned.
+The manual-only main-branch publish-nuget.yml uses environment release and OIDC with
+contents:read/id-token:write; no long-lived API-key secret or duplicate suppression.
+Chrome Web Store 0.1.0 preparation includes original transparent 16/32/48/128 icons,
+manifest icons without a toolbar action, actual 1280x800 SampleCaller screenshot,
+original 440x280 promo, public privacy policy, permission/privacy/reviewer copy and
+a deterministic ten-file ZIP. No production C# or extension JavaScript changed.
+
+Build / Test:
+20260909-215716864-Test-NuGet.log: Release build 0 warnings/errors; 121 Core,
+19 public API, 33 extension checks; exact package metadata/icon/symbol audit and
+19 local-feed consumer checks PASS. actionlint 1.7.12, PowerShell syntax, exact
+Trusted Publishing tuple, repository/environment secret inventory and scoped
+whitespace/path gates PASS. Altered package icon is rejected by the audit.
+20260909-221406063-Test-All.log: clean standard primary-display full validation,
+0 warnings/errors, all existing deterministic tests, real download/session/native
+geometry/monitor/five-session regressions, source/privacy/image/link/ZIP audits,
+Exit 0. Every browser mode loads the exact CWS ZIP extraction; entry hashes match.
+Actual third-display isolated GUI: one ACTIVE plus four PARKED/LIVE and normal close.
+CWS ZIP: 28042 bytes, repeated identical SHA256
+A20C7781501F2DC43C8133D9C3F0EAD165E5E94BE6F4C0B3CACAACC3CED52A31.
+Store screenshot: 1280x800, SHA256
+1C689BFBBB228286D409CE0ACE7CFD686F48CB0BED3C2B15D266B6A07B2C8D2B.
+
+Remaining:
+Third-display automatic monitor runs 20260909-220724361-Test-All.log and
+20260909-221059687-Test-All.log reproduced the initial PARKED capture timeout.
+The root cause is unresolved. Primary-display full validation and third-display
+GUI success do not establish a fix. No timeout, assertion or runtime was weakened.
+Existing privacy/capacity/DPI/restart limitations remain. NuGet dispatch/publication
+is explicitly authorized only after checkpoint/push/preflight; its outcome is
+recorded in the closeout handoff. CWS upload/item creation/submission remains deferred.
+No GitHub v0.1.0 tag/Release change or further runtime implementation is authorized.
+
+Git Commit:
+Checkpoint subject: build: establish V1-M003-R009 official package distribution.
+Exact SHA and remote/publishing verification are recorded by Git and the closeout report.
 
 ### V1-M002-R008 — public-release-preparation
 

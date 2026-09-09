@@ -11,6 +11,9 @@ import assert from 'node:assert/strict';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const chromeExe = path.resolve(process.argv[2]);
 const gui = process.argv.includes('--gui');
+const extensionArgument = process.argv.indexOf('--extension-directory');
+const extensionRoot = extensionArgument < 0 ? path.join(root, 'src/LazyChromeWindowBridge.Extension') : path.resolve(process.argv[extensionArgument + 1]);
+await fs.access(path.join(extensionRoot, 'manifest.json'));
 const testWindowPosition = process.env.LCWB_TEST_WINDOW_POSITION;
 if (testWindowPosition) assert.match(testWindowPosition, /^-?\d+,-?\d+$/);
 assert.equal(path.basename(chromeExe).toLowerCase(), 'chrome.exe');
@@ -92,7 +95,7 @@ async function caller(operation, argumentsOrUrl) {
 }
 function evidence(label, value) { console.log(JSON.stringify({ check: label, ...value })); }
 try {
-  browser = spawn(chromeExe, [`--user-data-dir=${profile}`, `--load-extension=${path.join(root, 'src/LazyChromeWindowBridge.Extension')}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check', ...(testWindowPosition ? ['--window-position=' + testWindowPosition] : []), 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: false });
+  browser = spawn(chromeExe, [`--user-data-dir=${profile}`, `--load-extension=${extensionRoot}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check', ...(testWindowPosition ? ['--window-position=' + testWindowPosition] : []), 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: false });
   browser.on('exit', () => { browserExited = true; });
   browser.stderr.on('data', bytes => { browserStderr += bytes.toString(); });
   const port = await until(async () => {
@@ -103,7 +106,8 @@ try {
   const manifest = await cdp.extension('chrome.runtime.getManifest()');
   assert.equal(manifest.name, 'LazyChromeWindowBridge');
   assert.equal(manifest.manifest_version, 3);
-  evidence('browser', { version: version.Browser, profile, manifest, testWindowPosition });
+  assert.equal(manifest.version, '0.1.0');
+  evidence('browser', { version: version.Browser, profile, manifest, extensionRoot, testWindowPosition });
   if (gui) {
     driver = spawn(path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows/LazyChromeWindowBridge.SampleCaller.exe'), ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
     driver.on('exit', () => { driverExited = true; });

@@ -1,0 +1,71 @@
+name: Publish NuGet
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: publish-nuget
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'Yasuhiko-m/LazyChromeWindowBridge' &&
+      github.ref == 'refs/heads/main'
+    runs-on: windows-2025
+    environment: release
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup pinned .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+
+      - name: Setup Node for deterministic extension tests
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.19.0'
+
+      - name: Verify exact checkout
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $head = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $head -cne $env:GITHUB_SHA) { throw 'Checkout SHA mismatch.' }
+          if ((dotnet --version) -ne '10.0.400') { throw 'SDK mismatch.' }
+
+      - name: Restore, build Release, test, pack and verify local consumer
+        run: ./Scripts/Test-NuGet.ps1
+
+      # Request the one-hour credential only after all local gates have passed.
+      - name: NuGet login with OIDC
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        with:
+          user: Yasuhiko-m
+
+      - name: Push the verified Core package
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'OIDC credential missing.' }
+          # The CLI also sends the matching portable-PDB .snupkg beside this file.
+          # No wildcard, duplicate suppression, separate symbol push or key persistence.
+          dotnet nuget push ./artifacts/nuget/LazyChromeWindowBridge.Core.0.1.0.nupkg `
+            --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet push failed; inspect package and symbol status before retrying.' }
