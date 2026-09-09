@@ -31,6 +31,16 @@
   full browser restart; existing live session takeover is not supported.
 - Full caller restart loses live session capabilities/bindings. A new launch has a
   new appSessionId; saved launch-URL Normal geometry can be reused.
+- Download observation has no tab/window/appSession attribution. It includes the
+  connected non-incognito profile's downloads, with one stream per Bridge. One runtime
+  accepts one browser-session identity; a new caller cannot take over an old outbox.
+- Download retention is bounded; capacity overflow, storage loss, extension reload/update,
+  full browser restart and transitions before the first durable write are outside
+  delivery guarantees. No unobserved history is imported. See [exact limits](downloads.md).
+- Download callbacks are synchronous and exception-isolated, but cannot make blocking
+  consumer code safe. Queue slow work and handle asynchronous failures in the consumer.
+  Chrome Complete does not replace consumer filesystem validation or eliminate a
+  filesystem race between exclusive-open checks and a later move.
 - Normal DisposeAsync restores PARKED windows and releases debugger transports.
   Forced process kill, OS crash or power loss cannot guarantee restoration/detachment.
   A hung peer can exceed graceful shutdown bounds; callers should still await disposal.

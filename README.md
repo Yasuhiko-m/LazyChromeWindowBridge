@@ -3,7 +3,8 @@
 **Control the Chrome window, not the webpage.**
 
 A Windows application-to-Chrome bridge for deterministic session/window ownership,
-physical window geometry, offscreen PARK/RESTORE and human-only thumbnails.
+physical window geometry, offscreen PARK/RESTORE, human-only thumbnails and Chrome
+Download Manager lifecycle observation.
 Navigation does not change which browser window an application session owns.
 
 This is a pre-release product prepared for a private repository baseline. No GitHub
@@ -17,16 +18,17 @@ eventual public release has not been selected; no open-source license is implied
 - PARK a window fully outside all monitors and RESTORE its protected Normal bounds.
 - Read state/bounds and set a Visible window's physical-pixel placement.
 - Monitor all eligible PARKED sessions independently; Visible windows show ACTIVE.
+- Observe profile-global Created / Complete / Interrupted downloads once per Bridge.
 
 It does not automate webpage input, read DOM/content, perform OCR or semantic image
-analysis, detect completion, extract output, record sessions or relay data to a cloud.
+analysis, detect webpage/output completion, extract output, record sessions or relay data to a cloud.
 The monitor is a small human status overview, not remote desktop or video streaming.
 
 ## Architecture
 | Component | Responsibility |
 | --- | --- |
 | `src/LazyChromeWindowBridge.Core` | Public `BridgeRuntime` API, ownership, loopback transport, native geometry and encoded thumbnails |
-| `src/LazyChromeWindowBridge.Extension` | MV3 binding/recovery and debugger viewport capture |
+| `src/LazyChromeWindowBridge.Extension` | MV3 binding/recovery, debugger viewport capture and read-only download observation |
 | `samples/LazyChromeWindowBridge.SampleCaller` | WinForms example using only the public Core API |
 | `tests/` | Core, external public-API consumer and extension checks |
 
@@ -53,7 +55,8 @@ dotnet build .\LazyChromeWindowBridge.sln --no-restore
 
 In Chrome, open `chrome://extensions`, enable Developer mode, select **Load unpacked**
 and choose `src/LazyChromeWindowBridge.Extension`. Review the requested permissions:
-storage, alarms, debugger and IPv4 loopback host access.
+storage, alarms, debugger, downloads and IPv4 loopback host access. The broad downloads
+permission is used only for official event observation and lookup by download ID.
 
 ```powershell
 dotnet run --project .\samples\LazyChromeWindowBridge.SampleCaller
@@ -115,6 +118,19 @@ Chrome's debugger permission is broad, although this implementation only uses
 viewport metrics and JPEG screenshot commands. The normal debugging notice remains.
 Cancellation is respected; explicit Start is required to retry a canceled monitor.
 
+## Download lifecycle
+Subscribe to `BridgeRuntime.DownloadChanged` before launching sessions. Events contain
+`DownloadId`, `State`, exact Chrome `Filename`, optional `Error` and `ObservedAt`.
+There is no appSessionId or URL attribution: downloads belong to the Chrome profile.
+Five bound sessions in one Bridge still receive one lifecycle stream. `GetDownloads()`
+and `GetDownload(id)` expose bounded current runtime snapshots.
+
+Chrome Complete is the completion authority. The consumer must validate the expected
+directory/name, existence, stable size/time and exclusive access before moving a file.
+Core never opens or moves it. Handlers run synchronously and must return promptly;
+queue filesystem/UI work in the consumer. Absolute filenames are sensitive: do not
+log them. See [Download lifecycle](docs/downloads.md) for recovery and capacity limits.
+
 ## Validation
 ```powershell
 # Clean build + deterministic Core/public API/extension checks.
@@ -134,6 +150,7 @@ See [Testing](docs/testing.md) for coverage and evidence boundaries.
 ## Further reading
 - [Architecture](docs/architecture.md)
 - [Integration/API](docs/integration.md)
+- [Download lifecycle](docs/downloads.md)
 - [Security and privacy](docs/security.md)
 - [Limitations](docs/limitations.md)
 - [Testing](docs/testing.md)

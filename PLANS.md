@@ -84,9 +84,27 @@ ProjectID and registered Source stay LazyChromeExtension. Private GitHub creatio
 main push and the v0.1.0 baseline tag are explicitly authorized after the accepted
 checkpoint. Public visibility and licensing remain deferred.
 
+## V1 — Browser application state observation
+Status: **In Progress**.
+
+### M001 — Download Lifecycle Notification
+Goal: read-only Chrome-profile-global Created / Complete / Interrupted observation
+through the existing authenticated Bridge, without webpage inspection or guessed
+session attribution. Bounded delivery survives ordinary MV3 restart and temporary
+loopback failure within the existing browser session. Consumers own filesystem checks.
+Exit criteria: deterministic and real download/worker/five-session/consumer acceptance
+and all existing regressions pass, with documented capacity and privacy boundaries.
+Status: **Complete**. Chat accepted R007: 121 Core / 19 public API / 33 extension
+checks and complete real browser/native/monitor/download acceptance PASS.
+
+### M002 — Public Release Preparation
+Goal: prepare MIT licensing, public developer documentation, a neutral hero screenshot,
+release notes and a deterministic extension ZIP without new runtime features.
+Status: **In Progress**. Publication and GitHub visibility changes await acceptance.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- PLAN.md and Revisions.md establish accepted V0-M005-R006; V0 is complete.
+- Revisions.md establishes accepted V1-M001-R007; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

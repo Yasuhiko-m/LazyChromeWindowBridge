@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "LazyChromeWindowBridge",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "minimum_chrome_version": "120",
   "description": "Windows-to-Chrome session ownership, native placement and human-only PARKED thumbnails.",
-  "permissions": ["storage", "alarms", "debugger"],
+  "permissions": ["storage", "alarms", "debugger", "downloads"],
   "host_permissions": ["http://127.0.0.1/*"],
   "content_scripts": [{
     "matches": ["http://127.0.0.1/lazy-chrome-window-bridge/bootstrap*"],

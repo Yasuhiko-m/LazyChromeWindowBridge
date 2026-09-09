@@ -62,6 +62,7 @@ export class BindingManager {
     record.launchUrl = description.launchUrl;
     record.nativePending = description.nativeGeometry === true;
     record.monitoring = description.monitoring === true;
+    record.downloads = description.downloads === true;
     // Persist before acknowledging to the caller; a worker restart can replay the idempotent bind.
     await this.save(record);
     await this.reconcileRecord(record);

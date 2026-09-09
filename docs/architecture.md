@@ -69,3 +69,12 @@ owned debugger targets and reconnects currently eligible requests.
 Normal async disposal stops monitoring, waits up to seven seconds for connection/
 debugger cleanup, restores protected Normal geometry and stops the loopback server.
 It leaves Chrome open. Forced process termination cannot perform this sequence.
+
+## Download observation
+Official Chrome download events feed a bounded storage.session outbox. Grouping by
+exact Bridge ID/origin selects one live capability, independent of the number of
+bound windows. Sequential authenticated HTTP reports use the existing listener.
+A monotonic browser-session sequence and Core high-water mark make retries idempotent;
+per-destination acknowledgements allow independent Bridges to recover separately.
+BridgeRuntime publishes immutable profile-global events and bounded latest snapshots.
+No session attribution or file access is performed. See [Download lifecycle](downloads.md).

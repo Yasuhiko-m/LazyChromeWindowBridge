@@ -40,23 +40,29 @@ const extensionRoot = path.join(root, 'src/LazyChromeWindowBridge.Extension');
 const manifest = JSON.parse(await fs.readFile(path.join(extensionRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'LazyChromeWindowBridge');
 assert.equal(manifest.manifest_version, 3);
-assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'storage']);
+assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'downloads', 'storage']);
 assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1/*']);
 assert.deepEqual(manifest.content_scripts[0].matches, ['http://127.0.0.1/lazy-chrome-window-bridge/bootstrap*']);
 assert.equal(manifest.content_scripts.length, 1);
 const monitor = await fs.readFile(path.join(extensionRoot, 'monitor.js'), 'utf8');
 const commands = [...monitor.matchAll(/sendCommand\(\{ tabId \}, '([^']+)'/g)].map(m => m[1]).sort();
 assert.deepEqual(commands, ['Page.captureScreenshot', 'Page.getLayoutMetrics']);
-for (const name of manifest.content_scripts[0].js.concat(['bindings.js', 'monitor.js', 'service-worker.js'])) {
+const downloadCalls = [];
+for (const name of manifest.content_scripts[0].js.concat(['bindings.js', 'monitor.js', 'service-worker.js', 'downloads.js'])) {
   const code = await fs.readFile(path.join(extensionRoot, name), 'utf8');
   assert(!/['"](?:Runtime\.|DOM\.|Network\.|Input\.)/.test(code), 'Unexpected debugger domain in ' + name);
+  for (const call of code.matchAll(/(?:chrome|this\.browser)\.downloads\.([A-Za-z]+)/g)) {
+    assert(['onCreated', 'onChanged', 'search'].includes(call[1]), 'Forbidden download capability: ' + call[1]);
+    downloadCalls.push({ file: name, member: call[1] });
+  }
 }
+assert.deepEqual([...new Set(downloadCalls.map(c => c.member))].sort(), ['onChanged', 'onCreated', 'search']);
 const projects = files.filter(f => f.endsWith('.csproj'));
 assert.equal(projects.length, 4, 'Only Core, SampleCaller, Core.Tests and PublicApi.Tests projects');
 for (const project of projects) assert(!/<PackageReference\b/.test(await fs.readFile(path.join(root, project), 'utf8')), 'No new external NuGet dependency');
 const report = { check: 'source-name-security-hygiene-audit', result: violations.length ? 'FAIL' : 'PASS',
   filesScanned: files.length, pathAudit: 'All current repository file paths and their parent directories',
-  projects, extensionPermissions: manifest.permissions, debuggerCommands: commands,
+  projects, extensionPermissions: manifest.permissions, debuggerCommands: commands, downloadCalls,
   allowlistedOccurrences: residuals, violations,
   boundary: 'Repository Source only; ignored build output, local evidence and transient handoff excluded. Secret patterns are a bounded static check, not a comprehensive credential proof.' };
 console.log(JSON.stringify(report));

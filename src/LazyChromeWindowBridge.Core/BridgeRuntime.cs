@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -19,12 +20,15 @@ public sealed class BridgeRuntime : IAsyncDisposable
     internal SessionRegistry Sessions { get; } = new();
     internal GeometryCoordinator Geometry { get; }
     internal MonitorCoordinator Monitor { get; }
+    private readonly DownloadTracker downloads;
+    public event EventHandler<DownloadLifecycleEvent>? DownloadChanged;
     internal Guid BridgeId { get; } = Guid.NewGuid();
     internal Uri BaseUri { get; private set; } = null!;
     private BridgeRuntime(WebApplication server, BridgeOptions chrome)
     {
         this.server = server;
         this.chrome = chrome;
+        downloads = new DownloadTracker(RaiseDownloadChanged);
         Geometry = new GeometryCoordinator(Sessions, new NativeWindows(), new GeometryStore(chrome.GeometryDirectory ??
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LazyChromeWindowBridge", "Geometry")), chrome.Executable);
         Monitor = new MonitorCoordinator(Sessions, Geometry);
@@ -64,7 +68,25 @@ public sealed class BridgeRuntime : IAsyncDisposable
             if (!host.Authorized(context, id)) return Results.Unauthorized();
             var session = host.Sessions.Get(id)!;
             if (session.State is SessionState.Closed or SessionState.Failed) return Results.Conflict();
-            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl, nativeGeometry = true, monitoring = true });
+            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl, nativeGeometry = true, monitoring = true, downloads = true });
+        });
+        server.MapPost(Prefix + "/api/downloads", async (HttpContext context) =>
+        {
+            if (!Guid.TryParseExact(context.Request.Headers["X-Bridge-Session"], "D", out var id) ||
+                !host.Authorized(context, id)) return Results.Unauthorized();
+            if (host.disposed != 0) return Results.StatusCode(410);
+            var session = host.Sessions.Get(id);
+            if (session?.State != SessionState.Bound) return Results.Conflict();
+            if (!context.Request.HasJsonContentType()) return Results.StatusCode(415);
+            var limit = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+            if (limit is { IsReadOnly: false }) limit.MaxRequestBodySize = 16384;
+            DownloadReport? report;
+            try { report = await context.Request.ReadFromJsonAsync<DownloadReport>(context.RequestAborted); }
+            catch (System.Text.Json.JsonException) { return Results.BadRequest(); }
+            if (!DownloadTracker.Valid(report)) return Results.BadRequest();
+            if (report!.BridgeId != host.BridgeId || report.BrowserSessionId.ToString("D") != session.BrowserSessionId)
+                return Results.Conflict();
+            return host.downloads.Receive(report) ? Results.Ok() : Results.Conflict();
         });
         server.MapPost(Prefix + "/api/sessions/{id:guid}/{action}", async (Guid id, string action, HttpContext context) =>
         {
@@ -121,10 +143,23 @@ public sealed class BridgeRuntime : IAsyncDisposable
     public void StopMonitoring() => Monitor.Stop();
     public MonitorSnapshot GetMonitorState() => Monitor.Snapshot();
     public MonitorFrame? GetLatestFrame(Guid appSessionId) => Monitor.Latest(appSessionId);
+    public DownloadLifecycleEvent[] GetDownloads() => downloads.GetAll();
+    public DownloadLifecycleEvent? GetDownload(int downloadId) => downloads.Get(downloadId);
+    private void RaiseDownloadChanged(DownloadLifecycleEvent value)
+    {
+        foreach (var subscriber in DownloadChanged?.GetInvocationList() ?? [])
+        {
+            if (disposed != 0) break;
+            try { ((EventHandler<DownloadLifecycleEvent>)subscriber)(this, value); }
+            catch (Exception) { /* Consumer code cannot corrupt acknowledgement or other subscribers. No path logging. */ }
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+        downloads.Dispose();
+        DownloadChanged = null;
         await expiryTimer.DisposeAsync();
         await Monitor.ShutdownAsync();
         await Task.Run(Geometry.Dispose);

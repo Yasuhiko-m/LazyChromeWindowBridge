@@ -12,14 +12,15 @@ name is separate. Project Data is Controller-owned and is not an implementation 
 ## Purpose and users
 Provide an independent reusable Windows application-to-Chrome bridge for deterministic
 session/window/native ownership, launch-URL Normal geometry, offscreen PARK/RESTORE,
-manual physical-pixel placement and human-only PARKED thumbnails. Consumers are
+manual physical-pixel placement, human-only PARKED thumbnails and read-only Chrome
+Download Manager lifecycle notification. Consumers are
 Windows application developers and the humans using their launched web applications.
 Lazy AI Deck is one possible consumer, not the owner/container of this runtime.
 
 ## Product structure
 Core is a net10.0-windows library with a public BridgeRuntime façade. It has no
 WinForms/WPF UI type dependency. The MV3 extension handles exact binding, worker
-recovery and pixel capture. SampleCaller is a separate WinForms public-API consumer.
+recovery, pixel capture and official download observation. SampleCaller is a separate WinForms public-API consumer.
 Core provides encoded frame bytes/metadata; presentation remains with the consumer.
 
 Runtime dependencies are the built-in .NET10, ASP.NET Core and Windows Desktop
@@ -32,7 +33,11 @@ is adopted. PowerShell7 and Node.js22+ support Source validation.
 - Manual bounds apply only to the exact live Visible native window, in physical pixels.
 - PARK/RESTORE are explicit; Normal cannot learn PARK geometry.
 - Monitoring is PARKED-only, independent per session and for human viewing only.
-- No DOM/OCR/semantic/output extraction, completion detection or autonomous page decisions.
+- No DOM/OCR/semantic/output extraction, webpage completion detection or autonomous page decisions.
+- Download notifications are profile-global, with no appSession attribution or URL/content
+  collection. Chrome Complete is authoritative; filesystem safety checks belong to consumers.
+- The downloads permission is broad but product use is read-only event/search observation.
+  Absolute filenames are sensitive and are never logged by production code.
 - Loopback transport is capability-authenticated; there is no cloud relay or telemetry.
 - Keep public integration small; internal coordinators are not a consumer contract.
 - No dependency installation, remote change or publication is implicit.

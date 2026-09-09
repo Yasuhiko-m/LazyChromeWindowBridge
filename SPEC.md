@@ -5,9 +5,11 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V0-M005-R006 — productize-refactor**, accepted by Chat.
-PLAN.md and Revisions.md establish R006. M001–M005 and V0 are Complete.
+Established baseline: **V1-M001-R007 — download-lifecycle-notification**, accepted by Chat.
+Revisions.md establishes R007; PLAN.md mirrors it. V1 M001 and V0 are Complete.
 Product name is LazyChromeWindowBridge; immutable ProjectID does not change.
+
+V1 M002 Public Release Preparation is In Progress; no new runtime features are implied.
 
 R006 preserves the externally observable R005 contract. The prior accepted history
 and measurements remain in Revisions.md and the R005 Git checkpoint. Current
@@ -18,7 +20,7 @@ maintainable product documentation is in README.md and docs/.
   Windows native geometry, bounded GDI+ JPEG decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, version 0.0.6.
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, version 0.0.7.
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.
@@ -28,6 +30,7 @@ GetWindow, SetWindowBounds, Park, Restore, StartMonitoring/StopMonitoring,
 GetMonitorState, GetLatestFrame and DisposeAsync. Coordinators and transport/native
 implementation stay internal. Public snapshot/rectangle/options types are immutable
 records; MonitorFrame supplies ReadOnlyMemory<byte> JPEG data rather than UI images.
+DownloadChanged, GetDownloads and GetDownload expose the download contract below.
 
 ## Ownership
 Launch validates absolute HTTP/HTTPS URLs, excluding embedded credentials. Each
@@ -95,20 +98,51 @@ Normal async shutdown stops capture, waits up to seven seconds for transport/deb
 cleanup including a five-second acquisition bound, restores Normal and stops Kestrel.
 Forced termination cannot guarantee graceful cleanup.
 
+## Download lifecycle
+The extension observes only downloads.onCreated, downloads.onChanged and downloads.search
+by an already observed ID. Public DownloadLifecycleEvent contains DownloadId, State
+(Created/Complete/Interrupted), exact official Filename, optional interrupted Error and
+ObservedAt. Created may have an empty filename; terminal events resolve the full current
+DownloadItem. No appSessionId, URL, finalUrl or referrer is collected for this feature.
+
+Observation is profile-global, grouped by exact bridgeId/origin. One representative
+live session capability authenticates POST /lazy-chrome-window-bridge/api/downloads on
+the existing Kestrel listener; it conveys no source ownership. Independent Bridges in
+the same profile may each receive once. Each runtime accepts one browserSessionId.
+
+The extension persists transitions before delivery in chrome.storage.session, and
+retries through the existing worker/alarm path. Serialized delivery plus a monotonic
+sequence and Core high-water mark deduplicate lost acknowledgements even after snapshot
+eviction. Core preserves per-download order, isolates synchronous subscriber exceptions
+and clears current state on disposal. Consumers must return promptly and queue slow work.
+
+Bounds: 128 observed IDs, 256 pending transitions, 16 Bridge destinations; overflow
+retires the oldest terminal stream first, otherwise oldest active stream, including
+its pending events. Each runtime retains at most 256 latest download snapshots.
+Filename/error bounds are 1024/128 characters, route bodies at most 16 KiB, requests
+three seconds, up to 16 deliveries per Bridge per flush. See docs/downloads.md for
+exact recovery, loss and lifetime boundaries. No arbitrary Chrome history is replayed.
+
+Chrome Complete is authoritative for browser completion and is final in this stream.
+The product never opens, scans, validates or moves a file. Consumers validate expected
+directory/name, existence, stable size/time and exclusive access before moving it.
+The broad downloads permission is intentionally used only for observation/search;
+absolute filenames are sensitive and are not logged by production code.
+
 ## Security, scope and validation
 IPv4 loopback only, ephemeral port, strict Host check, per-session256-bit capability,
 no website CORS grant, bounded requests/frames, no redirects and no secret logging.
 Same-user malicious processes are outside this security boundary. Chrome debugger
 permission/normal notice and target contention are explicit limitations.
 
-No DOM/Runtime/Network extraction, OCR/semantic analysis, completion detection,
+No DOM/Runtime/Network extraction, OCR/semantic analysis, webpage completion detection,
 remote input, recording, cloud, telemetry, provider framework, installer or updater.
 No third-party package, OSS license, remote/repository creation or publication is
 introduced by this candidate.
 
 Scripts/Test-All.ps1 is the stable validation entry. It restores/builds and runs Core,
 external public-API and extension tests. With a supplied Chrome for Testing executable,
-it runs session/native/monitor regressions then one ACTIVE plus four PARKED real
+it runs download acceptance, session/native/monitor regressions then one ACTIVE plus four PARKED real
 acceptance; -Gui supplies the actual sample fixture. Assertions preserve R005 coverage.
 Source name/security/hygiene auditing uses an explicit immutable-history allowlist.
 Logs remain ignored flat Scripts/Outputs files. See docs/testing.md and the current

@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V0-M005-R006`
+- Current VMR: `V1-M001-R007`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,41 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M001-R007 — download-lifecycle-notification
+
+Purpose:
+Observe Chrome Download Manager lifecycle through the existing local Bridge without
+page inspection, download mutation or guessed application-session attribution.
+
+Result:
+Accepted by Chat. BridgeRuntime exposes DownloadChanged, GetDownloads and GetDownload
+with exact ID/state/filename/error/observation time. One profile-global stream per
+Bridge uses a representative session capability only for authentication. The bounded
+storage.session outbox and runtime sequence high-water mark preserve ordering and
+deduplicate retries within the existing browser session. Product calls are only
+downloads.onCreated/onChanged/search. Consumers own post-Complete filesystem checks.
+
+Build / Test:
+Clean restore/build PASS, 0 warnings / 0 errors. 121 Core, 19 external public API and
+33 extension checks PASS, preserving all prior assertions. Complete real Chrome
+153.0.8010.36 session/native/monitor/five-session regressions PASS. Real local ZIP
+Created/Complete, five-session single stream, Interrupted with official
+SERVER_CONTENT_LENGTH_MISMATCH, worker restart during slow download and stable/
+exclusive consumer move after Complete all PASS. Chrome remained complete after move.
+Final filename appeared before Complete but was not used as readiness authority.
+Source/name/security audit PASS; protected hashes and inherited diff unchanged.
+
+Remaining:
+V1 M001 Complete; M002 Public Release Preparation In Progress. Bounded overflow,
+full-browser/caller restart and extension reload/update recovery are not guaranteed.
+Callbacks must return promptly; absolute filenames are sensitive. Existing intermittent
+initial offscreen capture timeout remains documented; it did not recur in this run.
+No runtime file mutation, URL/content collection or new external dependencies.
+
+Git Commit:
+Checkpoint subject: feat: establish V1-M001-R007 download lifecycle notification.
+Exact checkpoint is recorded in Git and the establishing task handoff.
 
 ### LazyChromeExtension_V0-M001-R000 — Starter Pack bootstrap
 Purpose:

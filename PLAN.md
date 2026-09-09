@@ -1,21 +1,19 @@
 # LazyChromeExtension PLAN
 
-- Current Version: `V0`
-- Current Milestone: `M005`
-- Milestone Goal: Independent LazyChromeWindowBridge product and reusable public API.
-- Current Revision: `R006`
-- Current Baseline: `V0-M005-R006`
+- Current Version: `V1`
+- Current Milestone: `M001`
+- Milestone Goal: Read-only Chrome Download Manager lifecycle notification.
+- Current Revision: `R007`
+- Current Baseline: `V1-M001-R007`
 - Milestone Status: **Complete**
-- Version Status: **Complete**
+- Version Status: **In Progress**
 
 ## Handoff
 
-This file remains the V0 runtime Current VMR authority. Chat has accepted
-`V0-M005-R006` (productize-refactor), which is now the established baseline.
-M001 through M005 and V0 are complete. Revisions.md records the accepted clean
-build, 96 Core / 17 public API / 17 extension checks, complete real-browser and
-five-session GUI evidence, including the documented intermittent capture limitation.
-Private GitHub baseline publication is explicitly authorized; no public release or
-license is established. PLANS.md records the completed roadmap.
+Chat accepted `V1-M001-R007` (download-lifecycle-notification), now the established
+baseline. V1 M001 is Complete; V0 remains Complete. Revisions.md is Current VMR
+authority and records the accepted clean build, 121 Core / 19 public API / 33 extension
+checks and complete real-browser/download evidence. PLANS.md starts V1 M002 Public
+Release Preparation. Public visibility and release publication are not yet authorized.
 
-Chat replaces and advances Project planning after creation. The V1 governance migration moves Current VMR authority to Revisions.md.
+This legacy file mirrors the established baseline; candidate work does not advance it.

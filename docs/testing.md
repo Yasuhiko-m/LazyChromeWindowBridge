@@ -16,15 +16,17 @@ Each invocation owns one flat timestamped log under Scripts/Outputs and returns 
 nonzero exit code on a failing child. Those disposable logs are ignored.
 
 ## Layers
-- Core.Tests: original 96 session/HTTP, geometry/native simulation and monitor checks.
+- Core.Tests: 121 checks: original 96 session/HTTP, geometry/native simulation and
+  monitor checks plus 25 download transport/lifecycle/bounds/disposal checks.
   It also hosts the isolated real-browser driver. Product operations in that driver
   call the public façade; internal access is limited to deterministic fixtures and
   explicit test evidence such as topology/profile/process/shutdown measurements.
-- PublicApi.Tests: an external consumer assembly without friend access. It verifies
+- PublicApi.Tests: 19 checks in an external consumer assembly without friend access. It verifies
   the façade, defaults, encoded read-only frames, invalid placement, async disposal,
   hidden coordinators and absence of WinForms/WPF references in Core.
-- Extension.Tests: binding/worker, cancellation, stale frame, target ownership,
-  in-flight tab closure and four concurrent monitor scenarios.
+- Extension.Tests: 33 tests: original 17 binding/worker, cancellation, stale frame,
+  target ownership, in-flight tab closure and four concurrent monitor scenarios, plus
+  16 download outbox, ordering, exact metadata, retry, fan-out, recovery and bounds cases.
 - AuditSource: current tracked/untracked file and directory names, old-name text
   against the explicit governance/history allowlist, dependency/permission/command
   boundaries and generated/private-file patterns. It emits machine-readable JSON.
@@ -35,6 +37,18 @@ nonzero exit code on a failing child. Those disposable logs are ignored.
 - MultiSessionAcceptance: one Visible ACTIVE plus four PARKED streams, separate
   native identities/colors/fresh hashes, navigation, worker restart, Restore/re-PARK,
   active tab/close, manual Set, close/relaunch and shutdown.
+- DownloadAcceptance: neutral local ZIP attachments by direct navigation, five bound
+  sessions producing one stream, server-aborted download with official interrupt reason,
+  worker stop/alarm recovery during a slow download, and consumer stable/exclusive checks
+  and move only after Complete. Final filename availability before Complete is recorded,
+  never used as completion authority. Exact Chrome ID/path and no late Interrupted are checked.
+
+Download fixtures use the public Core event/snapshot API. Test-only CDP configures an
+isolated download directory and evaluates official extension APIs in the extension
+worker; it does not inspect webpage DOM. Production has no Runtime.evaluate call.
+Only the consumer test driver performs file checks/move. Neutral test paths may appear
+in ignored test evidence; production never logs download paths. Source auditing lists
+every production download call and permits only onCreated/onChanged/search.
 
 The native-size comparisons remain test-only coverage; they never enable production
 shrinking. Color/hash checks are confined to test tooling, not product image analysis.

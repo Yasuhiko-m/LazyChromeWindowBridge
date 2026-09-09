@@ -122,7 +122,10 @@ try {
     if (driverWaiters.length) driverWaiters.shift()(payload); else driverLines.push(payload);
   });
   assert.equal(JSON.parse(await nextDriverLine()).ready, true);
-  if (process.argv.includes('--multi-monitor')) {
+  if (process.argv.includes('--downloads')) {
+    const { testDownloads } = await import('./DownloadAcceptance.mjs');
+    await testDownloads({ caller, cdp, until, delay, evidence, pageA, profile });
+  } else if (process.argv.includes('--multi-monitor')) {
     const { testMultiMonitor } = await import('./MultiSessionAcceptance.mjs');
     await testMultiMonitor({ caller, cdp, until, delay, evidence, pageA, pageB });
   } else if (process.argv.includes('--monitor')) {

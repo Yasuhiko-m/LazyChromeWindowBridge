@@ -11,6 +11,8 @@ json.Converters.Add(new JsonStringEnumConverter());
 if (args.FirstOrDefault() == "--browser-driver")
 {
     await using var host = await BridgeRuntime.StartAsync(BridgeOptions.Parse(args[1..]));
+    var downloadEvents = new System.Collections.Concurrent.ConcurrentQueue<DownloadLifecycleEvent>();
+    host.DownloadChanged += (sender, value) => { downloadEvents.Enqueue(value); while (downloadEvents.Count > 512) downloadEvents.TryDequeue(out _); };
     Console.WriteLine("LCWB " + JsonSerializer.Serialize(new { ready = true }, json));
     while (await Console.In.ReadLineAsync() is { } line)
     {
@@ -23,6 +25,9 @@ if (args.FirstOrDefault() == "--browser-driver")
             {
                 "launch" => await host.LaunchAsync(command.RootElement.GetProperty("url").GetString()!),
                 "sessions" => host.GetSessions(),
+                "download-events" => downloadEvents.ToArray(),
+                "downloads" => host.GetDownloads(),
+                "consume-download" => await ConsumeDownload(host, command.RootElement),
                 "geometry" => host.GetWindow(command.RootElement.GetProperty("id").GetGuid())!,
                 "set-bounds" => host.SetWindowBounds(command.RootElement.GetProperty("id").GetGuid(), command.RootElement.GetProperty("rect").Deserialize<PixelRect>(json)!),
                 "park-size-test" => host.Geometry.ResizeParkedForTest(command.RootElement.GetProperty("id").GetGuid(), command.RootElement.GetProperty("width").GetInt32(), command.RootElement.GetProperty("height").GetInt32()),
@@ -52,6 +57,33 @@ object StartMonitor(BridgeRuntime host, JsonElement command)
 {
     host.StartMonitoring(command.TryGetProperty("options", out var options) ? options.Deserialize<CaptureOptions>(json)! : new());
     return host.GetMonitorState();
+}
+// Consumer test only: the product never opens, validates or moves downloaded files.
+async Task<object> ConsumeDownload(BridgeRuntime host, JsonElement command)
+{
+    var value = host.GetDownload(command.GetProperty("id").GetInt32());
+    if (value?.State != DownloadLifecycleState.Complete) throw new InvalidOperationException("Consumer requires Chrome Complete first.");
+    var directory = Path.GetFullPath(command.GetProperty("directory").GetString()!);
+    var filename = command.GetProperty("filename").GetString()!;
+    if (!System.Text.RegularExpressions.Regex.IsMatch(filename, "^neutral-[a-z]+[.]zip$")) throw new ArgumentException("Unexpected fixture filename.");
+    var expected = Path.Combine(directory, filename);
+    if (!string.Equals(value.Filename, expected, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Unexpected download path.");
+    var file = new FileInfo(expected);
+    if (!file.Exists) throw new FileNotFoundException("Completed fixture is missing.");
+    var length = file.Length; var written = file.LastWriteTimeUtc;
+    for (var i = 0; i < 2; i++)
+    {
+        await Task.Delay(250); file.Refresh();
+        if (!file.Exists || file.Length != length || file.LastWriteTimeUtc != written) throw new IOException("Fixture is not stable.");
+    }
+    using (var exclusive = new FileStream(expected, FileMode.Open, FileAccess.Read, FileShare.None))
+        if (exclusive.Length != length) throw new IOException("Fixture changed before exclusive open.");
+    var processing = Path.Combine(directory, "Processing");
+    Directory.CreateDirectory(processing);
+    var destination = Path.Combine(processing, filename);
+    File.Move(expected, destination);
+    return new { value.DownloadId, ChromeState = value.State, Stable = true, ExclusiveOpen = true,
+        Moved = File.Exists(destination) && !File.Exists(expected), Bytes = length, Destination = destination };
 }
 object StopMonitor(BridgeRuntime host) { host.StopMonitoring(); return host.GetMonitorState(); }
 object? FrameEvidence(MonitorFrame? frame)
@@ -153,3 +185,6 @@ Console.WriteLine($"PASS: {count - beforeGeometry} geometry checks; {count} tota
 var beforeMonitor = count;
 MonitorTests.Run(Check);
 Console.WriteLine($"PASS: {count - beforeMonitor} monitor checks; {count} total caller checks.");
+var beforeDownloads = count;
+await DownloadTests.Run(Check);
+Console.WriteLine($"PASS: {count - beforeDownloads} download checks; {count} total Core checks.");
