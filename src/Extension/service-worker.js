@@ -1,6 +1,9 @@
 import { BindingManager } from "./bindings.js";
+import { MonitorManager } from "./monitor.js";
 
-const manager = new BindingManager(chrome);
+const monitors = new MonitorManager(chrome);
+const manager = new BindingManager(chrome, globalThis.fetch.bind(globalThis), monitors);
+let monitorRecovered = false;
 let queue = Promise.resolve();
 function enqueue(action) {
   const operation = queue.then(action);
@@ -9,6 +12,7 @@ function enqueue(action) {
 }
 async function recover() {
   await chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  if (!monitorRecovered) { await monitors.recover(); monitorRecovered = true; }
   await chrome.alarms.create("session-reconcile", { periodInMinutes: 0.5 });
   await manager.reconcile();
 }

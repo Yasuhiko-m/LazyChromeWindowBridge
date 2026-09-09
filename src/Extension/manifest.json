@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "LazyChromeExtension",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "minimum_chrome_version": "120",
   "description": "Binds caller sessions to Chrome windows independently of page navigation.",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "debugger"],
   "host_permissions": ["http://127.0.0.1/*"],
   "content_scripts": [{
     "matches": ["http://127.0.0.1/lazy-chrome-extension/bootstrap*"],

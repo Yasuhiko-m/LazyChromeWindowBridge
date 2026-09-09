@@ -23,9 +23,10 @@ async function until(read, accept, label, timeout = 20000) {
   throw Error('Timed out: ' + label);
 }
 async function localPageServer() {
-  const server = http.createServer((_, response) => {
+  const server = http.createServer((request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
-    response.end('<!doctype html><title>Local R002 acceptance page</title><p>Neutral local navigation target.</p>');
+    const blue = request.url.startsWith('/dynamic-b');
+    response.end(request.url.startsWith('/dynamic') ? `<!doctype html><title>Local live monitor fixture</title><style>body{margin:0;background:${blue ? '#2020b0' : '#b02020'};color:white;font:36px sans-serif}main{padding:40px}</style><main>Neutral ${blue ? 'B' : 'A'} live fixture <span id="tick"></span></main><script>let tick=0;setInterval(()=>{let v=60+(++tick*17)%180;document.body.style.background=${blue ? '"rgb(20,20,"+v+")"' : '"rgb("+v+",20,20)"'};document.getElementById("tick").textContent=tick;},250)</script>` : '<!doctype html><title>Local R002 acceptance page</title><p>Neutral local navigation target.</p>');
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return { server, url: `http://127.0.0.1:${server.address().port}` };
@@ -103,7 +104,7 @@ try {
     driver = spawn(path.join(root, 'src/CallerHarness/bin/Debug/net10.0-windows/CallerHarness.exe'), ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
     driver.on('exit', () => { driverExited = true; });
     driver.stderr.on('data', bytes => process.stderr.write(bytes));
-    evidence('GUI-ready', { callerPid: driver.pid, launchUrlA: pageA.url + '/gui-a', launchUrlB: pageB.url + '/gui-b', debuggingPort: port, profile });
+    evidence('GUI-ready', { callerPid: driver.pid, launchUrlA: pageA.url + '/dynamic-a', launchUrlB: pageB.url + '/dynamic-b', debuggingPort: port, profile });
     await until(async () => driverExited, Boolean, 'operator closes CallerHarness after GUI acceptance', 900000);
     console.log('GUI fixture closed normally. Record observed GUI checks separately.');
   } else {
@@ -117,6 +118,10 @@ try {
     if (driverWaiters.length) driverWaiters.shift()(payload); else driverLines.push(payload);
   });
   assert.equal(JSON.parse(await nextDriverLine()).ready, true);
+  if (process.argv.includes('--monitor')) {
+    const { testMonitor } = await import('./Test-R004.mjs');
+    await testMonitor({ caller, cdp, until, delay, evidence, pageA, pageB });
+  } else {
   const a = await caller('launch', pageA.url + '/launch');
   const boundA = (await until(() => caller('sessions'), list => list.find(s => s.appSessionId === a.appSessionId)?.state === 'Bound', 'A binds'))[0];
   assert(Number.isInteger(boundA.windowId));
@@ -177,6 +182,7 @@ try {
   if (process.argv.includes('--geometry')) {
     const { testGeometry } = await import('./Test-R003.mjs');
     await testGeometry({ caller, cdp, until, delay, evidence, pageA, pageB });
+  }
   }
   }
 } catch (error) {

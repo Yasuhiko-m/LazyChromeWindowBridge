@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V0-M002-R003`
+- Current VMR: `V0-M003-R004`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -113,6 +113,38 @@ not physical hardware evidence. M001 regressions remain passing.
 
 Remaining:
 M002 is complete. M003 begins.
+
+Git Commit:
+Recorded externally by Git checkpoint; see repository history.
+
+### LazyChromeExtension_V0-M003-R004 — human-monitor-integration
+
+Purpose:
+Provide a practical human-only live preview of the exact PARKED owned WebApp window
+and validate the complete launch/binding/geometry/monitor/restore lifecycle.
+
+Result:
+Accepted by Chat. Chrome debugger viewport JPEG capture and authenticated loopback
+WebSocket transport provide fresh images while the exact native window is fully
+outside every monitor. Session/window/native identity and selection generations
+prevent cross-session pixels. Navigation, PARK/RESTORE and MV3 recovery preserve
+ownership. Normal caller shutdown detaches capture and restores parked geometry.
+The accepted default is 2 fps / maximum 960×540 / JPEG quality 70. Chrome debugger
+permission and its normal debugging notice are an accepted tradeoff. Product image
+handling is pixels-only: no DOM/OCR/semantic/output extraction or page decisions.
+Native PrintWindow was rejected after empirically freezing while PARKED.
+
+Build / Test:
+Build PASS, 0 warnings / 0 errors; 73 caller checks and 14 extension checks PASS;
+all R002/R003 regressions PASS; real fully offscreen changing frames, A/B isolation,
+parked navigation, same-HWND RESTORE (measured 0 px), MV3 worker recovery, capture
+cleanup and actual WinForms GUI acceptance PASS. Four practical FPS/resolution
+configurations were measured. Mixed-DPI/monitor removal remain simulated coverage;
+normal authenticated Chrome/ChatGPT smoke was skipped without accessing that profile.
+
+Remaining:
+M003 complete. M004 final runtime tuning/multi-window/manual geometry begins.
+M005 productization/rename/refactor is roadmap only and has no Revision assigned.
 
 Git Commit:
 Recorded externally by Git checkpoint; see repository history.

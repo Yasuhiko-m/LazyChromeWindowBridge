@@ -57,11 +57,26 @@ Scope when this milestone begins:
 Exit Criteria: the complete integrated flow passes acceptance with usable monitoring
 and measured limits; no DOM/OCR/semantic/output extraction or page-content automation.
 
-Status: **In Progress**.
+Status: **Complete**. Chat accepted R004 and its real offscreen monitoring evidence.
+
+### M004 — Final runtime tuning / multi-window monitor / manual geometry control
+Goal: align runtime behavior with the intended consumer workload before productization.
+Scope: simultaneous PARKED-session thumbnails, zero Visible capture, small images
+and empirical native PARK-size evaluation, and Windows-side manual Get/Set bounds.
+Exit criteria: one ACTIVE plus four independent PARKED sessions pass freshness,
+ownership, geometry, cleanup and measured aggregate-load acceptance.
+Status: **In Progress** after the R004 checkpoint.
+
+### M005 — Productization / complete refactor / GitHub readiness
+Goal: adopt final product name LazyChromeWindowBridge; complete class/file/directory/
+namespace/project rename; reusable Core / Extension / Sample separation; public
+documentation/security/setup; private GitHub baseline and later public release.
+LazyAIDeck is a consumer, not the owner/container of this project.
+Status: **Planned**. Roadmap only; no M005 Revision is defined or implemented.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- PLAN.md and Revisions.md retain the established R003 authority during candidate work.
+- PLAN.md and Revisions.md retain the established R004 authority during candidate work.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

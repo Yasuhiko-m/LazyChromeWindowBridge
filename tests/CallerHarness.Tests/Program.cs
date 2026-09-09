@@ -6,6 +6,8 @@ using System.Text.Json.Serialization;
 using CallerHarness;
 
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+MonitorFrame? cachedFrame = null;
+object? cachedEvidence = null;
 json.Converters.Add(new JsonStringEnumConverter());
 if (args.FirstOrDefault() == "--browser-driver")
 {
@@ -18,7 +20,7 @@ if (args.FirstOrDefault() == "--browser-driver")
             using var command = JsonDocument.Parse(line);
             var operation = command.RootElement.GetProperty("operation").GetString();
             if (operation == "stop") break;
-            object result = operation switch
+            object? result = operation switch
             {
                 "launch" => await host.LaunchAsync(command.RootElement.GetProperty("url").GetString()!),
                 "sessions" => host.Sessions.GetAll(),
@@ -28,6 +30,13 @@ if (args.FirstOrDefault() == "--browser-driver")
                 "move" => host.Geometry.MoveForTest(command.RootElement.GetProperty("id").GetGuid(), command.RootElement.GetProperty("rect").Deserialize<PixelRect>(json)!),
                 "monitors" => host.Geometry.Monitors(),
                 "profile" => host.Geometry.Profile(command.RootElement.GetProperty("url").GetString()!)!,
+                "monitor-start" => StartMonitor(host, command.RootElement),
+                "monitor-stop" => StopMonitor(host),
+                "monitor" => host.Monitor.Snapshot(),
+                "monitor-frame" => FrameEvidence(host.Monitor.Latest()),
+                "monitor-image" => host.Monitor.Latest()?.Jpeg!,
+                "process-stats" => ProcessStats(command.RootElement),
+                "shutdown-host" => await ShutdownHost(host),
                 _ => throw new ArgumentException("Unknown test-driver operation.")
             };
             Console.WriteLine("R002 " + JsonSerializer.Serialize(new { result }, json));
@@ -35,6 +44,43 @@ if (args.FirstOrDefault() == "--browser-driver")
         catch (Exception error) { Console.WriteLine("R002 " + JsonSerializer.Serialize(new { error = error.Message }, json)); }
     }
     return;
+}
+
+object StartMonitor(SessionHost host, JsonElement command)
+{
+    host.Monitor.Start(command.GetProperty("id").GetGuid(), command.TryGetProperty("options", out var options) ? options.Deserialize<CaptureOptions>(json)! : new());
+    return host.Monitor.Snapshot();
+}
+object StopMonitor(SessionHost host) { host.Monitor.Stop(); return host.Monitor.Snapshot(); }
+object? FrameEvidence(MonitorFrame? frame)
+{
+    if (frame is null) return null;
+    if (ReferenceEquals(frame, cachedFrame)) return cachedEvidence;
+    using var stream = new MemoryStream(frame.Jpeg);
+    using var bitmap = new System.Drawing.Bitmap(stream);
+    using var center = bitmap.Clone(new System.Drawing.Rectangle(bitmap.Width / 3, bitmap.Height / 3, bitmap.Width / 3, bitmap.Height / 3), bitmap.PixelFormat);
+    using var pixels = new MemoryStream();
+    center.Save(pixels, System.Drawing.Imaging.ImageFormat.Bmp);
+    var pixel = bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2);
+    cachedFrame = frame;
+    return cachedEvidence = new { frame.AppSessionId, frame.Identity, frame.WindowId, frame.TabId, frame.Generation, frame.Sequence,
+        frame.Width, frame.Height, frame.ReceivedAt, Bytes = frame.Jpeg.Length, frame.CaptureMilliseconds,
+        CenterPixel = new int[] { pixel.R, pixel.G, pixel.B },
+        CenterHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pixels.ToArray())) };
+}
+async Task<object> ShutdownHost(SessionHost host) { await host.DisposeAsync(); return host.Monitor.Snapshot(); }
+object ProcessStats(JsonElement command)
+{
+    using var caller = System.Diagnostics.Process.GetCurrentProcess();
+    var processes = command.GetProperty("pids").EnumerateArray().Select(v => v.GetInt32()).Take(128).Distinct().ToArray();
+    double cpu = 0; long working = 0, privateBytes = 0;
+    foreach (var pid in processes)
+    {
+        try { using var process = System.Diagnostics.Process.GetProcessById(pid); cpu += process.TotalProcessorTime.TotalSeconds; working += process.WorkingSet64; privateBytes += process.PrivateMemorySize64; }
+        catch (ArgumentException) { } catch (InvalidOperationException) { }
+    }
+    return new { CallerCpuSeconds = caller.TotalProcessorTime.TotalSeconds, CallerWorkingBytes = caller.WorkingSet64,
+        CallerPrivateBytes = caller.PrivateMemorySize64, ChromeCpuSeconds = cpu, ChromeWorkingBytes = working, ChromePrivateBytes = privateBytes };
 }
 
 var count = 0;
@@ -101,3 +147,6 @@ Console.WriteLine($"PASS: {count} caller/transport checks.");
 var beforeGeometry = count;
 GeometryTests.Run(Check);
 Console.WriteLine($"PASS: {count - beforeGeometry} geometry checks; {count} total caller checks.");
+var beforeMonitor = count;
+MonitorTests.Run(Check);
+Console.WriteLine($"PASS: {count - beforeMonitor} monitor checks; {count} total caller checks.");

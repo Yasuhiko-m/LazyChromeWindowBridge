@@ -9,6 +9,12 @@ internal sealed class MainForm : Form
     private readonly Label selected = new() { Text = "Select a session to control its window.", AutoSize = true };
     private bool operating;
     private Guid? pendingLaunchStatus;
+    private readonly Button monitorStart = new() { Text = "Start monitor", AutoSize = true, Enabled = false };
+    private readonly Button monitorStop = new() { Text = "Stop monitor", AutoSize = true, Enabled = false };
+    private readonly Label monitorStatus = new() { Text = "Monitor stopped. Human view only; Chrome debugger permission/notice applies.", AutoSize = true, Dock = DockStyle.Top };
+    private readonly PictureBox preview = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(25, 25, 25), AccessibleName = "Human-only live preview" };
+    private bool monitoring;
+    private (long Generation, long Sequence) displayed;
     private readonly Label status = new() { Text = "Status: Starting caller", AutoSize = true, Dock = DockStyle.Fill };
     private readonly DataGridView sessions = new()
     {
@@ -24,8 +30,8 @@ internal sealed class MainForm : Form
     public MainForm(ChromeOptions chrome)
     {
         Text = "LazyChromeExtension Caller Harness";
-        ClientSize = new Size(1080, 400);
-        MinimumSize = new Size(700, 300);
+        ClientSize = new Size(1080, 780);
+        MinimumSize = new Size(850, 600);
         AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterScreen;
 
@@ -56,7 +62,7 @@ internal sealed class MainForm : Form
         layout.Controls.Add(urlLabel, 0, 0);
         layout.Controls.Add(launchUrl, 1, 0);
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
-        actions.Controls.AddRange([launchButton, parkButton, restoreButton, selected]);
+        actions.Controls.AddRange([launchButton, parkButton, restoreButton, monitorStart, monitorStop, selected]);
         layout.Controls.Add(actions, 0, 1);
         layout.SetColumnSpan(actions, 2);
         layout.Controls.Add(status, 0, 2);
@@ -66,8 +72,12 @@ internal sealed class MainForm : Form
         layout.SetColumnSpan(note, 2);
         foreach (var (name, width) in new[] { ("Session", 270), ("Window", 105), ("State", 155), ("Launch URL", 450) })
             sessions.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = name, Width = width, SortMode = DataGridViewColumnSortMode.NotSortable });
-        layout.Controls.Add(sessions, 0, 4);
-        layout.SetColumnSpan(sessions, 2);
+        var monitorPanel = new Panel { Dock = DockStyle.Fill };
+        monitorPanel.Controls.Add(preview); monitorPanel.Controls.Add(monitorStatus);
+        var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, Size = new Size(1048, 600), SplitterDistance = 160, FixedPanel = FixedPanel.Panel1 };
+        split.Panel1.Controls.Add(sessions); split.Panel2.Controls.Add(monitorPanel);
+        layout.Controls.Add(split, 0, 4);
+        layout.SetColumnSpan(split, 2);
         Controls.Add(layout);
         AcceptButton = launchButton;
         Shown += async (_, _) =>
@@ -99,6 +109,13 @@ internal sealed class MainForm : Form
         sessions.SelectionChanged += (_, _) => RefreshSelection();
         parkButton.Click += async (_, _) => await Operate(true);
         restoreButton.Click += async (_, _) => await Operate(false);
+        monitorStart.Click += (_, _) =>
+        {
+            if (host is null || SelectedId is not { } id) return;
+            try { host.Monitor.Start(id, new()); monitoring = true; RefreshMonitor(); }
+            catch (Exception error) { monitorStatus.Text = "Monitor: " + error.Message; }
+        };
+        monitorStop.Click += (_, _) => { monitoring = false; host?.Monitor.Stop(); ClearPreview(); RefreshMonitor(); };
         FormClosing += async (_, args) =>
         {
             if (shutdownComplete) return;
@@ -107,12 +124,13 @@ internal sealed class MainForm : Form
             closing = true;
             launchButton.Enabled = false;
             parkButton.Enabled = restoreButton.Enabled = false;
+            monitorStart.Enabled = monitorStop.Enabled = false;
             refresh.Stop();
             if (host is not null) await host.DisposeAsync();
             shutdownComplete = true;
             Close();
         };
-        FormClosed += (_, _) => refresh.Dispose();
+        FormClosed += (_, _) => { refresh.Dispose(); ClearPreview(); };
     }
 
     private void RefreshSessions()
@@ -136,6 +154,7 @@ internal sealed class MainForm : Form
             pendingLaunchStatus = null;
         }
         RefreshSelection();
+        RefreshMonitor();
     }
     private Guid? SelectedId => sessions.CurrentRow?.Tag is Guid id ? id : null;
     private void RefreshSelection()
@@ -147,6 +166,34 @@ internal sealed class MainForm : Form
         var active = !closing && !operating && session?.State == SessionState.Bound && geometry is not null && geometry.State != PlacementState.Closed;
         parkButton.Enabled = active && geometry?.State == PlacementState.Visible;
         restoreButton.Enabled = active && geometry?.State != PlacementState.Visible;
+        monitorStart.Enabled = active;
+        monitorStop.Enabled = !closing && monitoring;
+        if (monitoring && host is not null && active && session is not null && host.Monitor.Snapshot().AppSessionId != session.AppSessionId)
+        {
+            ClearPreview();
+            try { host.Monitor.Start(session.AppSessionId, new()); }
+            catch (InvalidOperationException) { host.Monitor.Stop(); }
+        }
+        else if (monitoring && !active && !operating) { host?.Monitor.Stop(); ClearPreview(); }
+    }
+    private void ClearPreview() { var old = preview.Image; preview.Image = null; old?.Dispose(); displayed = default; }
+    private void RefreshMonitor()
+    {
+        if (host is null || closing) return;
+        var snapshot = host.Monitor.Snapshot();
+        var frame = host.Monitor.Latest();
+        if (frame is null || frame.AppSessionId != SelectedId) ClearPreview();
+        else if (displayed != (frame.Generation, frame.Sequence))
+        {
+            using var stream = new MemoryStream(frame.Jpeg);
+            using var decoded = Image.FromStream(stream);
+            var old = preview.Image; preview.Image = new Bitmap(decoded); old?.Dispose();
+            displayed = (frame.Generation, frame.Sequence);
+        }
+        var age = snapshot.LastFrameAt is { } timestamp ? $" · last received {(DateTimeOffset.UtcNow - timestamp).TotalSeconds:F1}s ago" : "";
+        monitorStatus.Text = $"Monitor: {snapshot.State} · {snapshot.Width}×{snapshot.Height} · {snapshot.Frames} frames{age}" +
+            (snapshot.Error is null ? " · human view only / Chrome debugging" : " · " + snapshot.Error);
+        monitorStop.Enabled = monitoring;
     }
     private async Task Operate(bool park)
     {

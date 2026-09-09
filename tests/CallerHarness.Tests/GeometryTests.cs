@@ -95,7 +95,7 @@ internal static class GeometryTests
         check(rejected && !coordinator.EnsureMapped(c.AppSessionId), "shutdown rejects queued PARK and late native mapping");
         Console.WriteLine("Unit fixtures retained in temporary directory: " + temp);
     }
-    private sealed class FakeNative(MonitorGeometry[] monitors) : INativeWindows
+    internal sealed class FakeNative(MonitorGeometry[] monitors) : INativeWindows
     {
         private readonly Dictionary<string, long> markers = [];
         private readonly Dictionary<long, (NativeIdentity Identity, PixelRect Rect)> windows = [];

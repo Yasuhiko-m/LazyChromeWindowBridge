@@ -15,8 +15,10 @@ internal sealed class SessionHost : IAsyncDisposable
     private readonly WebApplication server;
     private readonly ChromeOptions chrome;
     private readonly System.Threading.Timer expiryTimer;
+    private int disposed;
     public SessionRegistry Sessions { get; } = new();
     public GeometryCoordinator Geometry { get; }
+    public MonitorCoordinator Monitor { get; }
     public Guid BridgeId { get; } = Guid.NewGuid();
     public Uri BaseUri { get; private set; } = null!;
     private SessionHost(WebApplication server, ChromeOptions chrome)
@@ -25,6 +27,7 @@ internal sealed class SessionHost : IAsyncDisposable
         this.chrome = chrome;
         Geometry = new GeometryCoordinator(Sessions, new NativeWindows(), new GeometryStore(chrome.GeometryDirectory ??
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LazyChromeExtension", "Geometry")), chrome.Executable);
+        Monitor = new MonitorCoordinator(Sessions, Geometry);
         expiryTimer = new System.Threading.Timer(_ => { Sessions.Sweep(DateTimeOffset.UtcNow); Geometry.Poll(DateTimeOffset.UtcNow); }, null, 500, 500);
     }
     public static async Task<SessionHost> StartAsync(ChromeOptions chrome)
@@ -39,6 +42,7 @@ internal sealed class SessionHost : IAsyncDisposable
         });
         var server = builder.Build();
         var host = new SessionHost(server, chrome);
+        server.UseWebSockets();
         server.Use(async (context, next) =>
         {
             if (context.Request.Host.Host != "127.0.0.1") { context.Response.StatusCode = 400; return; }
@@ -53,12 +57,13 @@ internal sealed class SessionHost : IAsyncDisposable
             <h1>Opening your session</h1><p>LazyChromeExtension will bind this window and open the launch URL.</p>
             <p>If this page remains, check CallerHarness and enable the extension in this Chrome profile.</p></html>
             """, "text/html"));
+        server.MapGet(Prefix + "/monitor", (HttpContext context) => MonitorBridge.Handle(context, host));
         server.MapGet(Prefix + "/api/sessions/{id:guid}", (Guid id, HttpContext context) =>
         {
             if (!host.Authorized(context, id)) return Results.Unauthorized();
             var session = host.Sessions.Get(id)!;
             if (session.State is SessionState.Closed or SessionState.Failed) return Results.Conflict();
-            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl, nativeGeometry = true });
+            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl, nativeGeometry = true, monitoring = true });
         });
         server.MapPost(Prefix + "/api/sessions/{id:guid}/{action}", async (Guid id, string action, HttpContext context) =>
         {
@@ -106,7 +111,9 @@ internal sealed class SessionHost : IAsyncDisposable
     }
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref disposed, 1) != 0) return;
         await expiryTimer.DisposeAsync();
+        await Monitor.ShutdownAsync();
         await Task.Run(Geometry.Dispose);
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         try { await server.StopAsync(stop.Token); }

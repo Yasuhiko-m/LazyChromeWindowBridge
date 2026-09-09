@@ -3,14 +3,14 @@ const KEY = "binding:";
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class BindingManager {
-  constructor(browser, request = globalThis.fetch.bind(globalThis)) { this.browser = browser; this.request = request; }
+  constructor(browser, request = globalThis.fetch.bind(globalThis), monitor = null) { this.browser = browser; this.request = request; this.monitor = monitor; }
 
   async records() {
     const data = await this.browser.storage.session.get(null);
     return Object.entries(data).filter(([key]) => key.startsWith(KEY)).map(([, value]) => value);
   }
   save(record) { return this.browser.storage.session.set({ [KEY + record.appSessionId]: record }); }
-  remove(record) { return this.browser.storage.session.remove(KEY + record.appSessionId); }
+  remove(record) { this.monitor?.remove(record.appSessionId); return this.browser.storage.session.remove(KEY + record.appSessionId); }
   async browserIdentity() {
     const { browserSessionId } = await this.browser.storage.session.get("browserSessionId");
     if (browserSessionId) return browserSessionId;
@@ -61,6 +61,7 @@ export class BindingManager {
         !["http:", "https:"].includes(new URL(description.launchUrl).protocol)) throw new Error("Caller identity mismatch.");
     record.launchUrl = description.launchUrl;
     record.nativePending = description.nativeGeometry === true;
+    record.monitoring = description.monitoring === true;
     // Persist before acknowledging to the caller; a worker restart can replay the idempotent bind.
     await this.save(record);
     await this.reconcileRecord(record);
@@ -87,6 +88,7 @@ export class BindingManager {
         record.navigationPending = false;
         await this.save(record);
       }
+      this.monitor?.ensure(record);
     } catch (error) {
       if (error.terminal || (record.closed && Date.now() - record.closedAt > 300000)) await this.remove(record);
       throw error;

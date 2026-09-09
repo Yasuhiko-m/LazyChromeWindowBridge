@@ -20,15 +20,17 @@ CallerHarness to exercise the contract intended for a future real launching appl
 The product consists of a C# reference/test caller and a Chrome extension.
 The reference implementation binds a stable application-session identity to a launched Chrome
 window, preserves that relationship through navigation, and restores window geometry
-according to the launch URL/profile. Later investigation concerns human-only visual
-monitoring while the window is away from the normal visible desktop area.
+according to the launch URL/profile. Human-only visual monitoring provides pixels
+from the owned window while it is away from the normal visible desktop area.
 SPEC.md distinguishes established behavior, review candidates, and future behavior.
 
 ## Platform / runtime
 Windows, C# / .NET 10 Windows Forms (`net10.0-windows`), and current Google Chrome
 with a Manifest V3 extension. Development uses an installed Windows .NET 10 SDK;
 the framework-dependent caller requires the .NET 10 Windows Desktop and ASP.NET Core
-shared runtimes. Kestrel supplies the caller-owned loopback HTTP listener.
+shared runtimes. Kestrel supplies the caller-owned loopback HTTP/WebSocket listener.
+Chrome's debugger extension permission supplies bounded JPEG viewport capture;
+the caller renders the pixels with built-in Windows desktop imaging facilities.
 
 ## Paths
 Source: `C:\LazyAIDeckProjects\LazyChromeExtension`
@@ -67,7 +69,8 @@ Remotes and pushes require explicit authorization.
   navigation must not redefine session ownership during the launched window's lifetime.
 - Monitoring imagery is for the human user only. Monitoring must not use DOM
   scraping, OCR, semantic image analysis, ChatGPT output extraction, or page-content automation.
-- Caller/extension communication uses an authenticated loopback HTTP bootstrap; the
+- Caller/extension communication uses an authenticated loopback HTTP bootstrap and
+  capability-authenticated WebSocket pixel transport; the
   established contract is specified in SPEC.md. Native placement uses built-in Windows APIs
   in the caller, with Chrome window ownership retained by the extension contract.
 - Keep the foundation small and request extension permissions only for implemented needs.
