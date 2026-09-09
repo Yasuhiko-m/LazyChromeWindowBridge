@@ -5,11 +5,14 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M001-R007 — download-lifecycle-notification**, accepted by Chat.
-Revisions.md establishes R007; PLAN.md mirrors it. V1 M001 and V0 are Complete.
+Established baseline: **V1-M002-R008 — public-release-preparation**, accepted by Chat.
+Revisions.md establishes R008; PLAN.md mirrors it. V1 M001, M002 and V0 are Complete.
 Product name is LazyChromeWindowBridge; immutable ProjectID does not change.
 
-V1 M002 Public Release Preparation is In Progress; no new runtime features are implied.
+V1 M002 Public Release Preparation is Complete; no new runtime features are implied.
+Accepted V1-M002-R008 adds MIT licensing, public documentation, an actual neutral
+demo screenshot and deterministic extension packaging. R007 runtime is unchanged.
+The user authorizes normal push, PUBLIC visibility and GitHub Release v0.1.0.
 
 R006 preserves the externally observable R005 contract. The prior accepted history
 and measurements remain in Revisions.md and the R005 Git checkpoint. Current
@@ -137,8 +140,8 @@ permission/normal notice and target contention are explicit limitations.
 
 No DOM/Runtime/Network extraction, OCR/semantic analysis, webpage completion detection,
 remote input, recording, cloud, telemetry, provider framework, installer or updater.
-No third-party package, OSS license, remote/repository creation or publication is
-introduced by this candidate.
+No third-party package or runtime feature is introduced by R008. MIT licensing and
+local public-release preparation are authorized; GitHub publication is deferred.
 
 Scripts/Test-All.ps1 is the stable validation entry. It restores/builds and runs Core,
 external public-API and extension tests. With a supplied Chrome for Testing executable,

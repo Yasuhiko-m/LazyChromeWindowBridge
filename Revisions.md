@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M001-R007`
+- Current VMR: `V1-M002-R008`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,49 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M002-R008 — public-release-preparation
+
+Purpose:
+Prepare the accepted Windows-to-Chrome bridge for an MIT public source release
+without changing runtime features or refactoring product code.
+
+Result:
+Accepted by Chat. V1 M002 is Complete. Standard MIT license, public README and docs,
+architecture/lifecycle diagrams, release notes and a reviewed actual SampleCaller
+hero screenshot are established. The approved lower README provenance note states
+that Lazy AI Deck was the development orchestration environment and is not a runtime
+dependency. The user explicitly authorizes normal push, PUBLIC repository visibility
+and published GitHub Release v0.1.0; remote publication follows this checkpoint.
+
+Build / Test:
+Final full Test-All -Clean with the accepted Chrome for Testing 153.0.8010.36 passed
+on a fresh-profile rerun (20260909-194815023-Test-All.log, Exit 0): clean restore/build,
+0 warnings / 0 errors, 121 Core / 19 external public API / 33 extension checks,
+session/navigation/native geometry/PARK/RESTORE, monitor, five-session lifecycle,
+download Created/Complete/Interrupted, MV3 restart and consumer move after Complete.
+Public-release and source audits passed: 24 relative links, reviewed image privacy/
+hash/metadata and deterministic six-file root-manifest extension package. Existing
+real sample GUI/image acceptance remains applicable; UI and hero pixels are unchanged.
+Hero: 1082x552, SHA256
+59B5437CA2D7D7D2BED788A045D5FCAB571ECDE14A0D37A06D5EC3DCAED4E21A.
+ZIP: 24453 bytes, repeated identical generation, SHA256
+131C1E1964001A6C5AD45FBC159251FA69AB3C718E892681DA5F1EB5F5829C22.
+Generated ZIP, logs and raw evidence remain uncommitted.
+
+Remaining:
+The initial final-validation run (20260909-194338405-Test-All.log, Exit 1) reproduced
+the documented initial offscreen capture timeout in one of four PARKED sessions;
+three peers remained Live. The unchanged complete rerun passed. No assertion,
+timeout or runtime behavior was weakened; this does not establish a root cause or
+eliminate the intermittent limitation. Existing support/privacy/download bounds remain.
+Publication must stop on GH007, mismatched remote/tag or a public-render defect
+requiring another Source edit. No history rewrite or automatic email-privacy change.
+
+Git Commit:
+Checkpoint subject: docs: establish V1-M002-R008 public release preparation.
+Exact checkpoint and subsequent publication outcomes are recorded by Git and the
+publication task handoff. Public accessibility is not claimed by this local record.
 
 ### V1-M001-R007 — download-lifecycle-notification
 

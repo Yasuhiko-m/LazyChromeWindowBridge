@@ -28,6 +28,9 @@ try {
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Extension rehydration tests failed.' }
         & node (Join-Path $PSScriptRoot 'Internal\AuditSource.mjs') 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Source name/security/hygiene audit failed.' }
+        & (Join-Path $PSScriptRoot 'Internal\PackageExtension.ps1') -SourceRoot $sourceRoot 2>&1 | Tee-Object -FilePath $scriptLog -Append
+        & node (Join-Path $PSScriptRoot 'Internal\AuditPublicRelease.mjs') 2>&1 | Tee-Object -FilePath $scriptLog -Append
+        if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Public release/image/link/package audit failed.' }
         if ($ChromeExecutable -and -not $Gui) {
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --downloads 2>&1 | Tee-Object -FilePath $scriptLog -Append
             if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Download lifecycle acceptance failed.' }

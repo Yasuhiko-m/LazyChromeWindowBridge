@@ -55,6 +55,22 @@ shrinking. Color/hash checks are confined to test tooling, not product image ana
 All real fixtures use isolated local pages, browser profile and geometry storage.
 Browser startup uses the supplied executable without sandbox/notice suppression.
 
+## Public-release gates
+Test-All also generates the ignored extension ZIP through the Source-owned internal
+packaging helper, checks repeated archive SHA256, and runs AuditPublicRelease. The
+standalone Scripts/Package-Extension.ps1 wrapper uses the same helper and its own
+flat log. The ZIP has fixed ordering/timestamps, canonical UTF-8/LF and no compression;
+an independent ZIP reader checks actual entries, CRC and equality to extension Source.
+
+The public audit covers tracked and untracked candidate files, relative Markdown
+file/heading links, known secret/email/personal-path patterns, account identity
+allowlisting and binary/image hygiene. The one reviewed PNG is tied to its exact
+hash, dimensions and permitted metadata chunks. A changed image requires another
+manual privacy review. No OCR or page inspection is added to the product.
+See [release preparation](github-release.md) for history-email and publication limits.
+Static scans are bounded; public GitHub rendering is checked after actual publication,
+not claimed by local candidate validation.
+
 ## GUI checklist
 Launch five distinct local fixtures. Start monitoring while Visible and verify ACTIVE
 tiles without capture. Park four, verify four changing images and a separate ACTIVE

@@ -1,19 +1,20 @@
 # LazyChromeExtension PLAN
 
 - Current Version: `V1`
-- Current Milestone: `M001`
-- Milestone Goal: Read-only Chrome Download Manager lifecycle notification.
-- Current Revision: `R007`
-- Current Baseline: `V1-M001-R007`
+- Current Milestone: `M002`
+- Milestone Goal: MIT public release preparation and release packaging.
+- Current Revision: `R008`
+- Current Baseline: `V1-M002-R008`
 - Milestone Status: **Complete**
 - Version Status: **In Progress**
 
 ## Handoff
 
-Chat accepted `V1-M001-R007` (download-lifecycle-notification), now the established
-baseline. V1 M001 is Complete; V0 remains Complete. Revisions.md is Current VMR
-authority and records the accepted clean build, 121 Core / 19 public API / 33 extension
-checks and complete real-browser/download evidence. PLANS.md starts V1 M002 Public
-Release Preparation. Public visibility and release publication are not yet authorized.
+Chat accepted `V1-M002-R008` (public-release-preparation), now the established
+baseline. V1 M002 is Complete; V0 remains Complete. Revisions.md is Current VMR
+authority and records MIT licensing, public documentation, the reviewed hero image,
+deterministic packaging and final complete validation. The user explicitly authorizes
+normal push, PUBLIC visibility and GitHub Release v0.1.0. Publication follows this
+checkpoint and remains subject to remote verification and the specified stop gates.
 
 This legacy file mirrors the established baseline; candidate work does not advance it.

@@ -41,6 +41,21 @@ and exclusive access before moving the file. Those checks do not eliminate races
 the handle closes. The bridge never opens, scans, validates or moves downloaded files.
 Filename may exist before Complete; it is not a readiness signal.
 
+```mermaid
+flowchart TD
+    Manager[Chrome Download Manager: profile-global] --> Created[Created]
+    Created --> Complete[Complete]
+    Created --> Interrupted[Interrupted]
+    Created --> Event[Bridge DownloadChanged]
+    Complete --> Event
+    Interrupted --> Event
+    Event -->|Complete only| Gate[Consumer: expected path/name, exists, stable metadata, exclusive open]
+    Gate -->|checks pass| Move[Consumer MOVE]
+```
+
+Interrupted never authorizes the move gate. No part of this lifecycle is assigned to
+appSessionId. Bridge does no filesystem mutation.
+
 ## Profile scope and authentication
 DownloadItem has no source tab/window identity. There is no appSessionId attribution
 and no URL/finalUrl/referrer in the public payload or download outbox. Observation covers

@@ -46,5 +46,6 @@
   A hung peer can exceed graceful shutdown bounds; callers should still await disposal.
 - The pre-release product rename starts a new geometry directory. Legacy pre-release
   data is not a supported migration contract; no migration subsystem is provided.
-- No installer, updater, NuGet package, Web Store publication or GitHub workflow is
-  established. Licensing for an eventual public release is not finalized.
+- No installer, updater, NuGet package or Web Store publication is established.
+  The MIT-licensed source and generated unpacked-extension ZIP are the initial
+  distribution approach; release automation/publication requires maintainer action.

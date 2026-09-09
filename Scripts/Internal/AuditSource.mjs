@@ -14,11 +14,13 @@ const rules = policy.rules.map(r => ({ ...r, regex: new RegExp(r.linePattern.rep
 const listed = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
   { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean))].sort();
 const files = [], residuals = [], violations = [];
+const publicImage = 'docs/images/monitor-overview.png'; // Independently hash/privacy checked by AuditPublicRelease.
 for (const relative of listed) {
   let bytes;
   try { bytes = await fs.readFile(path.join(root, relative)); }
   catch (error) { if (error.code === 'ENOENT') continue; throw error; } // Deleted old paths are not current Source.
   files.push(relative);
+  if (relative === publicImage) continue;
   if (oldTerms.some(term => relative.includes(term))) violations.push({ path: relative, kind: 'old-name-path' });
   if (/(^|\/)(bin|obj|Outputs|profiles|evidence|TEMP|tmp)(\/|$)|\.(log|png|jpg|jpeg|pdb|dll|exe)$/i.test(relative))
     violations.push({ path: relative, kind: 'generated-or-private-artifact' });

@@ -50,6 +50,7 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Candidate revisions remain unstaged/uncommitted for Chat review
 unless the active task explicitly authorizes an accepted-baseline checkpoint.
-The project is pre-release and prepared for a private repository baseline; repository
-creation/push waits for explicit accepted-task authorization. An eventual public
-license is not yet selected. No installer/store/package distribution is established.
+The project is early-release software licensed under MIT, copyright 2026 Yasuhiko Mori,
+derived from the existing repository author identity. Public preparation remains local
+until Chat acceptance and explicit publication authorization. No installer/updater or
+Web Store distribution is established; the extension ZIP is a generated release asset.

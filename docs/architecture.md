@@ -29,6 +29,15 @@ The PID and `LazyChromeWindowBridge.SessionBinding` property must continue to ma
 Native mapping is acknowledged before navigating to the launch URL. Later navigation
 and active-tab changes do not reselect the owned window.
 
+```mermaid
+flowchart LR
+    Session[appSessionId] --> Window[Chrome WindowId]
+    Window --> Native[native HWND / PID / property tag]
+```
+
+This chain is window ownership only. Profile-global downloads have no appSessionId
+association; see the separate [download lifecycle](downloads.md).
+
 ## Geometry
 `WindowSnapshot` carries physical current bounds, remembered Normal, placement state,
 DPI, identity and the original launch/profile URL. Persistence uses a hashed normalized

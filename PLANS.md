@@ -100,11 +100,16 @@ checks and complete real browser/native/monitor/download acceptance PASS.
 ### M002 — Public Release Preparation
 Goal: prepare MIT licensing, public developer documentation, a neutral hero screenshot,
 release notes and a deterministic extension ZIP without new runtime features.
-Status: **In Progress**. Publication and GitHub visibility changes await acceptance.
+Status: **Complete**. Chat accepted R008: MIT license, public README/docs, reviewed
+neutral hero image and deterministic six-file extension ZIP. Final clean validation
+passed 121 Core / 19 public API / 33 extension checks and all real browser regressions
+on a fresh-profile rerun; the initial run reproduced the documented capture timeout.
+The user explicitly authorizes normal push, PUBLIC visibility and Release v0.1.0.
+Publication is a subsequent operation verified against the accepted checkpoint.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M001-R007; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M002-R008; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

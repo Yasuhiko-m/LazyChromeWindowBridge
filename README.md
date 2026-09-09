@@ -2,29 +2,52 @@
 
 **Control the Chrome window, not the webpage.**
 
-A Windows application-to-Chrome bridge for deterministic session/window ownership,
-physical window geometry, offscreen PARK/RESTORE, human-only thumbnails and Chrome
-Download Manager lifecycle observation.
-Navigation does not change which browser window an application session owns.
+A Windows-to-Chrome bridge for deterministic session/window ownership, native geometry,
+full offscreen PARK/RESTORE, lightweight human monitoring, manual window control and
+Chrome Download Manager lifecycle events — without DOM automation.
 
-This is a pre-release product prepared for a private repository baseline. No GitHub
-repository or publication is created by the current candidate work. Licensing for an
-eventual public release has not been selected; no open-source license is implied.
+![SampleCaller with five bound sessions: one ACTIVE and four PARKED/LIVE neutral thumbnails](docs/images/monitor-overview.png)
+
+*Actual SampleCaller with isolated local color fixtures. ACTIVE has no capture;
+four PARKED windows supply independent human-view thumbnails.*
+
+Built for .NET Windows applications that need Chrome window management and browser
+integration through a Manifest V3 extension. Unlike DOM-oriented browser automation
+tools, it works with Chrome application/window state and exact native ownership.
+Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
 
 ## What it does
 - Launch independent Chrome windows, including several with the same launch URL.
-- Retain exact application session ↔ Chrome window ↔ native HWND/PID/property identity.
-- Remember Normal geometry by the original launch URL.
+- Retain deterministic appSessionId ↔ Chrome WindowId ↔ native HWND/PID/property identity.
+- Keep Chrome session binding independent of navigation and active-tab changes.
+- Persist Chrome window position and size by the original launch URL; set manual bounds.
 - PARK a window fully outside all monitors and RESTORE its protected Normal bounds.
 - Read state/bounds and set a Visible window's physical-pixel placement.
 - Monitor all eligible PARKED sessions independently; Visible windows show ACTIVE.
 - Observe profile-global Created / Complete / Interrupted downloads once per Bridge.
 
-It does not automate webpage input, read DOM/content, perform OCR or semantic image
-analysis, detect webpage/output completion, extract output, record sessions or relay data to a cloud.
+## What it intentionally does not do
+- DOM scraping or Runtime.evaluate.
+- OCR, semantic image analysis or page-content analysis.
+- Automated click/input or remote webpage control.
+- ChatGPT output/completion extraction or other webpage completion detection.
+- Network response inspection, session recording or cloud relay.
+
+Chrome download lifecycle is browser metadata, not a webpage completion signal.
 The monitor is a small human status overview, not remote desktop or video streaming.
 
 ## Architecture
+```mermaid
+flowchart TB
+    Consumer[Windows Consumer] <-->|public Core API| Core[LazyChromeWindowBridge.Core]
+    Core <-->|authenticated 127.0.0.1 HTTP / WebSocket| Extension[LazyChromeWindowBridge.Extension]
+    Extension <-->|Chrome APIs| Chrome[Chrome]
+```
+
+This Chrome extension native bridge uses the existing loopback listener rather than a
+native-messaging host installation. Core owns the Win32 Chrome window mapping;
+the consumer owns presentation and filesystem decisions.
+
 | Component | Responsibility |
 | --- | --- |
 | `src/LazyChromeWindowBridge.Core` | Public `BridgeRuntime` API, ownership, loopback transport, native geometry and encoded thumbnails |
@@ -104,10 +127,13 @@ wait, manual bounds, frame consumption and shutdown. A missing extension is repo
 as a session failure, not a different target selection.
 
 ## PARK and monitoring
-PARK is explicit logical state and native placement outside every monitor; it is not
+For Chrome multi-window workloads, PARK is explicit logical state and native placement outside every monitor; it is not
 minimization. Normal is protected while PARKED. Manual SetWindowBounds requires a
 Visible session; Restore first if it is PARKED. Coordinates are physical pixels,
 including reachable negative-coordinate monitors.
+This Windows Chrome integration supports multi-monitor layouts and negative coordinates.
+An offscreen Chrome window retains its full native size: PARK/RESTORE browser window
+management does not minimize it or use experimental native shrinking.
 
 Default monitoring is **2 fps, maximum 240×135, JPEG quality 70**, with preserved aspect
 ratio and no capture upscale. Four simultaneous PARKED streams are the validated
@@ -117,8 +143,11 @@ keeps its normal size while only the captured image is scaled.
 Chrome's debugger permission is broad, although this implementation only uses
 viewport metrics and JPEG screenshot commands. The normal debugging notice remains.
 Cancellation is respected; explicit Start is required to retry a canceled monitor.
+Chrome window thumbnail monitoring is PARKED-only; Chrome window control remains
+limited to the owned native window and explicit consumer commands.
 
 ## Download lifecycle
+The Chrome downloads API supplies this read-only Chrome download lifecycle stream.
 Subscribe to `BridgeRuntime.DownloadChanged` before launching sessions. Events contain
 `DownloadId`, `State`, exact Chrome `Filename`, optional `Error` and `ObservedAt`.
 There is no appSessionId or URL attribution: downloads belong to the Chrome profile.
@@ -155,6 +184,13 @@ See [Testing](docs/testing.md) for coverage and evidence boundaries.
 - [Limitations](docs/limitations.md)
 - [Testing](docs/testing.md)
 - [Product and governance identity](docs/identity.md)
+- [First-release notes](docs/releases/v0.1.0.md)
+- [Release packaging and maintainer steps](docs/github-release.md)
+
+## Development
+
+Lazy AI Deck was used as the development orchestration environment.
+LazyChromeWindowBridge itself has no runtime dependency on Lazy AI Deck.
 
 Lazy AI Deck is a consumer of this independent product, not its runtime container.
 Pre-release geometry data from the former product is not a supported migration
