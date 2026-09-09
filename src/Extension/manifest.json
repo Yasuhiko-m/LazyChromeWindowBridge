@@ -1,9 +1,18 @@
 {
   "manifest_version": 3,
   "name": "LazyChromeExtension",
-  "version": "0.0.1",
-  "description": "Minimal foundation for a Windows caller and Chrome session integration.",
+  "version": "0.0.2",
+  "minimum_chrome_version": "120",
+  "description": "Binds caller sessions to Chrome windows independently of page navigation.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "content_scripts": [{
+    "matches": ["http://127.0.0.1/lazy-chrome-extension/bootstrap*"],
+    "js": ["bootstrap.js"],
+    "run_at": "document_start"
+  }],
   "background": {
-    "service_worker": "service-worker.js"
+    "service_worker": "service-worker.js",
+    "type": "module"
   }
 }

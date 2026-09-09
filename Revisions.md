@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V0-M001-R001`
+- Current VMR: `V0-M001-R002`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -59,6 +59,32 @@ Accepted implementation evidence (not rerun for this authority-only checkpoint):
 
 Remaining:
 M001 continues. The next Revision is not predefined here.
+
+Git Commit:
+Recorded externally by Git checkpoint; see repository history.
+
+### LazyChromeExtension_V0-M001-R002 — session-window-binding
+
+Purpose:
+Establish deterministic caller-session ownership of launched Chrome windows
+independently of subsequent page navigation.
+
+Result:
+Accepted by Chat. CallerHarness owns the session identity and loopback bridge;
+the extension binds the exact sender Chrome Window. The launch URL remains immutable
+session metadata, and later navigation never redefines ownership. Simultaneous
+same-URL sessions remain distinct. Window close terminates only its own session;
+normal MV3 service-worker restart rehydrates active bindings. Geometry, PARK, and
+monitoring are not part of R002.
+
+Build / Test:
+Accepted evidence: .NET build PASS (0 warnings / 0 errors); caller/HTTP checks
+26 PASS; extension tests 6 PASS; Chrome for Testing integration PASS; one-session
+navigation PASS; concurrent same-URL sessions PASS; Window-close PASS; MV3 worker
+stop/restart PASS; Windows GUI acceptance PASS.
+
+Remaining:
+M001 is complete. M002 begins with geometry / PARK / RESTORE.
 
 Git Commit:
 Recorded externally by Git checkpoint; see repository history.

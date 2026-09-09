@@ -1,43 +1,68 @@
 # LazyChromeExtension PLANS
 
 ## Project goal
-Establish a Windows caller and Chrome extension integration that keeps a launched
-Web application session associated with its window across ordinary navigation.
+Complete a Windows caller / Chrome extension reference implementation that keeps
+an application session associated with its own browser window across navigation.
 
-## Version roadmap
-
-### V0 — Browser-session integration foundation
-Goal:
-Prove and establish the browser-session integration foundation, initially with
-ChatGPT in Chrome and CallerHarness as the reference/test launching application.
+## V0 — Complete the reference implementation
+Goal: complete the reference flow, initially for a Chrome WebApp such as ChatGPT,
+while keeping session identity independent of page content and navigation.
 
 Exit Criteria:
-- The caller/extension foundation can be built, launched, and loaded locally.
-- Session/window ownership survives ordinary navigation for the window's lifetime.
-- Window geometry can be stored/restored according to the launch URL/profile.
-- Human-only visual-monitoring feasibility is evaluated within the adopted boundaries;
-  limitations and any proposed mechanism are reviewed before adoption.
+- Real launch and deterministic session/window ownership.
+- Stable ownership across navigation and simultaneous sessions.
+- Geometry persistence and exact PARK / RESTORE behavior.
+- Human-only visual monitoring and integrated acceptance of the complete flow.
 
-Milestones:
+### M001 — Session-bound browser window
+Goal: CallerHarness launches/initiates a Chrome WebApp session and maintains a
+stable appSessionId ↔ Chrome Window relationship across ordinary page navigation.
 
-| Milestone | Goal | Exit Criteria | Status |
-| --- | --- | --- | --- |
-| M001 — Session-bound browser-window foundation | Establish the scaffold, then select transport and bind caller sessions to launched Chrome windows. | Caller builds/runs, extension loads, and session/window ownership survives navigation in an agreed validation flow. | In Progress |
-| M002 — Window geometry | Store and restore position/size according to launch URL/profile. | Agreed geometry behavior is demonstrated without redefining session ownership. | Planned |
-| M003 — Human-only visual-monitoring investigation | Evaluate monitoring while a window is away from the normal visible desktop area. | Human-visible feasibility and limitations are documented; no DOM/OCR/semantic extraction is used; mechanism adoption is a separate decision. | Planned |
+Exit Criteria:
+- Real launch flow works.
+- Session/window binding is deterministic.
+- Navigation does not break or redefine binding.
+- At least two simultaneous sessions do not cross-bind.
+- Window close terminates its session binding.
+- MV3 service-worker lifecycle does not lose an active binding.
 
-This roadmap does not advance runtime planning state. PLAN.md retains its existing
-bootstrap milestone goal and baseline until Chat acceptance updates planning.
+Status: **Complete**. Chat accepted R002 and its session/window integration evidence.
+
+### M002 — Geometry / Park / Restore
+Goal: persist/restore geometry by launch URL/profile and implement the special
+offscreen PARK → RESTORE lifecycle.
+
+Scope when this milestone begins:
+- x/y/width/height; multi-monitor, negative coordinates, and DPI.
+- Launch URL profile.
+- Normal geometry must not be polluted by PARK geometry.
+- Native SetWindowPos may be used if required.
+- Complete offscreen PARK and exact RESTORE.
+
+Exit Criteria: the adopted geometry profile and full PARK / RESTORE behavior pass
+validation across supported monitor/DPI configurations without altering ownership.
+
+Status: **In Progress**.
+
+### M003 — Human monitor + integrated V0 acceptance
+Goal: provide human-only visual monitoring of the PARKED WebApp and complete the
+end-to-end V0 reference flow.
+
+Scope when this milestone begins:
+- Capture/stream implementation.
+- Practical resolution, fps, and load measurement.
+- CallerHarness preview and the human-view-only boundary.
+- Integrated flow: launch → bind → restore geometry → PARK → monitor → RESTORE.
+
+Exit Criteria: the complete integrated flow passes acceptance with usable monitoring
+and measured limits; no DOM/OCR/semantic/output extraction or page-content automation.
+
+Status: **Planned**.
 
 ## Planning rules
-- PLANS.md contains Version/Milestone roadmap only.
-- A Milestone is an independently verifiable feature group / arrival goal.
-- Keep Milestones small enough to have a clear completion decision.
-- Do not mass-predefine Revision numbers here.
-- Do not store Current Revision or Current VMR here.
-- Chat defines Revisions while executing a Milestone.
-- Same-purpose retry uses one flat issuance counter: `R001`, `R001_1`, `R001_2`; never nested `R001_1_1`. Historical nested values remain readable compatibility only.
-- At a Milestone boundary, review achieved behavior, remaining issues, discoveries, and planning changes before finalizing the next Milestone.
-
-## Future versions
-Deferred until V0 evidence supports a concrete next goal.
+- This file contains Version/Milestone roadmap only; no moving Current VMR.
+- PLAN.md and Revisions.md retain the established R002 authority during candidate work.
+- Chat defines revisions during milestone execution; future numbers are not predefined.
+- Same-purpose retries use a flat issuance suffix, never nested suffixes.
+- At milestone boundaries review evidence, remaining issues, and discoveries.
+- Future versions remain deferred until V0 evidence supports a concrete next goal.

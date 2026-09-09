@@ -1,0 +1,107 @@
+using System.Net;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+namespace CallerHarness;
+
+internal sealed class SessionHost : IAsyncDisposable
+{
+    internal const string Prefix = "/lazy-chrome-extension";
+    private readonly WebApplication server;
+    private readonly ChromeOptions chrome;
+    private readonly System.Threading.Timer expiryTimer;
+    public SessionRegistry Sessions { get; } = new();
+    public Guid BridgeId { get; } = Guid.NewGuid();
+    public Uri BaseUri { get; private set; } = null!;
+    private SessionHost(WebApplication server, ChromeOptions chrome)
+    {
+        this.server = server;
+        this.chrome = chrome;
+        expiryTimer = new System.Threading.Timer(_ => Sessions.Sweep(DateTimeOffset.UtcNow), null, 1000, 1000);
+    }
+    public static async Task<SessionHost> StartAsync(ChromeOptions chrome)
+    {
+        var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], ContentRootPath = AppContext.BaseDirectory });
+        builder.Logging.ClearProviders(); // Never log bootstrap capabilities or user URLs.
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Listen(IPAddress.Loopback, 0);
+            options.Limits.MaxRequestBodySize = 4096;
+            options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(5);
+        });
+        var server = builder.Build();
+        var host = new SessionHost(server, chrome);
+        server.Use(async (context, next) =>
+        {
+            if (context.Request.Host.Host != "127.0.0.1") { context.Response.StatusCode = 400; return; }
+            context.Response.Headers.CacheControl = "no-store";
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            await next(context);
+        });
+        server.MapGet(Prefix + "/bootstrap", () => Results.Content("""
+            <!doctype html><html lang="en"><meta charset="utf-8">
+            <meta name="referrer" content="no-referrer"><title>LazyChromeExtension session launch</title>
+            <h1>Opening your session</h1><p>LazyChromeExtension will bind this window and open the launch URL.</p>
+            <p>If this page remains, check CallerHarness and enable the extension in this Chrome profile.</p></html>
+            """, "text/html"));
+        server.MapGet(Prefix + "/api/sessions/{id:guid}", (Guid id, HttpContext context) =>
+        {
+            if (!host.Authorized(context, id)) return Results.Unauthorized();
+            var session = host.Sessions.Get(id)!;
+            if (session.State is SessionState.Closed or SessionState.Failed) return Results.Conflict();
+            return Results.Json(new { bridgeId = host.BridgeId, session.AppSessionId, session.LaunchUrl });
+        });
+        server.MapPost(Prefix + "/api/sessions/{id:guid}/{action}", async (Guid id, string action, HttpContext context) =>
+        {
+            if (!host.Authorized(context, id)) return Results.Unauthorized();
+            if (action is not ("bind" or "closed")) return Results.NotFound();
+            if (!context.Request.HasJsonContentType()) return Results.StatusCode(415);
+            WindowReport? report;
+            try { report = await context.Request.ReadFromJsonAsync<WindowReport>(context.RequestAborted); }
+            catch (System.Text.Json.JsonException) { return Results.BadRequest(); }
+            if (report is null || !host.Sessions.Report(id, report, action == "closed", DateTimeOffset.UtcNow)) return Results.Conflict();
+            return Results.Ok();
+        });
+        try
+        {
+            await server.StartAsync();
+            var addresses = server.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!;
+            host.BaseUri = new Uri(addresses.Addresses.Single());
+            return host;
+        }
+        catch { await host.DisposeAsync(); throw; }
+    }
+    private bool Authorized(HttpContext context, Guid id)
+    {
+        // No CORS grant: arbitrary websites cannot send an authenticated JSON request.
+        var authorization = context.Request.Headers.Authorization.ToString();
+        return authorization.StartsWith("Bearer ", StringComparison.Ordinal) && Sessions.Authenticate(id, authorization[7..]);
+    }
+    internal (SessionSnapshot Session, Uri Bootstrap) PrepareLaunch(string url)
+    {
+        var (session, token) = Sessions.Create(url, DateTimeOffset.UtcNow);
+        var bootstrap = new Uri(BaseUri, Prefix + $"/bootstrap#v=1&bridge={BridgeId:D}&session={session.AppSessionId:D}&token={token}");
+        return (session, bootstrap);
+    }
+    public async Task<SessionSnapshot> LaunchAsync(string url)
+    {
+        var (session, bootstrap) = PrepareLaunch(url);
+        try { await Task.Run(() => ChromeLauncher.Launch(chrome, bootstrap)); }
+        catch (Exception error) { Sessions.FailLaunch(session.AppSessionId, "Chrome launch failed: " + error.Message); }
+        return Sessions.Get(session.AppSessionId)!;
+    }
+    public async ValueTask DisposeAsync()
+    {
+        await expiryTimer.DisposeAsync();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        try { await server.StopAsync(stop.Token); }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+        finally { await server.DisposeAsync(); }
+    }
+}

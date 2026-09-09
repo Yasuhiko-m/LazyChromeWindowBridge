@@ -27,7 +27,8 @@ These are product goals; SPEC.md separates the scaffold from future behavior.
 ## Platform / runtime
 Windows, C# / .NET 10 Windows Forms (`net10.0-windows`), and current Google Chrome
 with a Manifest V3 extension. Development uses an installed Windows .NET 10 SDK;
-the framework-dependent caller requires the .NET 10 Windows Desktop runtime.
+the framework-dependent caller requires the .NET 10 Windows Desktop and ASP.NET Core
+shared runtimes. Kestrel supplies the caller-owned loopback HTTP listener.
 
 ## Paths
 Source: `C:\LazyAIDeckProjects\LazyChromeExtension`
@@ -66,7 +67,8 @@ Remotes and pushes require explicit authorization.
   navigation must not redefine session ownership during the launched window's lifetime.
 - Monitoring imagery is for the human user only. Monitoring must not use DOM
   scraping, OCR, semantic image analysis, ChatGPT output extraction, or page-content automation.
-- Exact caller/extension transport and special PARK/offscreen mechanisms remain undecided.
+- Caller/extension communication uses an authenticated loopback HTTP bootstrap; the
+  established contract is specified in SPEC.md. Special PARK/offscreen mechanisms remain undecided.
 - Keep the foundation small and request extension permissions only for implemented needs.
 
 ## External dependencies
