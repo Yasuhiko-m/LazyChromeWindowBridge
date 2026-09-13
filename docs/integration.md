@@ -1,5 +1,8 @@
 # Integration with the public Core API
 
+These capabilities are prepared for the 0.2.0 distribution candidate; that package
+version is not yet publicly released. The source examples below target this candidate.
+
 This describes Chat-accepted R010/R011 Source at V1-M005-R011 in the combined R011
 checkpoint. GitHub v0.1.0 and NuGet 0.1.0 contain neither behavior; use matching Core
 and extension Source. PARK/RESTORE controls native window placement only and does not

@@ -54,13 +54,16 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Candidate revisions remain unstaged/uncommitted for Chat review
 unless the active task explicitly authorizes an accepted-baseline checkpoint.
-Current accepted Source is V1-M005-R011, including Chat-accepted R010 continuous
+Current accepted Source is V1-M006-R012, retaining Chat-accepted R010 continuous
 Visible/Parked monitoring and R011 per-session pause/resume in the combined R011
 checkpoint; GitHub v0.1.0 and NuGet 0.1.0 are older baselines. M004/M005 are
 Complete and V1 remains In Progress. Chrome Web Store live submission is separate.
+Chat accepted V1-M006-R012 distribution preparation; M006 is Complete and Current
+VMR is V1-M006-R012. Version 0.2.0 is established as a prepared, unpublished candidate.
+Publication artifacts must be rebuilt from the exact accepted checkpoint.
 The third-display initial offscreen capture timeout remains unresolved; silent launch
 suppression is best-effort and visual infobar absence was not established in acceptance.
 The project is early-release software licensed under MIT, copyright 2026 Yasuhiko Mori,
-derived from the existing repository author identity. Public preparation remains local
-until Chat acceptance and explicit publication authorization. No installer/updater or
+derived from the existing repository author identity. R012 preparation is accepted;
+checkpoint and publication require separate authorization. No installer/updater or
 Web Store distribution is established; the extension ZIP is a generated release asset.

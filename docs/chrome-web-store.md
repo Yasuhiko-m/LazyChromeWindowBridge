@@ -1,9 +1,11 @@
-# Chrome Web Store submission preparation — 0.1.0
+# Chrome Web Store submission preparation — 0.2.0 candidate
 
-Future submission copy for Chat-accepted R010/R011 Source, not yet released as a package or submitted to CWS. Publisher setup was
+Chat accepted this R012 future submission preparation for the R010/R011 behavior.
+Version 0.2.0 is prepared, not uploaded, submitted, approved or published. Publisher setup was
 reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.
-The URLs below become submission-ready only after the accepted Source is pushed
-and its privacy page is confirmed publicly reachable. No store item URL exists yet.
+The URLs below become submission-ready only after accepted 0.2.0 Source is pushed
+and its privacy page is confirmed publicly reachable. The Store item remains a draft,
+not publicly released. This task performs no live dashboard operation.
 
 ## Name
 
@@ -36,7 +38,7 @@ responses or infer page completion. It has no toolbar popup: use the Windows com
 controls. Windows x64, Chrome 120 or later, and the companion are required. The supplied
 self-contained companion needs no separate .NET installation or account sign-in.
 
-Use a companion built from the same future accepted Source as the extension.
+Use the matching 0.2.0 companion bundle built from the same Source as the extension.
 The already published v0.1.0 companion does not contain continuous monitoring.
 Prepare and identify a matching companion bundle before any future submission.
 Read the privacy policy before monitoring pages that may contain private information.
@@ -136,11 +138,11 @@ and user controls. These answers do not constitute Store approval.
 
 ## Reviewer instructions
 
-1. Use Windows x64 with Chrome 120+ and the extension version 0.1.0 under review enabled.
+1. Use Windows x64 with Chrome 120+ and the extension version 0.2.0 under review enabled.
    No ChatGPT, OpenAI or other website credentials are needed.
-2. Use the matching companion build identified for the future submission, and run
-   SampleCaller with the extension under review in the same Chrome profile. A new
-   distribution decision/bundle is required before these instructions are submission-ready.
+2. Extract LazyChromeWindowBridge-v0.2.0-win-x64.zip and run its SampleCaller with
+   the bundled Extension under review in the same Chrome profile. The prepared bundle
+   must be published through a separately authorized operation before Store submission.
    The historical [v0.1.0 Release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.1.0)
    and NuGet 0.1.0 do not implement the accepted R010/R011 monitor contract.
 3. Replace the sample's default launch URL with `https://example.com/?window=a`.
@@ -169,15 +171,15 @@ and user controls. These answers do not constitute Store approval.
 
 ## Submission files
 
-- ZIP: `artifacts/cws/LazyChromeWindowBridge.Extension-0.1.0-cws.zip` (10 files).
+- ZIP: `artifacts/cws/LazyChromeWindowBridge.Extension-0.2.0-cws.zip` (10 files).
 - Icon: `src/LazyChromeWindowBridge.Extension/icons/icon-128.png`.
-- Screenshot: [real monitor view](store-assets/screenshot-monitor-1280x800.png), 1280×800.
+- Screenshot: [real 0.2.0 monitor view](store-assets/screenshot-monitor-0.2.0-1280x800.png), 1280×800.
 - Small promo: [original brand artwork](store-assets/promo-small-440x280.png), 440×280.
-- [Asset privacy review](store-assets/privacy-review.md).
+- [Current asset privacy review](store-assets/privacy-review-0.2.0.md).
 
-The screenshot above is historical R009 evidence. Prepare a current continuous-monitor
-screenshot and repeat its privacy review before a future Store submission; no asset
-or dashboard upload is part of this authority closeout.
+The 0.2.0 screenshot is a real current SampleCaller capture with a separate privacy
+review. The original 0.1.0 screenshot and its evidence remain historical and unchanged.
+No asset or dashboard upload is part of R012 preparation.
 
 Prepared against Chrome's [image requirements](https://developer.chrome.com/docs/webstore/images),
 [privacy field guidance](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)

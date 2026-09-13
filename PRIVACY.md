@@ -1,7 +1,7 @@
 # LazyChromeWindowBridge privacy policy
 
 This policy describes Chat-accepted R010/R011 Source at V1-M005-R011.
-It is future submission copy, not a change to published GitHub/NuGet 0.1.0 behavior.
+It is the future0.2.0 submission policy, not a change to published GitHub/NuGet0.1.0 behavior.
 LazyChromeWindowBridge connects an
 extension to a Windows companion on the same computer. It handles user data locally;
 it does not mean that no user data is handled.

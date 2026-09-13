@@ -20,11 +20,11 @@ try {
         }
         & node --test ./tests/LazyChromeWindowBridge.Extension.Tests/bindings.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/monitor.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/downloads.test.mjs 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed.' }
-        $packageRoot = Join-Path (Get-Location).Path 'artifacts/nuget'
+        $packageRoot = Join-Path (Get-Location).Path 'artifacts/nuget/0.2.0'
         New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
         # Remove only these two known generated outputs, never a directory or Source.
         foreach ($extension in @('nupkg', 'snupkg')) {
-            $oldPackage = Join-Path $packageRoot "LazyChromeWindowBridge.Core.0.1.0.$extension"
+            $oldPackage = Join-Path $packageRoot "LazyChromeWindowBridge.Core.0.2.0.$extension"
             if (Test-Path -LiteralPath $oldPackage) { Remove-Item -LiteralPath $oldPackage -ErrorAction Stop }
         }
         & dotnet pack ./src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj -c Release --no-build --no-restore -p:ContinuousIntegrationBuild=true -warnaserror -o $packageRoot 2>&1 | Tee-Object -FilePath $log -Append

@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M005-R011`
+- Current VMR: `V1-M006-R012`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,86 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M006-R012 — v0.2.0-distribution-preparation
+
+Purpose:
+Prepare one coherent LazyChromeWindowBridge 0.2.0 GitHub Release, NuGet and Chrome
+Web Store distribution candidate from the accepted R011 runtime baseline.
+
+Result:
+Accepted by Chat. V1 M006 Complete; V1 remains In Progress. Core NuGet package,
+SampleCaller and Extension manifest version authorities are 0.2.0. This is a feature
+release for the accepted R010/R011 capabilities: continuous Visible/Parked JPEG,
+in-place CaptureOptions updates, requested FPS 1–30, SetSessionMonitoring(Guid,bool),
+per-session Paused/frozen JPEG and best-effort silent debugger launch behavior.
+PARK/RESTORE controls native placement only and NEVER automatically starts, stops,
+pauses or resumes monitoring. Monitoring policy belongs to the Caller. Downloads
+and the human-view-only/no-DOM boundary remain. No runtime behavior changed in R012.
+
+Core metadata audit accepted: exact PackageId LazyChromeWindowBridge.Core/version
+0.2.0, author matching the Core project metadata, MIT, README, reviewed icon and
+project/repository URLs; net10.0-windows7.0 with Microsoft.AspNetCore.App and
+Microsoft.WindowsDesktop.App framework references, no external NuGet dependencies,
+portable PDB, Source Link and strict nupkg/snupkg inventory. Trusted Publishing stays
+manual workflow_dispatch only, environment release, contents:read/id-token:write,
+OIDC NuGet login, no long-lived API key and no skip-duplicate behavior. R012 changed
+only the exact 0.2.0 package path in the existing workflow; no dispatch occurred.
+
+Initial public CWS candidate is 0.2.0, MV3, with exactly bindings.js, bootstrap.js,
+downloads.js, icons/icon-16.png, icons/icon-32.png, icons/icon-48.png,
+icons/icon-128.png, manifest.json, monitor.js and service-worker.js. No remote code,
+credentials or development fixtures. The real current 1280x800 RGB Store screenshot
+and its privacy review are accepted; original promo and icons are retained.
+GitHub v0.2.0 is the prepared next release, not an existing tag or public Release.
+
+Build / Test:
+Accepted clean restore/build PASS, 0 warnings / 0 errors; Core 154, PublicApi 29,
+Extension 39 PASS. Isolated local-feed 0.2.0 PackageReference consumer: 29 checks
+including SetSessionMonitoring PASS. Full real Chrome/native ownership, navigation,
+same-URL concurrency, native geometry, PARK/RESTORE, continuous monitoring,
+per-session Pause/Resume, global Start/Stop, downloads, MV3 and shutdown PASS.
+Live options produced 640x329 JPEG with stable generation/socket/attachment;
+30 fps request measured about 15.99 fps; five-session aggregate about 9.99 fps.
+These measurements establish no throughput SLA. Windows self-contained x64 package
+inventory/extraction and fresh-path GUI launch/normal close PASS; final repack changed
+only README, with all executable/runtime/Extension bytes identical to the tested ZIP.
+CWS repeated deterministic generation, package/source/privacy/link audits PASS.
+Evidence under Scripts/Outputs: 20260913-230604104-Test-All.log,
+20260913-231210165-Test-NuGet.log, 20260913-231250634-Package-Windows.log,
+20260913-225336324-R012-Gui.log and 20260913-231238288-R012-FinalAudit.log.
+
+Accepted PRE-CHECKPOINT VALIDATION ARTIFACTS only (bytes / SHA256):
+
+| Artifact path | Bytes | SHA256 |
+| --- | ---: | --- |
+| artifacts/nuget/0.2.0/LazyChromeWindowBridge.Core.0.2.0.nupkg | 54321 | 14552205B34925F915B1C34140FE17A5CF35595DC76E2F1192B8C92F98B14803 |
+| artifacts/nuget/0.2.0/LazyChromeWindowBridge.Core.0.2.0.snupkg | 25520 | 1383B52B5E36D72E736DA1910792D0E2EB16751CF4E62F65357222FFF2721D59 |
+| artifacts/release/0.2.0/LazyChromeWindowBridge-v0.2.0-win-x64.zip | 88526591 | E402CDBBD7D41F601F3CC16717F03E43067C51D22B1E2DF0A0C5B11EBC34F957 |
+| artifacts/cws/LazyChromeWindowBridge.Extension-0.2.0-cws.zip | 28408 | 92A4486C7F5CBC7E55933863EFA1F3837FF7258B1DEC64804E30481975473F57 |
+| docs/store-assets/screenshot-monitor-0.2.0-1280x800.png | 358774 | 046762153051BF9C777AA06201331707CA1BCFF6088D2A2FDCA825EA5D71D932 |
+| docs/store-assets/promo-small-440x280.png | 4718 | F2B34175479FE099B724B11386E20E659CAF28DB20CDAE499F1156A19C38B7AA |
+| src/LazyChromeWindowBridge.Extension/icons/icon-128.png | 1411 | 38D1FC2E230AA76CE6DBBDB1123FA108F149DAC2D200331B3AC9D2D5D4233545 |
+
+These packages/archives came from the uncommitted R012 tree. Their hashes are NOT
+final publication hashes. After the accepted checkpoint is created and pushed,
+publication artifacts must be rebuilt from that exact checkpoint. Final NuGet
+repository/Source Link metadata must identify that publication checkpoint rather
+than the older 03a8bf92a0808071a28d8143f81346b77216e2da base. Source screenshot/icon/
+promo hashes may remain valid if their actual bytes do not change.
+
+Remaining:
+Third-display initial offscreen capture timeout remains unresolved; it did not fail
+the accepted R012 full run, but no fix is claimed. Silent debugger suppression is
+Chrome-dependent best effort; visual infobar absence is not guaranteed. GitHub
+v0.1.0 and NuGet 0.1.0 remain historical and unchanged. R012 is accepted/prepared but
+established as a distribution candidate but unpublished. CWS 0.2.0 is not uploaded/submitted/approved or
+published; the live item remains a separate interactive publication operation.
+
+Git Commit:
+Checkpoint subject: build: establish V1-M006-R012 v0.2.0 distribution candidate
+Exact checkpoint SHA and remote verification are recorded by Git and the transient
+checkpoint handoff. The independent Git checkpoint does not create a new Revision.
 
 ### V1-M005-R011 — session-monitor-control
 

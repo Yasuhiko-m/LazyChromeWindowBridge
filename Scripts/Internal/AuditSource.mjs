@@ -44,7 +44,7 @@ const extensionRoot = path.join(root, 'src/LazyChromeWindowBridge.Extension');
 const manifest = JSON.parse(await fs.readFile(path.join(extensionRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'LazyChromeWindowBridge');
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.1.0');
+assert.equal(manifest.version, '0.2.0');
 assert.deepEqual(manifest.icons, Object.fromEntries([16,32,48,128].map(size => [size, `icons/icon-${size}.png`])));
 assert(!Object.hasOwn(manifest, 'action'), 'No unnecessary toolbar action.');
 assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'downloads', 'storage']);

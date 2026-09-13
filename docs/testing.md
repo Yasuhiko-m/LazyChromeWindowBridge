@@ -1,5 +1,12 @@
 # Testing
 
+The 0.2.0 distribution candidate additionally uses Scripts/Test-NuGet.ps1 for exact
+package/symbol metadata and isolated PackageReference checks, and
+Scripts/Package-Windows.ps1 for Release/win-x64 self-contained packaging. To exercise
+the fresh extracted EXE through the existing -Gui fixture, set LCWB_TEST_SAMPLE_EXECUTABLE
+to the inventory.json freshExecutable path. The default still runs the Debug sample.
+The real fixture loads the audited Extension 0.2.0 ZIP. No publication is performed.
+
 The stable entry is `Scripts/Test-All.ps1` (PowerShell 7). Node.js 22+ and the .NET 10
 SDK are required. No historical Revision numbers are needed to run validation.
 

@@ -66,6 +66,6 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'OIDC credential missing.' }
           # The CLI also sends the matching portable-PDB .snupkg beside this file.
           # No wildcard, duplicate suppression, separate symbol push or key persistence.
-          dotnet nuget push ./artifacts/nuget/LazyChromeWindowBridge.Core.0.1.0.nupkg `
+          dotnet nuget push ./artifacts/nuget/0.2.0/LazyChromeWindowBridge.Core.0.2.0.nupkg `
             --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
           if ($LASTEXITCODE -ne 0) { throw 'NuGet push failed; inspect package and symbol status before retrying.' }

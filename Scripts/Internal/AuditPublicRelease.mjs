@@ -99,7 +99,7 @@ images.push({path:imagePath,width,height,sha256:imageHash,chunks});
 
 // Independent ZIP reader validates the .NET packager's actual archive, not an extraction folder.
 const names = ['bindings.js','bootstrap.js','downloads.js','icons/icon-16.png','icons/icon-32.png','icons/icon-48.png','icons/icon-128.png','manifest.json','monitor.js','service-worker.js'];
-const zipPath = 'artifacts/cws/LazyChromeWindowBridge.Extension-0.1.0-cws.zip';
+const zipPath = 'artifacts/cws/LazyChromeWindowBridge.Extension-0.2.0-cws.zip';
 const zip = await fs.readFile(path.join(root, zipPath)), end = zip.length - 22;
 assert.equal(zip.readUInt32LE(end), 0x06054b50); assert.equal(zip.readUInt16LE(end + 20), 0);
 assert.equal(zip.readUInt16LE(end + 10), names.length);
@@ -119,7 +119,7 @@ for (const expected of names) {
   const raw = await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Extension', name));
   const source = name.endsWith('.png') ? raw : Buffer.from(raw.toString('utf8').replace(/^\uFEFF/, '').replaceAll('\r\n','\n'));
   assert(content.equals(source), 'Packaged bytes differ: ' + name);
-  if (name === 'manifest.json') assert.equal(JSON.parse(content).version, '0.1.0');
+  if (name === 'manifest.json') assert.equal(JSON.parse(content).version, '0.2.0');
   entries.push(name); at += 46 + nameLength + extra + comment;
 }
 assert.equal(at, end); assert(!listed.includes(zipPath), 'Generated ZIP must remain ignored/untracked.');

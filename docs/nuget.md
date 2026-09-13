@@ -2,17 +2,16 @@
 
 Windows-only .NET 10 Core library for session-bound Chrome windows, native geometry,
 PARK/RESTORE, human-only thumbnails and profile-global download lifecycle events.
-NuGet **0.1.0** was published from accepted R009. Current Chat-accepted Source at
-V1-M005-R011 includes R010 continuous monitoring and R011 per-session pause/resume
-and best-effort silent debugger launch in the combined R011 checkpoint. Neither change
-is in the existing 0.1.0 package. No version change here.
-For future package updates, explicitly document caller-owned monitoring policy:
-PARK/RESTORE never automatically switches Monitor ON/OFF. Paused sessions retain
-frozen JPEGs; global batch controls remain. See [current integration](integration.md).
+**0.2.0 is a prepared release candidate, not a published NuGet version.** It packages
+the accepted R010/R011 monitoring capabilities. Published NuGet 0.1.0 from R009 remains
+an older baseline and does not contain those features. This is a feature release:
+the additive public API and expanded monitoring contract warrant a minor version,
+not a patch. Existing ownership, geometry and downloads contracts are retained;
+compatibility is bounded by the tested consumer/regression coverage.
 
 ## Consumer setup
 
-For the published R009 behavior, add `LazyChromeWindowBridge.Core` version `0.1.0` to a
+For this candidate, add `LazyChromeWindowBridge.Core` version `0.2.0` from the prepared local feed to a
 `net10.0-windows` application. The package carries the ASP.NET Core and Windows
 Desktop framework references; those shared runtimes are required for a framework-
 dependent consumer. The Core assembly does not expose WinForms/WPF UI types.
@@ -32,6 +31,36 @@ var session = await bridge.LaunchAsync("https://example.com/");
 // Monitoring and native placement remain explicit consumer operations.
 ```
 
+After the session is Bound with a live native window, these are separate caller actions:
+
+```csharp
+bridge.StartMonitoring(); // All live Visible/Parked sessions; default 2 fps, 240x135.
+bridge.SetSessionMonitoring(session.AppSessionId, false); // Frozen Paused JPEG.
+bridge.Park(session.AppSessionId); // Placement only; still Paused.
+bridge.Restore(session.AppSessionId); // Placement only; still Paused.
+bridge.SetSessionMonitoring(session.AppSessionId, true); // Fresh capture, same waiting socket.
+bridge.StartMonitoring(new CaptureOptions(5, 640, 360)); // In-place options update.
+bridge.StopMonitoring(); // Batch stop; clears all JPEGs, retains restart sockets.
+```
+
+Monitoring policy belongs to the Caller. PARK/RESTORE never automatically starts,
+stops, pauses or resumes monitoring. Visible and Parked live owned windows use the
+same human-view JPEG path. Pause keeps the exact last frame/Sequence/ReceivedAt in
+memory as Paused, not Live; peers continue. Resume clears that frozen preview and
+obtains a fresh frame on the waiting control connection. Start while already enabled
+updates options without resuming explicit pauses; Start after Stop enables all live
+sessions again. Dispose closes retained connections.
+
+FPS requests accept 1–30 inclusive, default 2; 30 is a ceiling, not a throughput SLA.
+Default bounds 240x135, aspect preservation, no upscale and JPEG quality 70 remain.
+Options affect JPEG output only, never native size, viewport or zoom. Placement and
+ordinary options updates preserve the monitor connection and same-tab debugger.
+Production debugger commands are exactly Page.getLayoutMetrics and Page.captureScreenshot.
+LCWB launches request --silent-debugger-extension-api as Chrome-dependent best-effort
+notice suppression only. Permission remains broad; existing profiles may retain old
+flags and Chrome may ignore it. Capture does not require suppression. Visual infobar
+absence was not established as a guarantee. No DOM/Runtime/Network inspection or input automation.
+
 Downloads belong to the Chrome profile, not an application session. Consumers own
 filesystem checks after Complete. Monitoring is for human viewing only; there is no
 DOM automation, OCR or webpage-completion detection. Initial offscreen capture may
@@ -46,7 +75,7 @@ Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses SDK 10.0.40
 restores and builds Release, runs the existing 154 Core / 29 public API / 39 extension
 checks, packs Core, inspects both package archives and runs the public API checks
 again from an isolated local-feed PackageReference consumer. It never publishes.
-Generated packages and consumer work stay under ignored `artifacts/nuget`; the
+Generated packages and consumer work stay under ignored `artifacts/nuget/0.2.0`; the
 single invocation log stays under `Scripts/Outputs`.
 
 Trusted-publishing policy: `LazyChromeWindowBridge-publish`; NuGet owner `Yasuhiko-m`;
@@ -72,4 +101,9 @@ and [Trusted Publishing documentation](https://learn.microsoft.com/en-us/nuget/n
 R009 publication is historical; its package is immutable. R010/R011 are accepted
 Source in the combined R011 checkpoint. Git checkpoint/push does not authorize
 workflow dispatch or NuGet publication.
-A future package/version and publication require separate acceptance and authorization.
+Chat accepted R012 preparation; M006 is Complete. This does not authorize publication.
+Accepted pre-checkpoint package hashes are validation evidence, not final publication
+hashes. Their repository/Source Link metadata identifies the older R011 Git HEAD.
+After the independent R012 checkpoint is created and pushed, rebuild and verify from
+that exact checkpoint before separately authorized publication. The final package
+must identify the publication checkpoint; the prepared version is not yet published.

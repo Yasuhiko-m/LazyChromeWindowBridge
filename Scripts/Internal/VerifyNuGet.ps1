@@ -3,9 +3,9 @@
 param([Parameter(Mandatory)][string]$SourceRoot)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
-$packageRoot = Join-Path $SourceRoot 'artifacts/nuget'
+$packageRoot = Join-Path $SourceRoot 'artifacts/nuget/0.2.0'
 $packageId = 'LazyChromeWindowBridge.Core'
-$version = '0.1.0'
+$version = '0.2.0'
 $head = git -C $SourceRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot determine repository commit.' }
 $expectedNames = @("$packageId.$version.nupkg", "$packageId.$version.snupkg")
@@ -23,6 +23,9 @@ foreach ($extension in @('nupkg', 'snupkg')) {
         try { [xml]$nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
         $metadata = $nuspec.package.metadata
         if ($metadata.id -cne $packageId -or $metadata.version -cne $version) { throw 'PackageId/version mismatch.' }
+        $sourceProject = [xml](Get-Content -LiteralPath (Join-Path $SourceRoot 'src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj') -Raw)
+        # The SDK omits authors/license/readme from SymbolsPackage metadata.
+        if ($extension -eq 'nupkg' -and $metadata.authors -cne $sourceProject.Project.PropertyGroup.Authors) { throw 'Author mismatch.' }
         if ($metadata.repository.type -ne 'git' -or $metadata.repository.commit -cne $head -or
             $metadata.repository.url -cne 'https://github.com/Yasuhiko-m/LazyChromeWindowBridge') { throw 'Package repository provenance mismatch.' }
         $payload = if ($extension -eq 'nupkg') { "lib/$tfm/$packageId.dll" } else { "lib/$tfm/$packageId.pdb" }
@@ -51,7 +54,13 @@ foreach ($extension in @('nupkg', 'snupkg')) {
             if ($iconHash -cne (Get-FileHash -LiteralPath (Join-Path $SourceRoot 'src/LazyChromeWindowBridge.Extension/icons/icon-128.png')).Hash) { throw 'Package icon differs from reviewed extension icon.' }
             $dllHash = $payloadHash
             if ($metadata.license.type -ne 'expression' -or $metadata.license.InnerText -ne 'MIT' -or $metadata.readme -ne 'README.md') { throw 'License/readme metadata mismatch.' }
-            if ($null -eq $archive.GetEntry('README.md')) { throw 'Package README missing.' }
+            $readmeEntry = $archive.GetEntry('README.md')
+            if ($null -eq $readmeEntry) { throw 'Package README missing.' }
+            $readmeStream = $readmeEntry.Open()
+            try { $readmeHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($readmeStream)) } finally { $readmeStream.Dispose() }
+            if ($readmeHash -cne (Get-FileHash -LiteralPath (Join-Path $SourceRoot 'docs/nuget.md')).Hash) { throw 'Package README differs from Source.' }
+            if ($metadata.frameworkReferences.group.targetFramework -cne 'net10.0-windows7.0' -or
+                $metadata.dependencies.group.targetFramework -cne 'net10.0-windows7.0') { throw 'Target framework metadata mismatch.' }
             $frameworks = @($metadata.frameworkReferences.group.frameworkReference.name)
             if ($frameworks.Count -ne 2 -or (Compare-Object @('Microsoft.AspNetCore.App','Microsoft.WindowsDesktop.App') $frameworks)) { throw 'Consumer framework references missing or unexpected.' }
             if (@($metadata.dependencies.group.dependency | Where-Object { $null -ne $_ }).Count -ne 0) { throw 'Unexpected external NuGet dependency.' }
@@ -79,7 +88,7 @@ $projectXml = @'
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="LazyChromeWindowBridge.Core" Version="[0.1.0]" />
+    <PackageReference Include="LazyChromeWindowBridge.Core" Version="[0.2.0]" />
   </ItemGroup>
 </Project>
 '@
@@ -95,4 +104,4 @@ $consumerOutput = Join-Path $consumerRoot 'bin/Release/net10.0-windows'
 if ((Get-FileHash -LiteralPath (Join-Path $consumerOutput "$packageId.dll")).Hash -ne $dllHash) { throw 'Consumer loaded another Core binary.' }
 & dotnet (Join-Path $consumerOutput 'NuGetConsumer.dll')
 if ($LASTEXITCODE -ne 0) { throw 'Local nupkg consumer runtime checks failed.' }
-'PASS: local-only nupkg consumer; 19 existing API checks, exact DLL and transitive shared frameworks.'
+'PASS: local-only 0.2.0 nupkg consumer; 29 existing API checks including SetSessionMonitoring, exact DLL and transitive shared frameworks.'

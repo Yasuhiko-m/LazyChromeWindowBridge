@@ -118,10 +118,12 @@ try {
   const manifest = await cdp.extension('chrome.runtime.getManifest()');
   assert.equal(manifest.name, 'LazyChromeWindowBridge');
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '0.1.0');
+  assert.equal(manifest.version, '0.2.0');
   evidence('browser', { version: version.Browser, profile, manifest, extensionRoot, testWindowPosition });
   if (gui) {
-    driver = spawn(path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows/LazyChromeWindowBridge.SampleCaller.exe'), ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
+    const sampleExe = process.env.LCWB_TEST_SAMPLE_EXECUTABLE ?? path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows/LazyChromeWindowBridge.SampleCaller.exe');
+    await fs.access(sampleExe);
+    driver = spawn(sampleExe, ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: path.dirname(sampleExe), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
     driver.on('exit', () => { driverExited = true; });
     driver.stderr.on('data', bytes => process.stderr.write(bytes));
     evidence('GUI-ready', { callerPid: driver.pid, launchUrlA: pageA.url + '/dynamic-a', launchUrlB: pageB.url + '/dynamic-b', debuggingPort: port, profile });

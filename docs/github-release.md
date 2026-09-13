@@ -1,5 +1,9 @@
 # GitHub release preparation
 
+For the upcoming 0.2.0 candidate, use the [release notes](releases/v0.2.0.md) and
+[distribution preparation](releases/v0.2.0-distribution.md). No 0.2.0 tag, Release
+or asset upload has occurred. The procedure below remains historical 0.1.0 context.
+
 This is the historical R008 GitHub-release procedure. For historical R009 NuGet and
 Chrome Web Store preparation, see the [distribution preparation notes](releases/v0.1.0-distribution.md).
 The current packaging wrapper emits the CWS ZIP; do not use these historical commands

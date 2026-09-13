@@ -152,9 +152,20 @@ suppression is best-effort; visual infobar absence was not established in accept
 Both accepted milestones share the R011 checkpoint; package/release publication is
 separate and V1 remains In Progress.
 
+### M006 — v0.2.0 Distribution Preparation
+Goal: prepare one coherent 0.2.0 GitHub / NuGet / Chrome Web Store distribution
+candidate from the accepted R011 baseline, with exact packages, a Windows x64 bundle,
+current reviewed Store screenshot and complete distribution validation.
+Status: **Complete**. Accepted by Chat at V1-M006-R012; V1 remains In Progress.
+The coherent 0.2.0 candidate and full distribution validation are accepted.
+Preparation acceptance is separate from Git checkpoint and publication. Rebuild
+publication artifacts from the exact accepted checkpoint; pre-checkpoint hashes are
+validation evidence only. No tag/Release, NuGet publication or live CWS operation
+belongs to this authority closeout.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M005-R011; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M006-R012; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

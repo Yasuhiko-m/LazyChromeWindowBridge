@@ -9,7 +9,7 @@ Chrome Download Manager lifecycle events — without DOM automation.
 ![Historical v0.1.0 SampleCaller with five bound sessions](docs/images/monitor-overview.png)
 
 *Historical v0.1.0 screenshot using isolated neutral fixtures. Current accepted Source
-V1-M005-R011 includes R010 continuous Visible/Parked JPEG preview and R011 session
+V1-M006-R012 retains R010 continuous Visible/Parked JPEG preview and R011 session
 pause/resume and best-effort silent debugger launch. Both changes are accepted by Chat
 and included in the combined R011 Source checkpoint; GitHub v0.1.0 and NuGet 0.1.0 contain neither.*
 
@@ -17,6 +17,12 @@ Built for .NET Windows applications that need Chrome window management and brows
 integration through a Manifest V3 extension. Unlike DOM-oriented browser automation
 tools, it works with Chrome application/window state and exact native ownership.
 Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
+
+**0.2.0 release candidate:** Chat accepted R012 distribution preparation of the R010/R011 features
+for GitHub, NuGet and the initial public Chrome Web Store submission. It is not yet
+released. Existing public v0.1.0 / NuGet 0.1.0 retain their older behavior. See the
+[0.2.0 release notes](docs/releases/v0.2.0.md) and
+[candidate distribution instructions](docs/releases/v0.2.0-distribution.md).
 
 ## What it does
 - Launch independent Chrome windows, including several with the same launch URL.

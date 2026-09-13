@@ -5,13 +5,18 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M005-R011 — session-monitor-control**, accepted by Chat.
-Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M005 and V0 are
+Established baseline: **V1-M006-R012 — v0.2.0-distribution-preparation**, accepted by Chat.
+Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M006 and V0 are
 Complete; V1 remains In Progress. This accepted Source includes R010 continuous-
 monitor-preview and R011 session-monitor-control in the combined R011 checkpoint.
 Package/release publication is separate. Published GitHub v0.1.0 and NuGet 0.1.0
 retain their earlier monitoring behavior and contain neither R010 nor R011.
 Product name is LazyChromeWindowBridge; immutable ProjectID does not change.
+R012 establishes accepted 0.2.0 version/package/Store distribution preparation from
+that R010/R011 runtime behavior, not a new runtime feature. The prepared candidate
+is established but not publicly published. Rebuild publication artifacts from
+the exact accepted checkpoint; existing candidate hashes are pre-checkpoint
+validation evidence only, not final public 0.2.0 hashes.
 
 Historical V1 M002/R008 established MIT licensing, public documentation, a neutral
 demo screenshot and deterministic extension packaging without changing R007 runtime.
@@ -26,7 +31,9 @@ maintainable product documentation is in README.md and docs/.
   Windows native geometry, bounded GDI+ JPEG decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, version 0.1.0 (no version bump in R010/R011).
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, candidate version 0.2.0.
+- Core package and SampleCaller product version: candidate 0.2.0; no runtime behavior
+  change is introduced by distribution preparation.
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.

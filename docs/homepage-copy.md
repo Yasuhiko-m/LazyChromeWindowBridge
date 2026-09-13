@@ -2,6 +2,7 @@
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
 This copy describes Chat-accepted R010/R011 Source at V1-M005-R011, not published 0.1.0 binaries.
+Version 0.2.0 is a prepared release candidate; do not present it as publicly released.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.
