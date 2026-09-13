@@ -25,6 +25,15 @@ Check(!assembly.GetExportedTypes().Any(t => t.Name is "SessionRegistry" or "Geom
 Check(typeof(MonitorFrame).GetProperty(nameof(MonitorFrame.Jpeg))!.PropertyType == typeof(ReadOnlyMemory<byte>),
     "public frame data is encoded read-only memory, not a UI image");
 Check(new CaptureOptions() is { FramesPerSecond: 2, MaxWidth: 240, MaxHeight: 135 }, "accepted capture defaults preserved");
+foreach (var fps in new[] { 1, 30 }) { new CaptureOptions(fps).Validate(); Check(true, $"public capture accepts {fps} fps request"); }
+foreach (var fps in new[] { 0, 31 })
+{
+    var rejected = false;
+    try { new CaptureOptions(fps).Validate(); } catch (ArgumentException) { rejected = true; }
+    Check(rejected, $"public capture rejects {fps} fps");
+}
+Check(typeof(CaptureOptions).GetProperty("JpegQuality") is null, "JPEG quality is fixed rather than a public option");
+Check(typeof(BridgeRuntime).GetMethod("SetSessionMonitoring", [typeof(Guid), typeof(bool)])?.ReturnType == typeof(void), "public session monitoring API is available without policy abstractions");
 Check(new PixelRect(-1820, 80, 1100, 720).Valid, "public physical rectangles allow negative coordinates");
 
 var data = Path.Combine(Path.GetTempPath(), "LazyChromeWindowBridge-PublicApi-" + Guid.NewGuid().ToString("N"));
@@ -42,8 +51,12 @@ Reject(() => bridge.SetWindowBounds(unknown, new PixelRect(40, 50, 800, 600)), "
 Reject(() => bridge.Park(unknown), "public PARK rejects unmapped session");
 Reject(() => bridge.Restore(unknown), "public RESTORE rejects unmapped session");
 bridge.StartMonitoring(); bridge.StartMonitoring();
+Reject(() => bridge.SetSessionMonitoring(unknown, true), "public session ON rejects unknown session");
+Reject(() => bridge.SetSessionMonitoring(unknown, false), "public session OFF rejects unknown session");
+bridge.StartMonitoring(new(30, 640, 360));
 Check(bridge.GetMonitorState() is { Enabled: true, Connections: 0, CapturingConnections: 0 }, "public global Start is idempotent without targets");
 bridge.StopMonitoring(); bridge.StopMonitoring();
+Reject(() => bridge.SetSessionMonitoring(unknown, true), "session control rejects global Stop without hidden start");
 Check(bridge.GetMonitorState() is { Enabled: false, Frames: 0, Bytes: 0 }, "public global Stop is idempotent");
 await bridge.DisposeAsync(); await bridge.DisposeAsync();
 Check(bridge.GetMonitorState() is { Connections: 0, CapturingConnections: 0 }, "public async disposal clears transport state");
@@ -51,4 +64,5 @@ var disposed = false;
 try { await bridge.LaunchAsync("https://example.test/"); } catch (ObjectDisposedException) { disposed = true; }
 Check(disposed, "disposed runtime cannot launch another session");
 Reject(() => bridge.StartMonitoring(), "disposed runtime cannot restart capture");
+Reject(() => bridge.SetSessionMonitoring(unknown, true), "disposed runtime cannot resume session monitoring");
 Console.WriteLine($"PASS: {count} public API checks from an external consumer assembly.");

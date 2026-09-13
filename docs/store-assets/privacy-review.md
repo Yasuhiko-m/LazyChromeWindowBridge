@@ -1,5 +1,9 @@
 # Store asset review — R009 candidate
 
+Historical R009 evidence. The screenshot predates continuous Visible/Parked preview.
+A future submission of accepted R010/R011 needs a matching screenshot and a new pixel review; the
+existing reviewed assets are not regenerated or uploaded during this task.
+
 Manual pixel review on 2026-09-09 is bound to the exact SHA256 values below.
 Any byte change requires a new review; AuditPublicRelease checks dimensions, PNG
 metadata chunks and these hashes. Original GitHub hero review remains independent.

@@ -12,7 +12,7 @@ name is separate. Project Data is Controller-owned and is not an implementation 
 ## Purpose and users
 Provide an independent reusable Windows application-to-Chrome bridge for deterministic
 session/window/native ownership, launch-URL Normal geometry, offscreen PARK/RESTORE,
-manual physical-pixel placement, human-only PARKED thumbnails and read-only Chrome
+manual physical-pixel placement, human-only continuous JPEG previews and read-only Chrome
 Download Manager lifecycle notification. Consumers are
 Windows application developers and the humans using their launched web applications.
 Lazy AI Deck is one possible consumer, not the owner/container of this runtime.
@@ -32,7 +32,11 @@ is adopted. PowerShell7 and Node.js22+ support Source validation.
 - Original launch URL is profile metadata; subsequent navigation never redefines ownership.
 - Manual bounds apply only to the exact live Visible native window, in physical pixels.
 - PARK/RESTORE are explicit; Normal cannot learn PARK geometry.
-- Monitoring is PARKED-only, independent per session and for human viewing only.
+- Monitoring covers live owned Visible and Parked windows, independently per session and for human viewing only.
+- The caller owns monitor policy. PARK/RESTORE never auto-toggles it. Per-session
+  pause retains a frozen last JPEG; global Start/Stop remain batch controls.
+- Owned Chrome launches request best-effort silent debugger infobar suppression;
+  debugger permissions and the Page.getLayoutMetrics/Page.captureScreenshot boundary remain.
 - No DOM/OCR/semantic/output extraction, webpage completion detection or autonomous page decisions.
 - Download notifications are profile-global, with no appSession attribution or URL/content
   collection. Chrome Complete is authoritative; filesystem safety checks belong to consumers.
@@ -50,6 +54,12 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Candidate revisions remain unstaged/uncommitted for Chat review
 unless the active task explicitly authorizes an accepted-baseline checkpoint.
+Current accepted Source is V1-M005-R011, including Chat-accepted R010 continuous
+Visible/Parked monitoring and R011 per-session pause/resume in the combined R011
+checkpoint; GitHub v0.1.0 and NuGet 0.1.0 are older baselines. M004/M005 are
+Complete and V1 remains In Progress. Chrome Web Store live submission is separate.
+The third-display initial offscreen capture timeout remains unresolved; silent launch
+suppression is best-effort and visual infobar absence was not established in acceptance.
 The project is early-release software licensed under MIT, copyright 2026 Yasuhiko Mori,
 derived from the existing repository author identity. Public preparation remains local
 until Chat acceptance and explicit publication authorization. No installer/updater or

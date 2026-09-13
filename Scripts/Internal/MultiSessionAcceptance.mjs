@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { observeMonitor } from './MonitorContinuity.mjs';
+import { testSessionControl } from './SessionMonitorAcceptance.mjs';
 
 export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pageA, pageB }) {
+  const audit = await observeMonitor(cdp);
   const topology = await caller('monitors');
   const preferred = process.env.LCWB_TEST_WINDOW_POSITION?.split(',').map(Number);
   const work = topology.find(m => preferred && preferred[0] >= m.bounds.left && preferred[0] < m.bounds.right && preferred[1] >= m.bounds.top && preferred[1] < m.bounds.bottom)?.workArea ?? topology.find(m => m.primary).workArea;
@@ -23,8 +26,7 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
   const [a,b,c,d,e] = rows, parkedRows = rows.slice(1);
   await until(() => caller('profile',e.launchUrl), p=>p&&error(p.normal,e.normal)===0,'normal profile stable');
   await caller('monitor-start');
-  assert((await caller('monitor')).sessions.every(s=>s.state==='ACTIVE'));
-  assert.equal((await caller('monitor')).frames,0);
+  await until(() => caller('monitor'), m => m.sessions.every(s => s.state === 'Live'), 'five Visible JPEG streams', 45000);
   for (const s of parkedRows) {
     const parked=await caller('park',{id:s.appSessionId}); assert(outside(parked.current));
   }
@@ -40,10 +42,10 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
   async function stats() {
     return caller('process-stats',{pids:(await cdp.call('SystemInfo.getProcessInfo')).processInfo.map(p=>p.id)});
   }
-  async function ready(targets=parkedRows) {
+  async function ready(targets=rows) {
     await until(()=>caller('monitor'), m=>targets.every(s=>m.sessions.find(r=>r.appSessionId===s.appSessionId)?.state==='Live'), 'all requested sessions live',45000);
   }
-  async function sample(label,targets=parkedRows,seconds=6) {
+  async function sample(label,targets=rows,seconds=6) {
     await ready(targets);
     const before=await caller('monitor'), beforeStats=await stats(), start=performance.now();
     const samples=new Map(targets.map(s=>[s.appSessionId,new Map()]));
@@ -57,7 +59,8 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
       const frames=[...samples.get(s.appSessionId).values()], unique=new Set(frames.map(f=>f.centerHash)).size;
       const current=after.sessions.find(r=>r.appSessionId===s.appSessionId), previous=before.sessions.find(r=>r.appSessionId===s.appSessionId), g=await geometry(s);
       assert(frames.length>=3&&unique>=2,label+' freshness: '+JSON.stringify({current,sampled:frames.length,unique}));
-      assert(outside(g.current)); assert.equal(g.state,'Parked');
+      assert(['Visible','Parked'].includes(g.state));
+      if (g.state === 'Parked') assert(outside(g.current));
       assert.equal(error(g.normal,s.normal),0);
       for(const f of frames) {
         assert.equal(f.windowId,s.windowId); assert.deepEqual(f.identity,g.identity);
@@ -71,9 +74,11 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
         dimensions:[frames.at(-1).width,frames.at(-1).height],normal:g.normal,current:g.current});
     }
     const active=after.sessions.find(s=>s.appSessionId===a.appSessionId);
-    assert.equal(active.frames,0); assert.equal(active.bytes,0); assert.equal(active.state,'ACTIVE'); assert(!active.capturing);
-    assert(!(await attached()).includes(a.tabId));
+    assert.equal(active.state,'Live'); assert(active.capturing && active.frames > 0 && active.bytes > 0);
+    const attachedIds = await attached();
+    assert(targets.every(s => attachedIds.includes(s.tabId)), 'every sampled Visible/Parked target remains attached');
     const metrics={elapsedSeconds:elapsed,aggregateBase64BytesPerSecond:(after.bytes-before.bytes)/elapsed,
+      aggregateFps:(after.frames-before.frames)/elapsed,
       callerOneCoreCpuPercent:(afterStats.callerCpuSeconds-beforeStats.callerCpuSeconds)/elapsed*100,
       chromeOneCoreCpuPercent:(afterStats.chromeCpuSeconds-beforeStats.chromeCpuSeconds)/elapsed*100,
       callerWorkingMiB:afterStats.callerWorkingBytes/1048576,callerPrivateMiB:afterStats.callerPrivateBytes/1048576,
@@ -82,6 +87,7 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
     return metrics;
   }
   await sample('multi-five-session-intended-use');
+  await testSessionControl({ caller, cdp, until, delay, evidence, audit }, rows);
   evidence('multi-initial-identities',{windows:initialGeometry,topology});
   const oldWorker = await cdp.worker();
   const blank = (await cdp.call('Target.getTargets')).targetInfos.find(t => t.type === 'page' && t.url === 'about:blank');
@@ -91,7 +97,7 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
   await until(async () => (await cdp.call('Target.getTargets')).targetInfos.some(t => t.targetId === oldWorker.targetId), v => !v, 'four-target worker stops');
   await cdp.call('Target.detachFromTarget', { sessionId: workerControl.sessionId });
   assert.notEqual((await cdp.worker()).targetId, oldWorker.targetId);
-  await sample('multi-worker-recovery-four-eligible-only');
+  await sample('multi-worker-recovery-five-eligible');
   const nav=pageB.url+'/dynamic-c-navigated';
   const unaffectedBefore=await caller('monitor');
   await cdp.extension('chrome.tabs.update('+c.tabId+',{url:'+JSON.stringify(nav)+'})');
@@ -99,17 +105,19 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
   await sample('multi-navigation-isolation');
   for(const s of parkedRows.filter(s=>s!==c)) assert.equal((await monitor(s)).generation,unaffectedBefore.sessions.find(r=>r.appSessionId===s.appSessionId).generation);
   const restoreStarted=performance.now();
+  const beforeRestore = await monitor(b), latestBeforeRestore = await caller('monitor-frame',{id:b.appSessionId});
   const restored=await caller('restore',{id:b.appSessionId});
   assert.equal(error(restored.current,b.normal),0);
-  await until(()=>attached(),ids=>!ids.includes(b.tabId),'RESTORE detaches B');
-  const restoreAndDetachMilliseconds=performance.now()-restoreStarted;
+  assert((await attached()).includes(b.tabId), 'RESTORE retains B attachment');
+  const restoreMilliseconds=performance.now()-restoreStarted;
   const stoppedB=await monitor(b);
-  assert.equal(stoppedB.state,'ACTIVE'); assert.equal(await caller('monitor-frame',{id:b.appSessionId}),null);
-  await sample('multi-three-continue-after-restore',parkedRows.slice(1),4);
-  assert.equal((await monitor(b)).frames,stoppedB.frames);
+  assert.equal(stoppedB.state,'Live'); assert.equal(stoppedB.generation,beforeRestore.generation);
+  assert((await caller('monitor-frame',{id:b.appSessionId})).sequence >= latestBeforeRestore.sequence);
+  await sample('multi-five-continue-after-restore',rows,4);
+  assert((await monitor(b)).frames > stoppedB.frames);
   await caller('park',{id:b.appSessionId});
   await sample('multi-repark-same-session',parkedRows,4);
-  evidence('multi-restore-error',{maximumPixels:error(restored.current,b.normal),restoreAndDetachMilliseconds,restored});
+  evidence('multi-restore-continuity',{maximumPixels:error(restored.current,b.normal),restoreMilliseconds,restored,beforeRestore,after:await monitor(b)});
   const aBefore=await geometry(a), bBefore=await geometry(b);
   const left=topology.filter(m=>m.bounds.left<0).sort((x,y)=>x.bounds.left-y.bounds.left)[0];
   const manual={left:(left?.workArea.left??0)+100,top:(left?.workArea.top??0)+80,width:1100,height:720};
@@ -117,6 +125,7 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
   assert.equal(error(aSet.current,manual),0); assert.deepEqual(aSet.identity,aBefore.identity);
   assert.deepEqual((await geometry(b)).current,bBefore.current);
   await until(()=>caller('profile',a.launchUrl),p=>p&&error(p.normal,manual)===0,'manual observer persists');
+  a.normal = manual;
   let rejected=false; try {await caller('set-bounds',{id:b.appSessionId,rect:manual});}catch {rejected=true;} assert(rejected);
   evidence('multi-manual-physical-bounds',{result:'PASS',before:aBefore,after:await geometry(a),actualNegativeMonitor:!!left,unaffectedB:await geometry(b)});
   const matrix=[];
@@ -155,5 +164,5 @@ export async function testMultiMonitor({ caller, cdp, until, delay, evidence, pa
   const finalGeometry=await caller('shutdown-geometry');
   for(const s of parkedRows.slice(0,3)) assert.equal(error(finalGeometry.find(g=>g.appSessionId===s.appSessionId).current,s.normal),0);
   evidence('multi-clean-shutdown',{result:'PASS',shutdown,finalGeometry,restoreErrors:parkedRows.slice(0,3).map(s=>({id:s.appSessionId,pixels:error(finalGeometry.find(g=>g.appSessionId===s.appSessionId).current,s.normal)}))});
-  console.log('PASS: multi-session five sessions, four PARKED fresh isolated captures, ACTIVE zero capture, manual native bounds, comparisons, lifecycle and exact shutdown restore.');
+  console.log('PASS: five continuous Visible/Parked JPEG streams, manual native bounds, comparisons, lifecycle and exact shutdown restore.');
 }

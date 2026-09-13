@@ -1,7 +1,7 @@
 # GitHub release preparation
 
-This is the historical R008 GitHub-release procedure. For current R009 NuGet and
-Chrome Web Store candidate packaging, use the [distribution preparation notes](releases/v0.1.0-distribution.md).
+This is the historical R008 GitHub-release procedure. For historical R009 NuGet and
+Chrome Web Store preparation, see the [distribution preparation notes](releases/v0.1.0-distribution.md).
 The current packaging wrapper emits the CWS ZIP; do not use these historical commands
 to replace the published GitHub assets or tag.
 
@@ -10,6 +10,18 @@ work. At R008 preparation the repository is PRIVATE. R008 does not push, tag, pu
 remote configuration, visibility, About settings or another website.
 
 ## Recommended About metadata
+Future update requirement (Chat-accepted R010/R011 Source; not in published 0.1.0 assets): explain that
+monitoring works in Visible and Parked placements and the caller owns policy.
+**PARK/RESTORE never automatically switches Monitor ON/OFF.** Session pause retains
+the last JPEG as frozen/Paused; resume uses the waiting socket. Global controls remain
+batch operations; options do not undo explicit pauses, while Stop clears all JPEGs.
+LCWB-launched Chrome requests best-effort --silent-debugger-extension-api suppression;
+permissions and Page.getLayoutMetrics/Page.captureScreenshot remain unchanged.
+Chrome may still show a notice. Do not imply these changes are in existing 0.1.0 assets.
+PARK/RESTORE controls native window placement only; it does not automatically start,
+stop, pause or resume monitoring. The Caller explicitly chooses per-session policy
+with SetSessionMonitoring. Visual infobar absence was not established in acceptance.
+
 Repository: [Yasuhiko-m/LazyChromeWindowBridge](https://github.com/Yasuhiko-m/LazyChromeWindowBridge).
 
 Description (exact):

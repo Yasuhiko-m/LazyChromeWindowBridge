@@ -1,5 +1,8 @@
 # Hero image privacy review
 
+Historical R008/R009 screenshot review. These pixels do not depict the R010
+continuous-preview or R011 session-control behavior; the original image and its reviewed hash are retained.
+
 Image: [monitor-overview.png](monitor-overview.png), 1082×552 pixels.
 SHA256: 59B5437CA2D7D7D2BED788A045D5FCAB571ECDE14A0D37A06D5EC3DCAED4E21A.
 

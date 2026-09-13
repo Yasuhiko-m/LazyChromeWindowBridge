@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M003-R009`
+- Current VMR: `V1-M005-R011`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,88 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M005-R011 — session-monitor-control
+
+Purpose:
+Add Caller-controlled per-session monitoring alongside global batch controls and
+best-effort Chrome debugger-notice suppression.
+
+Result:
+Accepted by Chat. V1 M005 is Complete; V1 remains In Progress. The public
+SetSessionMonitoring(Guid appSessionId, bool enabled) API pauses/resumes one live
+owned session without changing peers. Pause detaches capture and stops frame traffic,
+retains the waiting WebSocket and exact last JPEG/Sequence/ReceivedAt, and reports
+Paused rather than Live. Resume reuses that socket for fresh capture. Global Start
+while enabled updates options without resuming paused sessions; global Stop clears
+all JPEGs and stops capture, and the next Start batch-enables all live sessions.
+PARK/RESTORE does not automatically toggle monitoring. Caller owns monitoring policy;
+Visible/Paused, Visible/Live, Parked/Paused and Parked/Live are all valid combinations.
+LCWB-launched Chrome includes --silent-debugger-extension-api exactly once as
+best-effort UX suppression. Permission/security boundaries remain unchanged, and
+production debugger commands remain Page.getLayoutMetrics and Page.captureScreenshot.
+
+Build / Test:
+Accepted clean build: 0 warnings / 0 errors; Core 154, PublicApi 29 and Extension 39
+PASS. Five-session real pause/resume: A retained Sequence13, 240x123, 1,155 bytes,
+ReceivedAt 2026-09-13T12:45:33.9935705Z and SHA256
+3EF01F88AAA04DE30E5A878C7CD3BD971AF1AA29E898DEE1DC7587FDE7C7C3C9.
+Pause attach1/detach1; resume attach2/detach1, waiting socket1 reused, fresh Sequence14.
+Peers remained fresh with stable generations/sockets/attachments. Pause survived
+Park/Restore and global options updates. Global Stop: Connections5, CapturingConnections0,
+all latest=null; batch Start reused sockets; Dispose reached Connections0.
+R010 placement regression: generation5/socket2/attach1/detach0 PASS. Full ownership,
+navigation, same-URL, native geometry, downloads, MV3 and shutdown regressions PASS.
+SampleCaller pause/frozen/placement/resume/global restart GUI PASS. Real OS command
+lines confirmed the silent flag exactly once. Evidence: 20260913-214150423-Test-All.log
+and 20260913-214647406-Test-All.log under Scripts/Outputs.
+
+Remaining:
+Third-display initial offscreen capture timeout remains unresolved. Silent flag
+suppression is best-effort; visual infobar absence was not established in acceptance.
+Chrome may ignore the flag; already-running profiles may retain original flags.
+Accepted Source contains R010/R011. Existing GitHub v0.1.0 and NuGet
+0.1.0 remain older baselines; CWS live submission is separate.
+
+Git Commit:
+Checkpoint subject: feat: establish V1-M005-R011 caller-controlled monitoring.
+Exact checkpoint SHA and remote verification are recorded by Git and the transient
+closeout handoff. This checkpoint includes accepted R010 and R011 together.
+
+### V1-M004-R010 — continuous-monitor-preview
+
+Purpose:
+Use one continuous human-view JPEG monitor path for live owned Visible and Parked
+windows, independently of native placement, with in-place capture options.
+
+Result:
+Accepted by Chat. V1 M004 is Complete. Both placements use Page.captureScreenshot;
+placement-only transitions preserve monitor generation, WebSocket identity, latest
+JPEG and same-tab debugger attachment. StartMonitoring(options) while enabled updates
+in place. FPS requests accept 1–30, default2; default output bounds240x135, quality70,
+aspect preserved and no upscale. Bounds affect JPEG only, never native size, viewport
+or zoom. Latest-frame-only semantics remain. Stop stops capture, detaches debugger and
+clears JPEGs while retaining restart-control sockets; Dispose closes those sockets.
+
+Build / Test:
+Accepted clean build: 0 warnings / 0 errors; Core 129, PublicApi 24 and Extension 37
+PASS. Visible fresh JPEG PASS. Visible→Parked→Visible→Parked: Sequence23→33→54,
+generation5 and WebSocket object2 unchanged, debugger attach1/detach0.
+In-place 15fps/640x360 yielded 640x329 JPEG with the same generation/socket/native
+bounds/viewport. A 30fps request measured 17.076fps without transport error; exact
+throughput is not an SLA. All five mixed-placement sessions were eligible at about
+9.965 aggregate fps. Stop/restart/Dispose, all session/native/download/MV3 regressions
+and SampleCaller continuous-preview acceptance PASS.
+
+Remaining:
+Third-display initial offscreen capture timeout remains unresolved and is not claimed
+fixed. No timeout/assertion was weakened. Short measured throughput is not a guarantee.
+Accepted Source is newer than published GitHub v0.1.0 and NuGet 0.1.0.
+
+Git Commit:
+Checkpoint subject: feat: establish V1-M005-R011 caller-controlled monitoring.
+Exact checkpoint SHA and remote verification are recorded by Git and the transient
+closeout handoff. This checkpoint includes accepted R010 and R011 together.
 
 ### V1-M003-R009 — official-package-distribution
 

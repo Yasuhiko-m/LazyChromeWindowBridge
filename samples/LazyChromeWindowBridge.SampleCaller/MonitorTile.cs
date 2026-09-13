@@ -13,7 +13,7 @@ internal sealed class MonitorTile : Panel
         Margin = new Padding(4); Padding = new Padding(4); BorderStyle = BorderStyle.FixedSingle;
         Controls.Add(image); Controls.Add(title); Controls.Add(status);
     }
-    public void Update(SessionMonitorSnapshot state, MonitorFrame? frame)
+    public void Update(SessionMonitorSnapshot state, MonitorFrame? frame, PlacementState? placement)
     {
         title.Text = $"{state.AppSessionId.ToString()[..8]} · Window {state.WindowId}";
         AccessibleName = title.Text;
@@ -26,10 +26,9 @@ internal sealed class MonitorTile : Panel
             var old = image.Image; image.Image = new Bitmap(decoded); old?.Dispose();
             displayed = (frame.Generation, frame.Sequence);
         }
-        var age = state.LastFrameAt is { } timestamp ? $" · {(DateTimeOffset.UtcNow - timestamp).TotalSeconds:F1}s" : "";
-        status.Text = state.State == "ACTIVE" ? "ACTIVE · no capture" :
-            $"{(state.State == "Live" ? "PARKED / LIVE" : state.State)} · {state.Frames} frames{age}" +
-            (state.Error is null ? "" : "\n" + state.Error);
+        var age = state.State == "Paused" ? " · frozen" : state.LastFrameAt is { } timestamp ? $" · {(DateTimeOffset.UtcNow - timestamp).TotalSeconds:F1}s" : "";
+        status.Text = $"{placement?.ToString() ?? "Unavailable"} / {state.State} · G{state.Generation}\n" +
+            (state.Error ?? $"{state.Frames} frames · {state.Width}×{state.Height}{age}");
     }
     private void ClearImage() { var old = image.Image; image.Image = null; old?.Dispose(); displayed = default; }
     protected override void Dispose(bool disposing) { if (disposing) ClearImage(); base.Dispose(disposing); }

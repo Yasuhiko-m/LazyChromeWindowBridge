@@ -5,6 +5,7 @@ Complete a Windows caller / Chrome extension reference implementation that keeps
 an application session associated with its own browser window across navigation.
 
 ## V0 — Complete the reference implementation
+Historical accepted scope and evidence below; the continuous-monitor goal is V1 M004.
 Goal: complete the reference flow, initially for a Chrome WebApp such as ChatGPT,
 while keeping session identity independent of page content and navigation.
 
@@ -122,9 +123,38 @@ NuGet publication follows the accepted checkpoint, normal push and duplicate-ver
 preflight. CWS upload and submission remain deferred to an interactive user task.
 The existing GitHub v0.1.0 tag/Release and runtime functionality are unchanged.
 
+### M004 — Continuous Monitor Preview
+Goal: use the same human-view JPEG preview for live owned Visible and Parked windows.
+Placement changes and in-place CaptureOptions updates preserve monitor generation,
+latest frame, WebSocket and same-tab debugger attachment. Allow requests of 1–30 fps
+(default 2, no throughput guarantee), default 240×135, aspect-preserving output bounds,
+no upscale and fixed quality70 without changing native size, viewport or zoom.
+Status: **Complete**. Accepted by Chat at V1-M004-R010.
+The accepted implementation is included in the combined R010/R011 Git checkpoint.
+Exit criteria: deterministic Core/public API/extension checks and real Windows evidence
+for Visible capture, repeated placement continuity, live options, single-session 30fps
+request, five mixed-placement streams, cleanup, all existing regressions and sample GUI.
+Keep the known third-display initial capture timeout explicit. Implementation acceptance
+is separate from Git checkpoint/push and package or Chrome Web Store publication.
+
+### M005 — Caller-controlled Session Monitoring
+Goal: caller-owned per-session pause/resume alongside global batch monitor controls.
+Paused sessions retain a frozen last JPEG and waiting socket; placement never auto-toggles
+monitoring. LCWB launches include --silent-debugger-extension-api for best-effort suppression
+without changing extension permissions or the two-command production capture boundary.
+Status: **Complete**. Accepted by Chat at V1-M005-R011.
+Exit criteria: deterministic and real five-session pause/resume/peer/frozen-frame evidence,
+R010 continuity, global batch restart/shutdown, launch-flag command-line verification,
+SampleCaller GUI, updated current/future distribution copy and all existing regressions.
+Git checkpoint/push is separate from package publication, tag changes and CWS dashboard actions.
+The known third-display initial capture timeout remains unresolved. Silent flag
+suppression is best-effort; visual infobar absence was not established in acceptance.
+Both accepted milestones share the R011 checkpoint; package/release publication is
+separate and V1 remains In Progress.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M003-R009; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M005-R011; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

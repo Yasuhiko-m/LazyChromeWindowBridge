@@ -11,9 +11,8 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
     {
         public NativeIdentity? Identity;
         public Guid? Connection;
-        public long Generation, PlacementGeneration = -1, Frames, Bytes;
-        public PlacementState? Placement;
-        public bool Eligible, Capturing;
+        public long Generation, Frames, Bytes;
+        public bool Eligible, Capturing, Paused;
         public MonitorFrame? Latest;
         public string? Error;
         public string State = "Unavailable";
@@ -27,9 +26,10 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Changed { get { lock (gate) return changed.Task; } }
     private void Signal() { var previous = changed; changed = NewSignal(); previous.TrySetResult(); }
-    private void Invalidate(Entry entry, bool clearError = true)
+    private void Invalidate(Entry entry, bool clearError = true, bool keepLatest = false)
     {
-        entry.Generation = ++generation; entry.Latest = null;
+        entry.Generation = ++generation;
+        if (!keepLatest) entry.Latest = null;
         if (clearError) entry.Error = null;
     }
     private Entry Sync(Guid id)
@@ -39,16 +39,18 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         var window = geometry.Get(id);
         entry.Identity ??= window?.Identity;
         var live = session?.State == SessionState.Bound && window is { Current: not null, State: not PlacementState.Closed } && window.Identity == entry.Identity;
-        var eligible = enabled && !disposed && live && window!.State == PlacementState.Parked;
-        if (entry.Eligible != eligible || entry.Placement != window?.State || entry.PlacementGeneration != (window?.PlacementGeneration ?? -1))
+        var eligible = enabled && !disposed && !entry.Paused && live && window!.State is PlacementState.Visible or PlacementState.Parked;
+        // Placement is not monitor identity. A successful PARK/RESTORE keeps the
+        // same native owner, transport generation and latest JPEG.
+        if (entry.Eligible != eligible)
         {
-            entry.Eligible = eligible; entry.Placement = window?.State; entry.PlacementGeneration = window?.PlacementGeneration ?? -1;
-            Invalidate(entry); Signal();
+            entry.Eligible = eligible;
+            Invalidate(entry, keepLatest: enabled && !disposed && live && entry.Paused); Signal();
         }
         if (!live) { entry.Latest = null; entry.State = "Unavailable"; }
-        else if (window!.State == PlacementState.Visible) { entry.Latest = null; entry.State = "ACTIVE"; }
         else if (!enabled || disposed) { entry.Latest = null; entry.State = "Stopped"; }
-        else if (!eligible) { entry.Latest = null; entry.State = window.State.ToString(); }
+        else if (entry.Paused) entry.State = "Paused";
+        else if (!eligible) { entry.Latest = null; entry.State = window!.State.ToString(); }
         else if (entry.Error is not null) entry.State = "Error";
         else if (entry.Connection is null) entry.State = "Disconnected";
         else entry.State = entry.Latest is null ? "Waiting" : "Live";
@@ -68,14 +70,38 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            var reset = !enabled || options != requested;
+            var restarting = !enabled;
             enabled = true; options = requested;
+            if (restarting) foreach (var entry in entries.Values) entry.Paused = false;
             foreach (var session in sessions.GetAll())
             {
                 var entry = Sync(session.AppSessionId);
-                if (reset || entry.Error is not null) Invalidate(entry);
+                // Ordinary option updates only signal control. Explicit Start
+                // after a real failure remains the separate retry boundary.
+                if (!entry.Paused && entry.Error is not null) { Invalidate(entry); Sync(session.AppSessionId); }
             }
             Signal();
+        }
+    }
+    public void SetSessionMonitoring(Guid id, bool requested)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!enabled) throw new InvalidOperationException("Start global monitoring before changing a session.");
+            var entry = Sync(id);
+            var window = geometry.Get(id);
+            if (sessions.Get(id)?.State != SessionState.Bound || window is not { Current: not null, State: PlacementState.Visible or PlacementState.Parked } ||
+                window.Identity != entry.Identity)
+                throw new InvalidOperationException("Session monitoring requires a live owned native window.");
+            if (entry.Paused == !requested)
+            {
+                if (!requested || entry.Error is null) return;
+                // Explicit ON after a real error retries only this session.
+                Invalidate(entry);
+            }
+            entry.Paused = !requested;
+            Sync(id); Signal();
         }
     }
     public void Stop()
@@ -158,7 +184,11 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
             width = Math.Max(1, (int)(width * ratio)); height = Math.Max(1, (int)(height * ratio));
             using var resized = new Bitmap(width, height);
             using (var graphics = Graphics.FromImage(resized)) { graphics.InterpolationMode = InterpolationMode.HighQualityBilinear; graphics.DrawImage(image, 0, 0, width, height); }
-            using var output = new MemoryStream(); resized.Save(output, ImageFormat.Jpeg); jpeg = output.ToArray();
+            using var output = new MemoryStream();
+            using var encoding = new EncoderParameters(1);
+            encoding.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 70L);
+            resized.Save(output, ImageCodecInfo.GetImageEncoders().Single(codec => codec.FormatID == ImageFormat.Jpeg.Guid), encoding);
+            jpeg = output.ToArray();
         }
         lock (gate)
         {

@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { publicImages } from './PublicImages.mjs';
+import { taskAudit } from './TaskAudit.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const listed = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
@@ -122,8 +123,9 @@ for (const expected of names) {
   entries.push(name); at += 46 + nameLength + extra + comment;
 }
 assert.equal(at, end); assert(!listed.includes(zipPath), 'Generated ZIP must remain ignored/untracked.');
-console.log(JSON.stringify({ check: 'public-release-audit', result: violations.length ? 'FAIL' : 'PASS', candidateFiles: listed.length,
+const scoped = await taskAudit(root, violations);
+console.log(JSON.stringify({ check: 'public-release-audit', result: scoped.violations.length ? 'FAIL' : 'PASS', candidateFiles: listed.length,
   linksChecked: links.length, reviewedIdentities: reviewed, images,
-  package: { path:zipPath, entries, bytes:zip.length, sha256:sha(zip) }, violations,
+  package: { path:zipPath, entries, bytes:zip.length, sha256:sha(zip) }, ...scoped,
   boundary:'Current tracked + untracked candidate files, not ignored evidence. Manual pixel review is hash-pinned; heuristic secret scan is not exhaustive. Historical commit email remains for owner review; no history rewrite.' }));
-if (violations.length) process.exitCode = 1;
+if (scoped.violations.length) process.exitCode = 1;

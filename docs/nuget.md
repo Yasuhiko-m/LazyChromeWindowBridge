@@ -2,12 +2,17 @@
 
 Windows-only .NET 10 Core library for session-bound Chrome windows, native geometry,
 PARK/RESTORE, human-only thumbnails and profile-global download lifecycle events.
-The first prepared NuGet version is **0.1.0**. Candidate preparation does not imply
-that this version has been published to nuget.org.
+NuGet **0.1.0** was published from accepted R009. Current Chat-accepted Source at
+V1-M005-R011 includes R010 continuous monitoring and R011 per-session pause/resume
+and best-effort silent debugger launch in the combined R011 checkpoint. Neither change
+is in the existing 0.1.0 package. No version change here.
+For future package updates, explicitly document caller-owned monitoring policy:
+PARK/RESTORE never automatically switches Monitor ON/OFF. Paused sessions retain
+frozen JPEGs; global batch controls remain. See [current integration](integration.md).
 
 ## Consumer setup
 
-After publication, add `LazyChromeWindowBridge.Core` version `0.1.0` to a
+For the published R009 behavior, add `LazyChromeWindowBridge.Core` version `0.1.0` to a
 `net10.0-windows` application. The package carries the ASP.NET Core and Windows
 Desktop framework references; those shared runtimes are required for a framework-
 dependent consumer. The Core assembly does not expose WinForms/WPF UI types.
@@ -38,7 +43,7 @@ MIT licensed.
 ## Maintainer validation and publishing
 
 Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses SDK 10.0.400,
-restores and builds Release, runs the existing 121 Core / 19 public API / 33 extension
+restores and builds Release, runs the existing 154 Core / 29 public API / 39 extension
 checks, packs Core, inspects both package archives and runs the public API checks
 again from an isolated local-feed PackageReference consumer. It never publishes.
 Generated packages and consumer work stay under ignored `artifacts/nuget`; the
@@ -64,6 +69,7 @@ symbol-push command. See the official
 [symbol package documentation](https://learn.microsoft.com/en-us/nuget/create-packages/symbol-packages-snupkg)
 and [Trusted Publishing documentation](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
 
-R009 remains a candidate until Chat accepts it. Do not commit, push, dispatch this
-workflow or publish to nuget.org during candidate work. After acceptance and push,
-the separately authorized closeout manually dispatches and verifies NuGet indexing.
+R009 publication is historical; its package is immutable. R010/R011 are accepted
+Source in the combined R011 checkpoint. Git checkpoint/push does not authorize
+workflow dispatch or NuGet publication.
+A future package/version and publication require separate acceptance and authorization.

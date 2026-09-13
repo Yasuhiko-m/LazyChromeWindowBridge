@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { publicImages } from './PublicImages.mjs';
+import { taskAudit } from './TaskAudit.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const projectId = ['Lazy', 'Chrome', 'Extension'].join('');
@@ -66,10 +67,11 @@ assert.deepEqual([...new Set(downloadCalls.map(c => c.member))].sort(), ['onChan
 const projects = files.filter(f => f.endsWith('.csproj'));
 assert.equal(projects.length, 4, 'Only Core, SampleCaller, Core.Tests and PublicApi.Tests projects');
 for (const project of projects) assert(!/<PackageReference\b/.test(await fs.readFile(path.join(root, project), 'utf8')), 'No new external NuGet dependency');
-const report = { check: 'source-name-security-hygiene-audit', result: violations.length ? 'FAIL' : 'PASS',
+const scoped = await taskAudit(root, violations);
+const report = { check: 'source-name-security-hygiene-audit', result: scoped.violations.length ? 'FAIL' : 'PASS',
   filesScanned: files.length, pathAudit: 'All current repository file paths and their parent directories',
   projects, extensionPermissions: manifest.permissions, debuggerCommands: commands, downloadCalls,
-  allowlistedOccurrences: residuals, violations,
+  allowlistedOccurrences: residuals, ...scoped,
   boundary: 'Repository Source only; ignored build output, local evidence and transient handoff excluded. Secret patterns are a bounded static check, not a comprehensive credential proof.' };
 console.log(JSON.stringify(report));
-if (violations.length) process.exitCode = 1;
+if (scoped.violations.length) process.exitCode = 1;

@@ -6,16 +6,22 @@
   for Testing build. A pass on that build is not proof for every Chrome version.
 - Installed Chrome requires the extension to be enabled in the selected profile.
   Its consent/debugging UI is not completely automated by CfT acceptance.
-- Debugger permission is broad, its normal notice is retained, and another debugger
+- Debugger permission is broad. LCWB launches use --silent-debugger-extension-api for
+  best-effort Chrome-dependent infobar suppression; it does not weaken permission.
+  A notice may still appear if Chrome ignores the flag or reuses an existing profile
+  process launched without it. Capture does not depend on suppression. Another debugger
   can contend for a target. Cancellation is respected; no permission retry loop.
+  Visual infobar absence was not established in acceptance and is not guaranteed.
 - PARK means offscreen placement, not minimize. External applications can still
   move/close owned windows. Retained HWND/PID/property checks reject stale handles.
 - Normal is restored exactly when reachable. Changed monitor topology can require
   a deterministic visible fallback. Real acceptance uses three 96-DPI monitors;
   mixed DPI, removal and topology changes also have deterministic simulated coverage,
   not a complete physical mixed-DPI hardware matrix.
-- Monitoring is a low-rate human thumbnail, not remote desktop/video/control.
-  Four simultaneous PARKED targets are the reference acceptance case. Loads vary
+- Monitoring is a human JPEG preview, not remote desktop/video/control.
+  Requests allow 1–30 fps, with default2 and roughly 2–30 recommended. 30fps is a request
+  ceiling, not a throughput guarantee. Five mixed Visible/Parked targets are the
+  accepted reference workload. Debugger attachment may exist in either placement. Loads vary
   with page activity, viewport, Chrome version, startup and machine contention.
 - Short neutral-page samples are not long-run leak, worst-case video bandwidth or
   background-throttling guarantees. Recorded CPU includes test hash sampling.
@@ -27,7 +33,7 @@
   and did not show a consistent CPU/capture benefit; offscreen viewport reflow could
   lag a native resize. Only captureScreenshot downscaling is adopted.
 - MV3 worker restart within a running browser recovers persisted bindings and only
-  currently requested PARKED capture. chrome.storage.session is not durable across
+  currently requested Visible/Parked capture. chrome.storage.session is not durable across
   full browser restart; existing live session takeover is not supported.
 - Full caller restart loses live session capabilities/bindings. A new launch has a
   new appSessionId; saved launch-URL Normal geometry can be reused.
@@ -46,6 +52,8 @@
   A hung peer can exceed graceful shutdown bounds; callers should still await disposal.
 - The pre-release product rename starts a new geometry directory. Legacy pre-release
   data is not a supported migration contract; no migration subsystem is provided.
-- No installer, updater, NuGet package or Web Store publication is established.
-  The MIT-licensed source and generated unpacked-extension ZIP are the initial
-  distribution approach; release automation/publication requires maintainer action.
+- No installer, updater or Web Store submission is established. The existing GitHub
+  v0.1.0 and NuGet Core0.1.0 distributions retain their earlier behavior. Continuous
+  preview (R010) and session control/silent launch (R011) are Chat-accepted Source at
+  V1-M005-R011 in the combined R011 checkpoint. Neither is in published 0.1.0;
+  the checkpoint/push creates no package/release version or publication.

@@ -1,8 +1,8 @@
 # Chrome Web Store submission preparation — 0.1.0
 
-R009 candidate only. Nothing has been uploaded or submitted. Publisher setup was
+Future submission copy for Chat-accepted R010/R011 Source, not yet released as a package or submitted to CWS. Publisher setup was
 reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.
-The URLs below become submission-ready only after the accepted candidate is pushed
+The URLs below become submission-ready only after the accepted Source is pushed
 and its privacy page is confirmed publicly reachable. No store item URL exists yet.
 
 ## Name
@@ -11,7 +11,7 @@ LazyChromeWindowBridge
 
 ## Summary
 
-Connect a Windows companion to its Chrome windows for local window management and human-viewed parked thumbnails.
+Connect a Windows companion to its Chrome windows for local window management and continuous human-view JPEG previews.
 
 ## Detailed description
 
@@ -21,9 +21,9 @@ installing the extension alone does not provide a standalone dashboard.
 
 From the companion you can launch a URL in an owned Chrome window, save and restore
 normal placement, and explicitly PARK or RESTORE that window. With monitoring enabled,
-the companion shows live thumbnails of owned PARKED windows for human viewing. Visible
-windows show ACTIVE without capture. Chrome may display its debugger notice while
-parked thumbnails are enabled.
+the companion shows live JPEG previews of owned Visible and Parked windows for human
+viewing. Park/Restore and live FPS/output-size changes keep the same preview connection.
+Chrome may display its debugger notice in either placement while monitoring is enabled.
 
 The bridge also observes Chrome Download Manager lifecycle notifications. These are
 profile-wide notifications, not proof that a particular page produced a download.
@@ -36,7 +36,9 @@ responses or infer page completion. It has no toolbar popup: use the Windows com
 controls. Windows x64, Chrome 120 or later, and the companion are required. The supplied
 self-contained companion needs no separate .NET installation or account sign-in.
 
-Download the companion from the public project homepage's v0.1.0 GitHub Release.
+Use a companion built from the same future accepted Source as the extension.
+The already published v0.1.0 companion does not contain continuous monitoring.
+Prepare and identify a matching companion bundle before any future submission.
 Read the privacy policy before monitoring pages that may contain private information.
 
 ## Dashboard links
@@ -70,13 +72,22 @@ or background webpage automation.
 
 ### debugger
 
-Captures JPEG thumbnails only for exact owned PARKED targets after the user enables
+Captures JPEG previews only for exact live owned Visible and Parked targets after the user enables
 monitoring in the companion. Product commands are exactly Page.getLayoutMetrics and
 Page.captureScreenshot. This supports live offscreen human viewing across several
-parked windows; active-tab capture cannot provide this behavior. There is no DOM,
-Runtime.evaluate, network-response inspection, OCR or automated page input. Visible
-windows are not captured; restoring/stopping detaches capture. Chrome's debugger
-notice is expected and must not be dismissed to force continued monitoring.
+windows, including offscreen ones; activeTab permission alone cannot provide this behavior.
+There is no DOM, Runtime.evaluate, network-response inspection, OCR or automated page input.
+Restoring or updating capture options retains the same-tab debugger attachment.
+The caller owns monitoring policy: PARK/RESTORE never automatically switches Monitor
+ON/OFF. Session pause detaches only that target and retains its last JPEG as a frozen
+Paused preview. Resume reuses its waiting socket and obtains fresh frames. Global
+methods remain batch controls; global option updates preserve pauses and global Stop
+clears all previews, retaining idle restart-control sockets for a later batch Start.
+LCWB-launched Chrome requests --silent-debugger-extension-api as best-effort infobar
+suppression. This does not weaken debugger permission or justify the permission's safety.
+Visual infobar absence was not established in acceptance and must not be claimed.
+The extension itself does not remove notices; Chrome may ignore the flag or reuse an
+existing process without it. Capture works either way and user cancellation is respected.
 
 ### downloads
 
@@ -104,7 +115,7 @@ Do not select a blanket “no user data” answer. Recommended conservative disc
 | Data category | Recommended answer and scope |
 | --- | --- |
 | Web history | Yes: original launch URLs, not a browser-history scan. |
-| Website content | Yes: temporary JPEG pixels of user-selected parked pages. |
+| Website content | Yes: temporary JPEG pixels of monitored owned Visible and Parked pages. |
 | Authentication information | Yes: local bridge capability tokens; no website login credential extraction. |
 | Personally identifiable information | Yes: absolute filenames or displayed pixels may contain names and identifiers. |
 | Personal communications | Yes: a monitored page may display messages in its pixels; no message parsing. |
@@ -127,20 +138,27 @@ and user controls. These answers do not constitute Store approval.
 
 1. Use Windows x64 with Chrome 120+ and the extension version 0.1.0 under review enabled.
    No ChatGPT, OpenAI or other website credentials are needed.
-2. Download `LazyChromeWindowBridge-v0.1.0-win-x64.zip` from the public
-   [v0.1.0 Release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.1.0).
-   Extract it and run `SampleCaller/LazyChromeWindowBridge.SampleCaller.exe` inside
-   the bundle root. It is self-contained. Use the extension under review; the older
-   Extension folder bundled with that historical GitHub Release is not this candidate.
+2. Use the matching companion build identified for the future submission, and run
+   SampleCaller with the extension under review in the same Chrome profile. A new
+   distribution decision/bundle is required before these instructions are submission-ready.
+   The historical [v0.1.0 Release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.1.0)
+   and NuGet 0.1.0 do not implement the accepted R010/R011 monitor contract.
 3. Replace the sample's default launch URL with `https://example.com/?window=a`.
    Click Launch and wait for Bound. Repeat with query values b, c, d and e. These
    public neutral pages require no login, SDK, local test server or developer fixture.
-4. Select four different session rows and click Park selected for each. Keep the fifth
-   visible. Click Start monitor. Expect four PARKED/LIVE thumbnail tiles and one ACTIVE
-   tile without capture. The static example page need not animate: the frame counters
+4. Click Start monitor while all five sessions are Visible. Expect five LIVE JPEG
+   previews. Park four and keep the fifth visible; all five previews continue.
+   The static example page need not animate: the frame counters
    confirm ongoing capture. Allow a few seconds for the first frames.
-5. Restore a parked session: its capture stops and the owned window returns to its normal
-   placement. Park it again to resume. Stop monitor ends capture for all sessions.
+5. Restore a parked session, then Park/Restore/Park it again: its JPEG preview and
+   monitor generation continue while native placement changes. Change FPS and JPEG
+   max width/height, then Apply preview without stopping. Bounds affect JPEG output
+   only; native size, viewport and zoom stay unchanged. Stop monitor ends all captures
+   and clears previews; Start resumes on the retained control connections.
+   Before global Stop, select one session and Pause preview: only its JPEG/frame number
+   freezes and its state becomes Paused. Peers remain LIVE. Park/Restore that paused
+   session and Apply new output options: it stays Paused. Resume preview obtains fresh
+   frames for only that session. These are caller controls, independent of placement.
 6. Optional download check: manually save a harmless page through Chrome's normal Save
    command. The bridge observes Chrome's lifecycle; it never initiates the download.
    SampleCaller is primarily a placement/thumbnail UI; download events are exposed by
@@ -157,8 +175,12 @@ and user controls. These answers do not constitute Store approval.
 - Small promo: [original brand artwork](store-assets/promo-small-440x280.png), 440×280.
 - [Asset privacy review](store-assets/privacy-review.md).
 
+The screenshot above is historical R009 evidence. Prepare a current continuous-monitor
+screenshot and repeat its privacy review before a future Store submission; no asset
+or dashboard upload is part of this authority closeout.
+
 Prepared against Chrome's [image requirements](https://developer.chrome.com/docs/webstore/images),
 [privacy field guidance](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)
 and [User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq).
 The local-only design still requires a privacy policy. Submission and policy acceptance
-remain publisher/Store actions after Chat accepts R009.
+remain publisher/Store actions after Chat acceptance and separate submission authorization.

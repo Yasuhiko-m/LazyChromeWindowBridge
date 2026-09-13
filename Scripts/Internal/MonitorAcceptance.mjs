@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { observeMonitor } from './MonitorContinuity.mjs';
 
 export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, pageB }) {
+  const audit = await observeMonitor(cdp);
   const near = (a, b) => ['left', 'top', 'width', 'height'].every(k => Math.abs(a[k] - b[k]) <= 2);
   const monitors = await caller('monitors');
   const outside = r => monitors.every(m => r.left + r.width <= m.bounds.left || r.left >= m.bounds.left + m.bounds.width || r.top + r.height <= m.bounds.top || r.top >= m.bounds.top + m.bounds.height);
@@ -19,8 +21,8 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   const snapshot = async s => (await caller('monitor')).sessions.find(row => row.appSessionId === s.appSessionId);
   const frame = s => caller('monitor-frame', { id: s.appSessionId });
   async function active(s) {
-    await until(() => snapshot(s), row => row.state === 'ACTIVE' && !row.capturing, 'Visible has no capture');
-    assert.equal(await frame(s), null);
+    await until(() => snapshot(s), row => row.state === 'Live' && row.capturing, 'Visible JPEG capture');
+    assert(await frame(s));
   }
   async function start(s, options = { framesPerSecond: 2, maxWidth: 960, maxHeight: 540 }) {
     await caller('park', { id: s.appSessionId });
@@ -80,12 +82,27 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   await caller('move', { id: b.appSessionId, rect: rectB });
   const beforeB = await geometry(b), beforeA = await geometry(a);
   await caller('monitor-start'); await active(a);
-  evidence('A-visible-ACTIVE-no-capture', { result: 'PASS', monitor: await snapshot(a) });
+  await sample('A-visible-JPEG-defaults', a);
+  const continuityStart = { monitor: await snapshot(a), frame: await frame(a), geometry: await geometry(a), audit: await audit() };
+  async function continuous(label) {
+    const latest = await frame(a), g = await geometry(a), state = await snapshot(a), observed = await audit();
+    assert(latest, 'placement/options must never clear latest');
+    assert.equal(state.generation, continuityStart.monitor.generation);
+    assert.equal(state.connected, true);
+    assert.deepEqual(g.identity, continuityStart.geometry.identity);
+    assert.equal(g.windowId, continuityStart.geometry.windowId);
+    assert.equal(observed.windows[a.windowId].socket, continuityStart.audit.windows[a.windowId].socket);
+    assert.equal(observed.tabs[a.tabId].attaches, continuityStart.audit.tabs[a.tabId].attaches);
+    assert.equal(observed.tabs[a.tabId].detaches, continuityStart.audit.tabs[a.tabId].detaches);
+    evidence(label, { result: 'PASS', monitor: state, frame: latest, geometry: g,
+      socket: observed.windows[a.windowId].socket, debugger: observed.tabs[a.tabId] });
+  }
   await start(a);
   const parked = await caller('park', { id: a.appSessionId });
   assert(outside(parked.current));
   assert(near((await geometry(b)).current, beforeB.current));
   await sample('B-fully-offscreen-monitor', a);
+  await continuous('continuous-visible-to-parked');
   evidence('native-offscreen-proof', { parked, monitors, unaffectedB: await geometry(b) });
 
   const nextUrl = pageB.url + '/dynamic-a-navigated';
@@ -98,10 +115,22 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   const restored = await caller('restore', { id: a.appSessionId });
   assert(near(restored.current, rectA)); assert.deepEqual(restored.identity, beforeA.identity);
   await active(a);
-  evidence('D-restored-ACTIVE-monitor-detached', { result: 'PASS', restored });
+  await continuous('continuous-parked-to-visible');
+  await sample('D-restored-visible-JPEG', a);
   await start(b); await sample('E-per-session-B-isolation', b, 5, true);
   assert(near((await geometry(a)).current, rectA));
   await start(a);
+  await continuous('continuous-visible-to-parked-again');
+
+  const optionGeometry = await geometry(a), optionAudit = await audit();
+  await caller('monitor-start', { options: { framesPerSecond: 15, maxWidth: 640, maxHeight: 360 } });
+  await continuous('continuous-options-immediate');
+  const updated = await until(() => frame(a), f => f?.sequence > continuityStart.frame.sequence && f.width <= 640 && f.height <= 360 && f.width > 240, 'updated JPEG bounds');
+  await sample('continuous-options-15fps-640x360', a);
+  await continuous('continuous-options-new-frames');
+  assert.deepEqual((await geometry(a)).current, optionGeometry.current);
+  assert.deepEqual((await audit()).tabs[a.tabId].viewport, optionAudit.tabs[a.tabId].viewport);
+  evidence('options-native-and-viewport-unchanged', { result: 'PASS', geometry: optionGeometry, output: [updated.width, updated.height] });
 
   const matrix = [];
   for (const [fps, maxWidth, maxHeight] of [[1, 960, 540], [2, 960, 540], [5, 1280, 720], [10, 1280, 720]]) {
@@ -114,16 +143,31 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   }
   evidence('performance-matrix', { matrix, cpuBasis: 'percent of one CPU core; test caller includes frame-hash sampling', default: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135 } });
 
+  await close(b);
+  await until(() => snapshot(b), s => s.state === 'Unavailable' && !s.capturing, 'closed peer cleanup');
+  await caller('monitor-start', { options: { framesPerSecond: 30, maxWidth: 240, maxHeight: 135 } });
+  await active(a);
+  const thirty = await sample('single-visible-30fps-request', a, 5);
+  assert.equal((await snapshot(a)).error, null);
+  await continuous('continuous-30fps-request');
+  evidence('30fps-capability', { result: 'PASS', requestedFps: 30, observedFps: thirty.effectiveFps, performanceGuarantee: false });
+
   const stopped = await caller('monitor-stop');
   assert.deepEqual((await caller('monitor-stop')).sessions.map(s => s.generation), stopped.sessions.map(s => s.generation));
   await until(() => caller('monitor'), s => s.capturingConnections === 0, 'debugger detach on stop');
   assert.equal(await frame(a), null);
+  const stoppedCounts = await snapshot(a);
+  await delay(800);
+  assert.equal((await snapshot(a)).frames, stoppedCounts.frames);
+  assert.equal((await caller('monitor')).enabled, false);
+  evidence('stop-capture-cleanup-control-retained', { result: 'PASS', monitor: await caller('monitor'), latest: await frame(a) });
   const ownedTabs = [a.tabId, b.tabId];
   async function attached() {
     return cdp.extension('chrome.debugger.getTargets().then(ts=>ts.filter(t=>' + JSON.stringify(ownedTabs) + '.includes(t.tabId)&&t.attached).map(t=>t.tabId))');
   }
   await until(attached, list => list.length === 0, 'no owned debugger after stop');
   await start(a);
+  assert.equal((await audit()).windows[a.windowId].socket, continuityStart.audit.windows[a.windowId].socket, 'restart retains the control WebSocket');
   // Force an actual worker stop; recovery must use saved binding/target cleanup and the caller's selection.
   const oldWorker = await cdp.worker();
   const page = (await cdp.call('Target.getTargets')).targetInfos.find(t => t.type === 'page' && t.url === 'about:blank');
@@ -137,7 +181,6 @@ export async function testMonitor({ caller, cdp, until, delay, evidence, pageA, 
   await until(() => frame(a), f => f?.appSessionId === a.appSessionId && Date.now() - Date.parse(f.receivedAt) < 1500, 'monitor rehydrates after worker restart', 45000);
   await sample('worker-restart-monitor-recovery', a, 4);
 
-  await start(b); await close(b);
   await until(() => snapshot(b), s => s.state === 'Unavailable' && !s.capturing, 'selected close cleans capture');
   assert.equal(await frame(b), null);
   assert(near((await geometry(a)).normal, rectA));

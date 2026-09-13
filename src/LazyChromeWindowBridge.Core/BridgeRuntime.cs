@@ -141,6 +141,9 @@ public sealed class BridgeRuntime : IAsyncDisposable
     public WindowSnapshot Restore(Guid appSessionId) => Geometry.Restore(appSessionId);
     public void StartMonitoring(CaptureOptions? options = null) => Monitor.Start(options ?? new());
     public void StopMonitoring() => Monitor.Stop();
+    /// <summary>Pauses or resumes one live owned session while global monitoring is started.
+    /// Pause retains its last JPEG as a frozen preview. Placement never changes this policy.</summary>
+    public void SetSessionMonitoring(Guid appSessionId, bool enabled) => Monitor.SetSessionMonitoring(appSessionId, enabled);
     public MonitorSnapshot GetMonitorState() => Monitor.Snapshot();
     public MonitorFrame? GetLatestFrame(Guid appSessionId) => Monitor.Latest(appSessionId);
     public DownloadLifecycleEvent[] GetDownloads() => downloads.GetAll();

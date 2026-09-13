@@ -13,6 +13,12 @@ internal sealed class SampleCallerForm : Form
     private Guid? pendingLaunchStatus;
     private readonly Button monitorStart = new() { Text = "Start monitor", AutoSize = true, Enabled = false };
     private readonly Button monitorStop = new() { Text = "Stop monitor", AutoSize = true, Enabled = false };
+    private readonly Button monitorPause = new() { Text = "Pause preview", AutoSize = true, Enabled = false };
+    private readonly Button monitorResume = new() { Text = "Resume preview", AutoSize = true, Enabled = false };
+    private readonly NumericUpDown monitorFps = new() { Minimum = 1, Maximum = 30, Value = 2, Width = 55, AccessibleName = "Monitor FPS" };
+    private readonly NumericUpDown monitorWidth = new() { Minimum = 160, Maximum = 1920, Value = 240, Width = 70, AccessibleName = "JPEG max width" };
+    private readonly NumericUpDown monitorHeight = new() { Minimum = 90, Maximum = 1080, Value = 135, Width = 70, AccessibleName = "JPEG max height" };
+    private readonly Button monitorApply = new() { Text = "Apply preview", AutoSize = true, Enabled = false };
     private readonly Label monitorStatus = new() { Text = "Monitor stopped. Human view only; Chrome debugger permission/notice applies.", AutoSize = true, Dock = DockStyle.Top };
     private readonly FlowLayoutPanel thumbnails = new() { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = true, AccessibleName = "Session monitor overview" };
     private readonly Dictionary<Guid, MonitorTile> tiles = [];
@@ -25,6 +31,7 @@ internal sealed class SampleCallerForm : Form
         AccessibleName = "Session bindings"
     };
     private readonly System.Windows.Forms.Timer refresh = new() { Interval = 500 };
+    private readonly System.Windows.Forms.Timer previewRefresh = new() { Interval = 33 };
     private BridgeRuntime? host;
     private bool shutdownComplete;
     private bool closing;
@@ -64,18 +71,25 @@ internal sealed class SampleCallerForm : Form
         layout.Controls.Add(urlLabel, 0, 0);
         layout.Controls.Add(launchUrl, 1, 0);
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
-        actions.Controls.AddRange([launchButton, parkButton, restoreButton, monitorStart, monitorStop, selected]);
+        actions.Controls.AddRange([launchButton, parkButton, restoreButton, monitorStart, monitorStop, monitorPause, monitorResume, selected]);
         layout.Controls.Add(actions, 0, 1);
         layout.SetColumnSpan(actions, 2);
         layout.Controls.Add(status, 0, 2);
         layout.SetColumnSpan(status, 2);
-        var note = new Label { Text = "Placement follows the original launch URL. Caller exit restores parked windows and leaves Chrome open.", AutoSize = true, Margin = new Padding(3, 8, 3, 8) };
+        var note = new Label { Text = "Caller controls preview policy. Park/Restore never changes Monitor ON/OFF. Exit restores windows and leaves Chrome open.", AutoSize = true, Margin = new Padding(3, 8, 3, 8) };
         layout.Controls.Add(note, 0, 3);
         layout.SetColumnSpan(note, 2);
         foreach (var (name, width) in new[] { ("Session", 270), ("Window", 105), ("State", 155), ("Launch URL", 450) })
             sessions.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = name, Width = width, SortMode = DataGridViewColumnSortMode.NotSortable });
         var monitorPanel = new Panel { Dock = DockStyle.Fill };
         monitorPanel.Controls.Add(thumbnails); monitorPanel.Controls.Add(monitorStatus);
+        var previewOptions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top };
+        previewOptions.Controls.AddRange([
+            new Label { Text = "FPS", AutoSize = true }, monitorFps,
+            new Label { Text = "JPEG max width", AutoSize = true }, monitorWidth,
+            new Label { Text = "height", AutoSize = true }, monitorHeight, monitorApply,
+            new Label { Text = "Requested rate · JPEG bounds only · quality 70", AutoSize = true }]);
+        monitorPanel.Controls.Add(previewOptions);
         thumbnails.SizeChanged += (_, _) => SizeTiles();
         var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, Size = new Size(1048, 600), SplitterDistance = 160, FixedPanel = FixedPanel.Panel1 };
         split.Panel1.Controls.Add(sessions); split.Panel2.Controls.Add(monitorPanel);
@@ -93,6 +107,7 @@ internal sealed class SampleCallerForm : Form
                 status.Text = "Status: Ready";
                 launchButton.Enabled = true;
                 refresh.Start();
+                previewRefresh.Start();
             }
             catch (Exception error) { if (!closing) status.Text = "Status: Caller start failed: " + error.Message; }
         };
@@ -109,16 +124,25 @@ internal sealed class SampleCallerForm : Form
             finally { if (!closing) launchButton.Enabled = true; }
         };
         refresh.Tick += (_, _) => RefreshSessions();
+        previewRefresh.Tick += (_, _) => RefreshMonitor();
         sessions.SelectionChanged += (_, _) => RefreshSelection();
         parkButton.Click += async (_, _) => await Operate(true);
         restoreButton.Click += async (_, _) => await Operate(false);
         monitorStart.Click += (_, _) =>
         {
             if (host is null) return;
-            try { host.StartMonitoring(new()); monitoring = true; RefreshMonitor(); }
+            try { host.StartMonitoring(RequestedCapture()); monitoring = true; RefreshMonitor(); }
+            catch (Exception error) { monitorStatus.Text = "Monitor: " + error.Message; }
+        };
+        monitorApply.Click += (_, _) =>
+        {
+            if (host is null || !monitoring) return;
+            try { host.StartMonitoring(RequestedCapture()); RefreshMonitor(); }
             catch (Exception error) { monitorStatus.Text = "Monitor: " + error.Message; }
         };
         monitorStop.Click += (_, _) => { monitoring = false; host?.StopMonitoring(); RefreshMonitor(); };
+        monitorPause.Click += (_, _) => SetSelectedMonitoring(false);
+        monitorResume.Click += (_, _) => SetSelectedMonitoring(true);
         FormClosing += async (_, args) =>
         {
             if (shutdownComplete) return;
@@ -127,13 +151,23 @@ internal sealed class SampleCallerForm : Form
             closing = true;
             launchButton.Enabled = false;
             parkButton.Enabled = restoreButton.Enabled = false;
-            monitorStart.Enabled = monitorStop.Enabled = false;
+            monitorStart.Enabled = monitorStop.Enabled = monitorApply.Enabled = false;
+            monitorPause.Enabled = monitorResume.Enabled = false;
             refresh.Stop();
+            previewRefresh.Stop();
             if (host is not null) await host.DisposeAsync();
             shutdownComplete = true;
             Close();
         };
-        FormClosed += (_, _) => refresh.Dispose();
+        FormClosed += (_, _) => { refresh.Dispose(); previewRefresh.Dispose(); };
+    }
+
+    private CaptureOptions RequestedCapture() => new((int)monitorFps.Value, (int)monitorWidth.Value, (int)monitorHeight.Value);
+    private void SetSelectedMonitoring(bool enabled)
+    {
+        if (host is null || SelectedId is not { } id) return;
+        try { host.SetSessionMonitoring(id, enabled); RefreshMonitor(); }
+        catch (Exception error) { monitorStatus.Text = "Monitor: " + error.Message; }
     }
 
     private void RefreshSessions()
@@ -188,14 +222,18 @@ internal sealed class SampleCallerForm : Form
                 tiles.Add(session.AppSessionId, tile = new MonitorTile());
                 thumbnails.Controls.Add(tile); SizeTiles();
             }
-            tile.Update(session, host.GetLatestFrame(session.AppSessionId));
+            tile.Update(session, host.GetLatestFrame(session.AppSessionId), host.GetWindow(session.AppSessionId)?.State);
         }
         foreach (var id in tiles.Keys.Where(id => !snapshot.Sessions.Any(s => s.AppSessionId == id)).ToArray())
         {
             var tile = tiles[id]; thumbnails.Controls.Remove(tile); tile.Dispose(); tiles.Remove(id); SizeTiles();
         }
-        monitorStatus.Text = $"Monitoring {(snapshot.Enabled ? "enabled" : "stopped")} · {snapshot.CapturingConnections} PARKED captures · Visible = ACTIVE · human view only";
-        monitorStart.Enabled = true; monitorStop.Enabled = monitoring;
+        monitorStatus.Text = $"Monitoring {(snapshot.Enabled ? "enabled" : "stopped")} · {snapshot.CapturingConnections} JPEG captures · Visible + Parked · human view only";
+        monitorStart.Enabled = true; monitorStop.Enabled = monitorApply.Enabled = monitoring;
+        var selectedMonitor = snapshot.Sessions.FirstOrDefault(s => s.AppSessionId == SelectedId);
+        var canControl = monitoring && selectedMonitor is not null && selectedMonitor.State != "Unavailable";
+        monitorPause.Enabled = canControl && selectedMonitor!.State != "Paused";
+        monitorResume.Enabled = canControl && selectedMonitor!.State is "Paused" or "Error";
     }
     private async Task Operate(bool park)
     {

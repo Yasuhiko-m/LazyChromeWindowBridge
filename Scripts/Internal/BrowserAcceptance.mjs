@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -95,9 +95,21 @@ async function caller(operation, argumentsOrUrl) {
 }
 function evidence(label, value) { console.log(JSON.stringify({ check: label, ...value })); }
 try {
-  browser = spawn(chromeExe, [`--user-data-dir=${profile}`, `--load-extension=${extensionRoot}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check', ...(testWindowPosition ? ['--window-position=' + testWindowPosition] : []), 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: false });
+  browser = spawn('dotnet', [path.join(root, 'tests/LazyChromeWindowBridge.Core.Tests/bin/Debug/net10.0-windows/LazyChromeWindowBridge.Core.Tests.dll'), '--browser-fixture', chromeExe, profile, extensionRoot, ...(testWindowPosition ? [testWindowPosition] : [])], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
   browser.on('exit', () => { browserExited = true; });
   browser.stderr.on('data', bytes => { browserStderr += bytes.toString(); });
+  const launchRecord = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(Error('Fixture launcher timed out')), 10000);
+    const lines = createInterface({ input: browser.stdout });
+    lines.on('line', line => { if (line.startsWith('LCWB ')) { clearTimeout(timer); resolve(JSON.parse(line.slice(5))); } });
+  });
+  assert(Number.isInteger(launchRecord.fixtureBrowserPid) && launchRecord.fixtureBrowserPid > 0);
+  // Read only this owned process; never print complete command lines or bootstrap capabilities.
+  const commandLine = execFileSync('pwsh', ['-NoProfile', '-Command', `(Get-CimInstance Win32_Process -Filter 'ProcessId = ${launchRecord.fixtureBrowserPid}').CommandLine`], { encoding: 'utf8', windowsHide: true });
+  const flagCount = (commandLine.match(/--silent-debugger-extension-api(?=["\s]|$)/g) ?? []).length;
+  assert.equal(flagCount, 1);
+  evidence('owned-chrome-launch-flags', { result: 'PASS', processId: launchRecord.fixtureBrowserPid, silentDebuggerFlagCount: flagCount,
+    productionArgumentBuilder: true, noFirstRun: commandLine.includes('--no-first-run'), newWindow: commandLine.includes('--new-window') });
   const port = await until(async () => {
     try { return Number((await fs.readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); } catch { return null; }
   }, Boolean, 'debugging endpoint');

@@ -16,25 +16,27 @@ Each invocation owns one flat timestamped log under Scripts/Outputs and returns 
 nonzero exit code on a failing child. Those disposable logs are ignored.
 
 ## Layers
-- Core.Tests: 121 checks: original 96 session/HTTP, geometry/native simulation and
-  monitor checks plus 25 download transport/lifecycle/bounds/disposal checks.
+- Core.Tests: session/HTTP, geometry/native simulation, continuous-monitor identity/
+  placement/options/latest-frame checks and download transport/lifecycle/bounds/disposal.
   It also hosts the isolated real-browser driver. Product operations in that driver
   call the public façade; internal access is limited to deterministic fixtures and
   explicit test evidence such as topology/profile/process/shutdown measurements.
-- PublicApi.Tests: 19 checks in an external consumer assembly without friend access. It verifies
+- PublicApi.Tests: external consumer assembly without friend access. It verifies
   the façade, defaults, encoded read-only frames, invalid placement, async disposal,
   hidden coordinators and absence of WinForms/WPF references in Core.
-- Extension.Tests: 33 tests: original 17 binding/worker, cancellation, stale frame,
-  target ownership, in-flight tab closure and four concurrent monitor scenarios, plus
-  16 download outbox, ordering, exact metadata, retry, fan-out, recovery and bounds cases.
+- Extension.Tests: binding/worker, cancellation, stale frame, owned tab/in-flight closure,
+  five concurrent JPEG streams, same-generation pump wake/options, 1/30fps acceptance,
+  0/31fps rejection, no-upscale/quality/command bounds, restart-control socket reuse,
+  plus existing download outbox, ordering, retry, fan-out, recovery and bounds cases.
 - AuditSource: current tracked/untracked file and directory names, old-name text
   against the explicit governance/history allowlist, dependency/permission/command
   boundaries and generated/private-file patterns. It emits machine-readable JSON.
 - BrowserAcceptance/GeometryAcceptance: launch, same-URL sessions, navigation, close,
   worker recovery, profile restore, real negative coordinates, exact offscreen PARK.
-- MonitorAcceptance: retained capture/navigation/lifecycle/performance regressions,
-  adapted to accepted PARKED-only semantics.
-- MultiSessionAcceptance: one Visible ACTIVE plus four PARKED streams, separate
+- MonitorAcceptance: Visible JPEG, repeated placement and option continuity, exact
+  monitor generation/socket identity and debugger attach/detach counters, output bounds,
+  unchanged native bounds/viewport, single-session30fps measurement, lifecycle/regressions.
+- MultiSessionAcceptance: five JPEG streams with mixed Visible/Parked placement, separate
   native identities/colors/fresh hashes, navigation, worker restart, Restore/re-PARK,
   active tab/close, manual Set, close/relaunch and shutdown.
 - DownloadAcceptance: neutral local ZIP attachments by direct navigation, five bound
@@ -53,7 +55,19 @@ every production download call and permits only onCreated/onChanged/search.
 The native-size comparisons remain test-only coverage; they never enable production
 shrinking. Color/hash checks are confined to test tooling, not product image analysis.
 All real fixtures use isolated local pages, browser profile and geometry storage.
-Browser startup uses the supplied executable without sandbox/notice suppression.
+Browser startup uses the supplied executable and production ChromeLauncher argument
+builder, including --silent-debugger-extension-api; test-only startup additionally
+loads the isolated extension and local CDP endpoint. No sandbox suppression is added.
+The fixture reads only its own OS process command line and records the silent flag
+count, PID and required-flag booleans, never full command lines or bootstrap tokens.
+Notice absence is a GUI observation, not a permanent Chrome UI-text assertion.
+
+SessionMonitorAcceptance runs inside the existing five-session fixture. It verifies
+target-only detach, frozen JPEG SHA256/Sequence/ReceivedAt, continued peer traffic and
+unchanged peer generations/sockets/attachments, no Park/Restore auto-toggle, paused
+global option update, same-socket resume, global clear/batch restart and final cleanup.
+Deterministic tests also cover rejected unknown/closed/stale/stopped calls, rapid
+OFF/ON during acquisition, late-frame rejection and explicit error retry.
 
 ## Public-release gates
 Test-All also generates the ignored extension ZIP through the Source-owned internal
@@ -71,13 +85,26 @@ See [release preparation](github-release.md) for history-email and publication l
 Static scans are bounded; public GitHub rendering is checked after actual publication,
 not claimed by local candidate validation.
 
+For a task starting with explicitly excluded inherited dirt, LCWB_TASK_BASELINE may
+name a Source-local JSON file recording startHead and inherited path/sha256 pairs.
+Audits still list inherited findings but exclude them from task violations only when
+HEAD and every inherited byte hash remain unchanged. Without this input the existing
+full candidate audit applies. This does not stage, ignore, delete or normalize any file.
+
 ## GUI checklist
-Launch five distinct local fixtures. Start monitoring while Visible and verify ACTIVE
-tiles without capture. Park four, verify four changing images and a separate ACTIVE
-tile. Change table selection; capture targets must not change. Restore one, confirm
-only its tile becomes ACTIVE, then re-PARK it. Stop and verify counts hold; Start and
+Launch five distinct local fixtures. Start monitoring while Visible and verify five
+fresh JPEG previews. Park four; all five previews continue. Change table selection;
+capture targets must not change. Restore one, then Park/Restore/Park: latest is never
+cleared merely for placement and the monitor generation stays fixed. Change FPS,
+JPEG width/height and Apply preview while monitoring; verify subsequent frame sizes
+and unchanged generation/native bounds. Stop and verify previews clear/counts hold; Start and
 verify all eligible streams resume. Resize the sample and verify aspect-preserving
 Zoom/wrapping. Close normally while monitoring and verify test-process cleanup.
+Also pause only one selected session: its last JPEG/frame number remains with a static
+frozen label while peers continue. Park/Restore and Apply options must not resume it.
+Resume it, then global Stop/Start; verify target-only fresh frames then batch restart.
+Observe Visible Chrome for the debugger infobar on the tested build without assuming
+the flag changes permission or guarantees suppression on other versions.
 
 The GUI helper reports local fixture URLs and waits for normal sample close. Dynamic
 paths /dynamic-a through /dynamic-e provide different fixture colors. An optional

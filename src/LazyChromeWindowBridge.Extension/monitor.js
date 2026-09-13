@@ -37,11 +37,14 @@ export class MonitorManager {
       try {
         const control = JSON.parse(event.data), settings = control.options;
         if (!Number.isSafeInteger(control.generation) || typeof control.enabled !== 'boolean' ||
-            !Number.isInteger(settings.framesPerSecond) || settings.framesPerSecond < 1 || settings.framesPerSecond > 10 ||
+            !Number.isInteger(settings.framesPerSecond) || settings.framesPerSecond < 1 || settings.framesPerSecond > 30 ||
             !Number.isInteger(settings.maxWidth) || settings.maxWidth < 160 || settings.maxWidth > 1920 ||
             !Number.isInteger(settings.maxHeight) || settings.maxHeight < 90 || settings.maxHeight > 1080) throw Error('Invalid monitor control.');
-        if (client.control?.generation !== control.generation || client.control?.enabled !== control.enabled || control.closing) client.wake?.();
+        const previous = client.control;
         client.control = control;
+        if (previous?.generation !== control.generation || previous?.enabled !== control.enabled || control.closing ||
+            previous?.options.framesPerSecond !== settings.framesPerSecond || previous?.options.maxWidth !== settings.maxWidth ||
+            previous?.options.maxHeight !== settings.maxHeight) client.wake?.();
         void this.pump(client);
       } catch { this.remove(record.appSessionId); }
     };
@@ -100,7 +103,7 @@ export class MonitorManager {
         if (client.socket.bufferedAmount < 1000000) client.send({ type: 'frame', generation: control.generation,
           windowId: client.record.windowId, tabId, identity: control.identity, data: frame.data, captureMilliseconds: performance.now() - started });
         await new Promise(resolve => {
-          const timer = setTimeout(resolve, Math.max(0, 1000 / control.options.framesPerSecond - (performance.now() - started)));
+          const timer = setTimeout(resolve, Math.max(0, 1000 / client.control.options.framesPerSecond - (performance.now() - started)));
           client.wake = () => { clearTimeout(timer); resolve(); };
         });
         client.wake = null;
@@ -115,7 +118,9 @@ export class MonitorManager {
       client.send({ type: 'status', generation: client.control?.generation ?? 0, capturing: false });
       client.running = false;
       if (client.control?.closing && !client.removed) { client.removed = true; client.socket.close(); }
-      if (client.closedTabId != null && !client.removed && client.control?.enabled && client.blocked !== client.control.generation) {
+      // A session may resume while its previous acquisition/detach is finishing.
+      // Continue only after that cleanup, on the existing waiting socket.
+      if (!client.removed && client.control?.enabled && client.blocked !== client.control.generation) {
         client.closedTabId = null;
         void this.pump(client);
       }

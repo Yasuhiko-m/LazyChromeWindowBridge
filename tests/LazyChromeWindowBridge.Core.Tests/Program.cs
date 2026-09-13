@@ -8,6 +8,19 @@ using LazyChromeWindowBridge.Core;
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 var cachedFrames = new Dictionary<Guid, (MonitorFrame Frame, object Evidence)>();
 json.Converters.Add(new JsonStringEnumConverter());
+if (args.FirstOrDefault() == "--browser-fixture")
+{
+    // Isolated CfT startup uses the production launch argument builder. Only this
+    // test harness adds extension loading and a local CDP endpoint for acceptance.
+    var start = ChromeLauncher.CreateStartInfo(new(args[1], args[2]), new Uri("about:blank"));
+    start.ArgumentList.Insert(0, "--load-extension=" + args[3]);
+    start.ArgumentList.Insert(0, "--remote-debugging-port=0");
+    if (args.Length > 4) start.ArgumentList.Insert(0, "--window-position=" + args[4]);
+    using var browser = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("Fixture Chrome did not start.");
+    Console.WriteLine("LCWB " + JsonSerializer.Serialize(new { fixtureBrowserPid = browser.Id }, json));
+    await browser.WaitForExitAsync();
+    return;
+}
 if (args.FirstOrDefault() == "--browser-driver")
 {
     await using var host = await BridgeRuntime.StartAsync(BridgeOptions.Parse(args[1..]));
@@ -38,6 +51,7 @@ if (args.FirstOrDefault() == "--browser-driver")
                 "profile" => host.Geometry.Profile(command.RootElement.GetProperty("url").GetString()!)!,
                 "monitor-start" => StartMonitor(host, command.RootElement),
                 "monitor-stop" => StopMonitor(host),
+                "monitor-session" => SetSessionMonitor(host, command.RootElement),
                 "monitor" => host.GetMonitorState(),
                 "monitor-frame" => FrameEvidence(host.GetLatestFrame(command.RootElement.GetProperty("id").GetGuid())),
                 "monitor-frames" => host.GetMonitorState().Sessions.Select(s => FrameEvidence(host.GetLatestFrame(s.AppSessionId))).Where(f => f is not null).ToArray(),
@@ -56,6 +70,11 @@ if (args.FirstOrDefault() == "--browser-driver")
 object StartMonitor(BridgeRuntime host, JsonElement command)
 {
     host.StartMonitoring(command.TryGetProperty("options", out var options) ? options.Deserialize<CaptureOptions>(json)! : new());
+    return host.GetMonitorState();
+}
+object SetSessionMonitor(BridgeRuntime host, JsonElement command)
+{
+    host.SetSessionMonitoring(command.GetProperty("id").GetGuid(), command.GetProperty("enabled").GetBoolean());
     return host.GetMonitorState();
 }
 // Consumer test only: the product never opens, validates or moves downloaded files.
@@ -98,6 +117,7 @@ object? FrameEvidence(MonitorFrame? frame)
     var pixel = bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2);
     var evidence = new { frame.AppSessionId, frame.Identity, frame.WindowId, frame.TabId, frame.Generation, frame.Sequence,
         frame.Width, frame.Height, frame.ReceivedAt, Bytes = frame.Jpeg.Length, frame.CaptureMilliseconds,
+        JpegSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(frame.Jpeg.Span)),
         CenterPixel = new int[] { pixel.R, pixel.G, pixel.B },
         CenterHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pixels.ToArray())) };
     cachedFrames[frame.AppSessionId] = (frame, evidence);

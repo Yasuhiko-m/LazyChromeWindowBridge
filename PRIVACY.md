@@ -1,6 +1,8 @@
 # LazyChromeWindowBridge privacy policy
 
-Applies to version 0.1.0. LazyChromeWindowBridge connects an
+This policy describes Chat-accepted R010/R011 Source at V1-M005-R011.
+It is future submission copy, not a change to published GitHub/NuGet 0.1.0 behavior.
+LazyChromeWindowBridge connects an
 extension to a Windows companion on the same computer. It handles user data locally;
 it does not mean that no user data is handled.
 
@@ -13,9 +15,13 @@ it does not mean that no user data is handled.
   exact ownership and detect closed or replaced windows. Local capability tokens
   authenticate the companion connection; these are not website passwords or login tokens.
 - When the user starts monitoring, the extension captures temporary JPEG thumbnails
-  of owned PARKED windows. The companion displays these pixels to that user. Visible
-  windows are ACTIVE and are not captured. Frames are replaced in memory; the product
+  of live owned Visible and Parked windows. The companion displays these pixels to that user.
+  Chrome's debugger may be attached in either placement. Park/Restore and output-option
+  updates keep the same preview path and attachment. Frames are replaced in memory; the product
   does not keep a screenshot archive, perform OCR or analyze webpage meaning.
+  The caller controls monitoring policy; PARK/RESTORE never automatically switches it.
+  Per-session pause stops acquisition and detaches that target while retaining its last
+  JPEG in memory as a frozen Paused preview, with its original timestamp. Peers continue.
 - Chrome Download Manager events provide download IDs, lifecycle state, absolute
   filenames, error state and observation times. This observation is profile-global,
   not attributed to a particular launched window. Incognito items are excluded.
@@ -40,7 +46,13 @@ loopback at `127.0.0.1`. Local HTTP is not TLS encryption. No publisher server o
 relay receives bridge data. Websites opened by the user still make their own normal
 network requests under their own privacy policies.
 
-Stop monitor to stop captures; restore a window to stop that window's PARKED capture.
+Stop monitor to stop captures, detach debugger targets and clear previews. Restoring
+a window does not stop monitoring. Idle local control WebSockets remain for restart.
+Global Stop clears frozen paused previews too. Session Resume obtains fresh frames on
+the existing waiting socket; global Start after Stop batch-enables live sessions.
+LCWB-launched Chrome requests --silent-debugger-extension-api for best-effort infobar
+suppression. This is not a permission change or privacy guarantee. Chrome can ignore
+the flag and show a notice; production still uses only viewport metrics/JPEG screenshots.
 Closing the companion ends its runtime and restores parked windows. Transient runtime
 data ends with that runtime; extension session state can survive worker suspension
 but not a browser-session restart. Closing/retiring bindings removes their records.

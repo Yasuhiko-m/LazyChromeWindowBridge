@@ -23,10 +23,18 @@ application page. It reads the bootstrap location, not document content.
 
 Chrome's debugger permission itself is broad. Product code uses only
 Page.getLayoutMetrics and Page.captureScreenshot for human thumbnails. It does not
-use Runtime/DOM/Network inspection or browser input commands. Visible windows have
-no monitoring debugger attachment. Normal Chrome debugging notices remain visible;
+use Runtime/DOM/Network inspection or browser input commands. Monitoring can attach
+the debugger to live owned Visible or Parked windows. Placement/option changes retain
+that same-tab attachment; Stop detaches capture and retains idle control sockets.
+LCWB-owned launches use --silent-debugger-extension-api for best-effort Chrome infobar
+suppression. This does not narrow or weaken debugger permission and is not a safety
+guarantee; the extension itself does not remove notices. Chrome may ignore the flag
+or reuse a process without it. Capture does not require suppression. When a notice exists,
 user cancellation blocks the affected request until an explicit new generation.
 Other debuggers can contend for the target.
+Caller policy controls session pause/resume; PARK/RESTORE never auto-toggles monitoring.
+Pause detaches only its target and retains the last JPEG as Paused/frozen; global Stop
+clears it. Frozen data is still sensitive page imagery, with no semantic processing.
 
 Chrome's downloads permission is also broad. Product calls are only onCreated/onChanged
 listeners and search({id}); no initiation, cancellation, pause/resume, removal, opening,

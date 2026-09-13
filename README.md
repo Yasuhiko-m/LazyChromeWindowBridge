@@ -6,10 +6,12 @@ A Windows-to-Chrome bridge for deterministic session/window ownership, native ge
 full offscreen PARK/RESTORE, lightweight human monitoring, manual window control and
 Chrome Download Manager lifecycle events — without DOM automation.
 
-![SampleCaller with five bound sessions: one ACTIVE and four PARKED/LIVE neutral thumbnails](docs/images/monitor-overview.png)
+![Historical v0.1.0 SampleCaller with five bound sessions](docs/images/monitor-overview.png)
 
-*Actual SampleCaller with isolated local color fixtures. ACTIVE has no capture;
-four PARKED windows supply independent human-view thumbnails.*
+*Historical v0.1.0 screenshot using isolated neutral fixtures. Current accepted Source
+V1-M005-R011 includes R010 continuous Visible/Parked JPEG preview and R011 session
+pause/resume and best-effort silent debugger launch. Both changes are accepted by Chat
+and included in the combined R011 Source checkpoint; GitHub v0.1.0 and NuGet 0.1.0 contain neither.*
 
 Built for .NET Windows applications that need Chrome window management and browser
 integration through a Manifest V3 extension. Unlike DOM-oriented browser automation
@@ -23,7 +25,7 @@ Licensed under [MIT](LICENSE). This is an early release, with explicit [support 
 - Persist Chrome window position and size by the original launch URL; set manual bounds.
 - PARK a window fully outside all monitors and RESTORE its protected Normal bounds.
 - Read state/bounds and set a Visible window's physical-pixel placement.
-- Monitor all eligible PARKED sessions independently; Visible windows show ACTIVE.
+- Monitor all eligible Visible and Parked sessions independently through the same JPEG path.
 - Observe profile-global Created / Complete / Interrupted downloads once per Bridge.
 
 ## What it intentionally does not do
@@ -97,8 +99,19 @@ ordinary paths; use a dedicated test profile for acceptance. Do not attach debug
 tooling to a profile containing unrelated personal sessions for these tests.
 
 Enter a launch URL and click Launch. Wait for Bound / Visible, then Start monitor.
-Park the desired sessions: each becomes an independent LIVE tile. Restore one and
-its tile becomes ACTIVE while its peers continue. Stop monitor stops every capture.
+Every eligible Visible window supplies a LIVE JPEG tile. Park or Restore a session:
+its preview continues with the same monitor generation and attachment. Change FPS /
+JPEG max width / height and click Apply preview to update without restarting.
+Select a session and Pause preview to freeze its last JPEG while peers remain LIVE.
+Resume preview restarts only that session. **The caller owns monitoring policy:
+PARK/RESTORE never automatically switches Monitor ON/OFF.** Paused sessions remain
+paused across placement and global option updates. Their frame number and captured
+timestamp stay fixed; the sample displays a frozen marker instead of an updating age.
+PARK/RESTORE controls native window placement only; it does not automatically start,
+stop, pause or resume monitoring. The Caller explicitly chooses per-session monitoring
+with `SetSessionMonitoring(appSessionId, enabled)`.
+Stop monitor stops every capture and clears previews; Start reuses the control sockets.
+Global Start after Stop is a batch restart that enables all live sessions again.
 Closing SampleCaller normally restores PARKED windows and leaves Chrome open.
 
 ## Integrating Core
@@ -115,7 +128,7 @@ var session = await bridge.LaunchAsync("https://example.com/");
 var window = bridge.GetWindow(session.AppSessionId);
 if (window?.State == PlacementState.Visible)
 {
-    bridge.StartMonitoring();             // Global; only PARKED sessions qualify.
+    bridge.StartMonitoring();             // Global; Visible and Parked sessions qualify.
     bridge.Park(session.AppSessionId);
     // On later UI ticks: bridge.GetLatestFrame(id)?.Jpeg supplies encoded bytes.
     bridge.Restore(session.AppSessionId);  // Same owned window, protected Normal.
@@ -136,14 +149,22 @@ An offscreen Chrome window retains its full native size: PARK/RESTORE browser wi
 management does not minimize it or use experimental native shrinking.
 
 Default monitoring is **2 fps, maximum 240×135, JPEG quality 70**, with preserved aspect
-ratio and no capture upscale. Four simultaneous PARKED streams are the validated
-reference workload. Native shrinking was measured and rejected; the native window
+ratio and no capture upscale. Requests accept 1–30 fps; roughly 2–30 is recommended.
+The maximum is a request ceiling, not a promise of measured 30fps. Five mixed Visible/
+Parked streams form the accepted validation workload. Native shrinking was rejected; the native window
 keeps its normal size while only the captured image is scaled.
 
 Chrome's debugger permission is broad, although this implementation only uses
-viewport metrics and JPEG screenshot commands. The normal debugging notice remains.
+Page.getLayoutMetrics and Page.captureScreenshot. LCWB-launched Chrome includes
+`--silent-debugger-extension-api` for best-effort infobar suppression on supported Chrome.
+Visual infobar absence was not established in acceptance and is not guaranteed.
+This is Chrome behavior, not the extension removing warnings or weakening debugger
+permission. Chrome may ignore the flag and show a notice; capture does not depend on
+suppression. An already-running profile can retain its original process flags.
 Cancellation is respected; explicit Start is required to retry a canceled monitor.
-Chrome window thumbnail monitoring is PARKED-only; Chrome window control remains
+Monitoring can attach Chrome's debugger while either Visible or Parked. Placement and
+option changes keep that same-tab attachment. JPEG bounds never change viewport or zoom.
+Chrome window control remains
 limited to the owned native window and explicit consumer commands.
 
 ## Download lifecycle

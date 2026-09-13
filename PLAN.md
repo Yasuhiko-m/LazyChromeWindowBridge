@@ -1,23 +1,28 @@
 # LazyChromeExtension PLAN
 
 - Current Version: `V1`
-- Current Milestone: `M003`
-- Milestone Goal: Official Package Distribution.
-- Current Revision: `R009`
-- Current Baseline: `V1-M003-R009`
+- Current Milestone: `M005`
+- Milestone Goal: Caller-controlled per-session monitoring and debugger-notice UX suppression.
+- Current Revision: `R011`
+- Current Baseline: `V1-M005-R011`
 - Milestone Status: **Complete**
 - Version Status: **In Progress**
 
 ## Handoff
 
-Chat accepted `V1-M003-R009` (official-package-distribution), now the established
-baseline. V1 M003 Official Package Distribution is Complete; V1 remains In Progress
-and V0 remains Complete. Revisions.md records NuGet 0.1.0 metadata, manual-only OIDC
-Trusted Publishing, Chrome Web Store 0.1.0 submission assets and full validation.
-The third-display initial capture timeout remains an unresolved known limitation;
-the standard primary-display complete validation passed without weakened assertions.
-Normal main push and the accepted Trusted Publishing workflow are authorized after
-checkpoint and preflight. CWS upload/submission remains deferred. The existing
-GitHub v0.1.0 tag and Release must not change.
+Chat accepted `V1-M004-R010` (continuous-monitor-preview) and `V1-M005-R011`
+(session-monitor-control). M004 and M005 are Complete; V1 remains In Progress and
+V0 remains Complete. Revisions.md establishes V1-M005-R011 as Current VMR.
+Current accepted Source contains both behaviors. Checkpoint subject:
+feat: establish V1-M005-R011 caller-controlled monitoring.
+Exact checkpoint SHA and remote verification are recorded by Git and the transient handoff.
+Existing public GitHub v0.1.0 and NuGet 0.1.0 are older published baselines and
+contain neither R010 nor R011. Chrome Web Store live submission remains separate.
+PARK/RESTORE controls native placement only; monitoring policy belongs to the Caller.
+The third-display initial offscreen capture timeout remains unresolved.
+The --silent-debugger-extension-api launch flag is best-effort suppression only;
+visual infobar absence remains unverified. The independent Git checkpoint/push creates
+no implementation Revision, package/release version, GitHub tag/Release change or
+CWS dashboard operation.
 
 This legacy file mirrors the established baseline; candidate work does not advance it.

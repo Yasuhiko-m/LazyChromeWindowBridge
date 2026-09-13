@@ -5,14 +5,17 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M002-R008 — public-release-preparation**, accepted by Chat.
-Revisions.md establishes R008; PLAN.md mirrors it. V1 M001, M002 and V0 are Complete.
+Established baseline: **V1-M005-R011 — session-monitor-control**, accepted by Chat.
+Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M005 and V0 are
+Complete; V1 remains In Progress. This accepted Source includes R010 continuous-
+monitor-preview and R011 session-monitor-control in the combined R011 checkpoint.
+Package/release publication is separate. Published GitHub v0.1.0 and NuGet 0.1.0
+retain their earlier monitoring behavior and contain neither R010 nor R011.
 Product name is LazyChromeWindowBridge; immutable ProjectID does not change.
 
-V1 M002 Public Release Preparation is Complete; no new runtime features are implied.
-Accepted V1-M002-R008 adds MIT licensing, public documentation, an actual neutral
-demo screenshot and deterministic extension packaging. R007 runtime is unchanged.
-The user authorizes normal push, PUBLIC visibility and GitHub Release v0.1.0.
+Historical V1 M002/R008 established MIT licensing, public documentation, a neutral
+demo screenshot and deterministic extension packaging without changing R007 runtime.
+Those historical assets do not demonstrate the newer accepted monitoring behavior.
 
 R006 preserves the externally observable R005 contract. The prior accepted history
 and measurements remain in Revisions.md and the R005 Git checkpoint. Current
@@ -23,13 +26,13 @@ maintainable product documentation is in README.md and docs/.
   Windows native geometry, bounded GDI+ JPEG decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, version 0.0.7.
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, version 0.1.0 (no version bump in R010/R011).
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.
 
 BridgeRuntime is the public façade: StartAsync, LaunchAsync, GetSessions/GetSession,
-GetWindow, SetWindowBounds, Park, Restore, StartMonitoring/StopMonitoring,
+GetWindow, SetWindowBounds, Park, Restore, StartMonitoring/StopMonitoring, SetSessionMonitoring,
 GetMonitorState, GetLatestFrame and DisposeAsync. Coordinators and transport/native
 implementation stay internal. Public snapshot/rectangle/options types are immutable
 records; MonitorFrame supplies ReadOnlyMemory<byte> JPEG data rather than UI images.
@@ -64,7 +67,8 @@ PARK retains Normal and moves the full native window above the topmost monitor w
 zero intersection. Restore uses the exact retained identity and remembered Normal,
 with deterministic reachable fallback when topology changes. Native moves verify
 actual rectangle with bounded retries and 2px tolerance; no Chrome DIP conversion.
-Placement generations invalidate frames across rapid Restore/re-PARK.
+Placement generations describe native operations; they are not monitor identity and
+do not invalidate frames across successful Restore/re-PARK of the same owned window.
 
 SetWindowBounds applies only to a live Bound/mapped Visible native window.
 It accepts valid physical dimensions and reachable negative-coordinate placement;
@@ -73,31 +77,65 @@ Get immediately after Set may show the prior Normal until observer stabilization
 Normal shutdown restores PARKED windows and leaves Chrome open.
 
 ## Human-only monitoring
-Global Start requests all eligible PARKED sessions, at least four concurrently.
-Visible reports ACTIVE with no requested capture, monitoring debugger or accepted
-image traffic. Selection affects only Park/Restore. Each session retains independent
+Global Start from stopped requests all live Bound sessions with a valid native identity and mapped
+Visible or Parked window. Both placements use Waiting/Live/Error/Disconnected monitor
+states and the same JPEG path; native placement is separately available through GetWindow.
+Selection affects only Park/Restore. Each session retains independent
 connection/generation/native identity, latest image, counters and error. Session
 capability, connection, generation, WindowId and native identity must match before
 and after decode. A capture failure cannot corrupt ownership/Normal or stop peers.
 
-Only Page.getLayoutMetrics and Page.captureScreenshot are used. Default is 2 fps,
-max240×135, JPEG quality70, aspect-preserving and no capture upscale. The native
+Only Page.getLayoutMetrics and Page.captureScreenshot are used. FPS accepts inclusive
+1–30, defaults to 2, with roughly 2–30 recommended; 30 is a request ceiling, not a measured
+throughput guarantee. Default output is max240×135, fixed JPEG quality70,
+aspect-preserving and no capture upscale. Output bounds never change the native
+window size, browser viewport or zoom. The native
 window remains full size: experimentally shrinking it was rejected in R005.
 The internal test-only shrink path preserves prior comparison/Normal-safety coverage
 and is never called by production monitoring.
 
 Frames are bounded, latest-only and sent over authenticated loopback WebSocket.
-Restore invalidates/clears its pixels and wakes disabled control; in-flight late
-frames are rejected. Tab close permits same-owned-window reacquisition. User-canceled
-debugging stays blocked until explicit new generation; errors retain their original
-generation. Worker recovery requests only currently eligible PARKED targets.
+Visible↔Parked and placement-generation changes preserve monitor generation, latest
+JPEG, control WebSocket and same-tab debugger attachment. StartMonitoring(options)
+while enabled updates options in place and wakes the pump; the next practical iteration
+uses new settings. An acquisition already in flight may finish with its prior settings.
+Option updates do not clear the latest frame, reconnect or detach.
+They never enable a session explicitly paused by the caller. Newly bound live sessions
+are enabled by default while the global subsystem is started.
 
-SampleCaller renders ~200–300px independent Zoom tiles with identity, ACTIVE/LIVE,
+Monitoring policy belongs to the caller. PARK/RESTORE never automatically changes
+Monitor ON/OFF: ON continues LIVE across either placement; OFF stays Paused across either.
+SetSessionMonitoring(id, false) pauses only that live owned session. It advances only
+that monitor generation to reject late in-flight frames, detaches its debugger and stops
+capture/traffic. The existing restart-control WebSocket, ownership and geometry remain.
+GetLatestFrame retains the exact last JPEG, Sequence and ReceivedAt as a frozen preview;
+the snapshot State is Paused, never Live. There may be no JPEG if none was acquired.
+Repeated OFF is idempotent. SetSessionMonitoring(id, true) reuses that waiting socket,
+starts a new target generation, clears the frozen image and returns Waiting then Live
+when fresh frames arrive. Peer generations/connections/attachments remain unchanged.
+Healthy repeated ON is idempotent; explicit ON after real Error retries only that target.
+The API throws InvalidOperationException while globally stopped or for unknown, unbound,
+closed or stale native ownership, and ObjectDisposedException after disposal. It never
+implicitly starts the global subsystem. Global Stop clears frozen and live JPEGs alike;
+the next global Start is a batch restart and enables all live sessions again.
+Real session/window/native lifetime, Stop, transport loss, disposal and explicit error
+retry remain invalidation boundaries; stale identity/connection/generation frames are rejected.
+Tab close permits same-owned-window reacquisition. User-canceled
+debugging stays blocked until explicit new generation; errors retain their original
+generation. Worker recovery requests currently eligible Visible and Parked targets.
+
+SampleCaller renders ~200–300px independent Zoom tiles with identity, placement, monitor state,
 age and error. It replaces only new frames, without deliberately blanking between
-them. Stop/Visible/invalidated state clears obsolete pixels. Layout size is independent
+them. Small FPS/width/height/Apply controls exercise live StartMonitoring(options).
+Selected-session Pause/Resume controls are independent of placement. Paused tiles keep
+the image and frame number, displaying a static frozen marker instead of live age updates.
+Stop/invalidated state clears obsolete pixels; placement alone does not. Layout size is independent
 of captured JPEG maxima. Core supplies no PictureBox/Bitmap presentation API.
 
-Normal async shutdown stops capture, waits up to seven seconds for transport/debugger
+Stop disables monitoring, clears latest JPEGs, detaches debugger targets and stops frame
+traffic; CapturingConnections becomes zero. Idle restart-control WebSockets remain and
+Start reuses them. Normal async shutdown sends closing control, closes WebSockets,
+stops capture, waits up to seven seconds for transport/debugger
 cleanup including a five-second acquisition bound, restores Normal and stops Kestrel.
 Forced termination cannot guarantee graceful cleanup.
 
@@ -136,16 +174,25 @@ absolute filenames are sensitive and are not logged by production code.
 IPv4 loopback only, ephemeral port, strict Host check, per-session256-bit capability,
 no website CORS grant, bounded requests/frames, no redirects and no secret logging.
 Same-user malicious processes are outside this security boundary. Chrome debugger
-permission/normal notice and target contention are explicit limitations.
+permission and target contention are explicit limitations. LCWB-owned Chrome launches
+include --silent-debugger-extension-api exactly once, alongside the existing launch flags.
+This is best-effort Chrome-dependent infobar suppression, not an extension permission
+change or a security guarantee. If Chrome ignores it, a notice may appear and the
+monitoring path still works. Reusing an already-running profile may retain that process's
+original flags. Production commands remain Page.getLayoutMetrics/Page.captureScreenshot.
+This is not extension-side suppression, and debugger permission remains broad.
+Visual infobar absence was not established in acceptance and is not guaranteed.
+The known third-display initial offscreen capture timeout remains unresolved;
+passing runs do not establish a fix or justify weaker timeouts/assertions.
 
 No DOM/Runtime/Network extraction, OCR/semantic analysis, webpage completion detection,
 remote input, recording, cloud, telemetry, provider framework, installer or updater.
-No third-party package or runtime feature is introduced by R008. MIT licensing and
-local public-release preparation are authorized; GitHub publication is deferred.
+R008 introduced no third-party package or runtime feature. The older GitHub v0.1.0
+and NuGet 0.1.0 publications remain unchanged and do not contain this accepted behavior.
 
 Scripts/Test-All.ps1 is the stable validation entry. It restores/builds and runs Core,
 external public-API and extension tests. With a supplied Chrome for Testing executable,
-it runs download acceptance, session/native/monitor regressions then one ACTIVE plus four PARKED real
+it runs download acceptance, session/native/monitor regressions then five mixed Visible/Parked JPEG streams in real
 acceptance; -Gui supplies the actual sample fixture. Assertions preserve R005 coverage.
 Source name/security/hygiene auditing uses an explicit immutable-history allowlist.
 Logs remain ignored flat Scripts/Outputs files. See docs/testing.md and the current

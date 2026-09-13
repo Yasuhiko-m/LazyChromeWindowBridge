@@ -1,5 +1,11 @@
 # Integration with the public Core API
 
+This describes Chat-accepted R010/R011 Source at V1-M005-R011 in the combined R011
+checkpoint. GitHub v0.1.0 and NuGet 0.1.0 contain neither behavior; use matching Core
+and extension Source. PARK/RESTORE controls native window placement only and does not
+automatically start, stop, pause or resume monitoring. Monitoring policy belongs to
+the Caller, who explicitly chooses it with `SetSessionMonitoring(appSessionId, enabled)`.
+
 Target `net10.0-windows` and reference the Core project. Start one `BridgeRuntime`
 per consuming application's intended lifetime. SampleCaller demonstrates this directly:
 its project references Core, has no InternalsVisibleTo grant and uses no coordinator
@@ -58,9 +64,10 @@ product retry framework. Do not block a UI thread while waiting for launch/dispo
 | GetWindow(id) | WindowSnapshot or null while unmapped |
 | SetWindowBounds(id, bounds) | Exact live Visible window only; physical pixels, checked native result |
 | Park(id), Restore(id) | Explicit placement transitions on the exact owned window |
-| StartMonitoring(options?), StopMonitoring() | Global eligible PARKED requests; defaults 2fps/240×135 |
+| StartMonitoring(options?), StopMonitoring() | Global eligible Visible/Parked JPEG requests; defaults 2fps/240×135; repeated Start updates options in place |
 | GetMonitorState() | Aggregate and per-session monitoring status/counters |
-| GetLatestFrame(id) | Latest encoded frame/metadata, or null |
+| SetSessionMonitoring(id, enabled) | Pause/resume one live owned session; requires global Start; placement never changes this policy |
+| GetLatestFrame(id) | Latest encoded frame/metadata, including a frozen Paused frame, or null |
 | DisposeAsync() | Idempotent normal shutdown; await it before exiting |
 
 WindowSnapshot exposes AppSessionId, WindowId, LaunchUrl, NativeIdentity, State,
@@ -74,17 +81,57 @@ requires Restore; Closed/unmapped/stale state fails. Native checks use a bounded
 after Set, Normal can still show its prior value until the debounce completes.
 
 MonitorSnapshot includes Enabled, Frames, Bytes, Connections, CapturingConnections
-and per-session states. ACTIVE means Visible/no capture. LastFrameAt, dimensions,
+and per-session Waiting/Live/Error/Disconnected states. Obtain Visible/Parked placement
+separately from GetWindow().State. LastFrameAt, dimensions,
 age derived by your UI and Error can inform presentation. Frame.Sequence is cumulative;
 use (Generation, Sequence) for replacement. Discard a displayed image when latest
 becomes null, and never identify the session by pixels or its current page URL.
+
+Park/Restore and placement-generation changes keep the same monitor generation,
+latest JPEG, WebSocket and same-tab debugger. To update a running preview, call
+`bridge.StartMonitoring(new CaptureOptions(15, 640, 360))`. The next practical capture
+uses the new options without a restart; an in-flight frame may use prior settings.
+FPS accepts inclusive1–30 (default2), with roughly2–30 recommended. 30 is a requested
+ceiling, not measured throughput. MaxWidth/MaxHeight bound only the aspect-preserving
+JPEG, without upscale, native resize, viewport resize or zoom change; quality stays70.
+An explicit Start after Error is a separate retry generation.
 
 Core returns ReadOnlyMemory<byte> JPEG data; it does not return Bitmap or a UI control.
 Decode only when a new frame is available. SampleCaller retains only one displayed
 bitmap per tile and disposes superseded images. Consumers must not build page analysis
 or output extraction into this human-view-only integration.
 
+## Caller-owned session policy
+PARK/RESTORE never automatically switches Monitor ON/OFF. For example:
+```csharp
+bridge.StartMonitoring(); // Batch ON for all live sessions, including Visible windows.
+bridge.SetSessionMonitoring(id, false); // Paused; last JPEG/Sequence/ReceivedAt retained.
+bridge.Park(id);                        // Still Paused; no automatic resume.
+bridge.Restore(id);                     // Still Paused.
+bridge.StartMonitoring(new(15, 640, 360)); // In-place options; id remains Paused.
+bridge.SetSessionMonitoring(id, true);  // Same waiting socket; Waiting then fresh Live.
+```
+Pause advances only the target generation, rejecting late frames, and detaches its
+debugger while retaining ownership, geometry and the waiting connection. Peers continue.
+A frozen frame is not Live; inspect State and retain its original timestamp. Resume
+clears the frozen frame until a new frame arrives; Sequence then advances. Repeated
+OFF/healthy ON is idempotent; ON after Error explicitly retries that session.
+Unknown/unbound/closed/stale targets or calls during global Stop throw
+InvalidOperationException. Disposal throws ObjectDisposedException. No implicit global Start.
+New live sessions default to ON while the global subsystem is running.
+
+LCWB launches Chrome with `--silent-debugger-extension-api` as best-effort notice
+suppression. It does not change debugger permission or the production command allowlist
+(Page.getLayoutMetrics/Page.captureScreenshot). Chrome may ignore it, and existing
+profile processes may retain their original flags; monitoring still functions.
+
 ## Shutdown and restart
+StopMonitoring clears latest JPEGs, detaches capture, stops frame traffic and reaches
+CapturingConnections=0. Restart-control WebSockets remain; Start reuses them. Only
+Dispose/shutdown requires Connections=0.
+Global Stop clears frozen Paused images too. The next global Start batch-enables all
+live sessions; a Start while already enabled only updates options and preserves pauses.
+
 Await DisposeAsync during normal application close. It restores parked windows and
 detaches monitoring; it does not close the browser. There is no live-session takeover
 after a full caller restart. A new launch creates a new session and may restore the

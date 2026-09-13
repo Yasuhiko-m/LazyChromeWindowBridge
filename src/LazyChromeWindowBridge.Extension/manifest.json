@@ -9,7 +9,7 @@
     "128": "icons/icon-128.png"
   },
   "minimum_chrome_version": "120",
-  "description": "Windows-to-Chrome session ownership, native placement and human-only PARKED thumbnails.",
+  "description": "Windows-to-Chrome session ownership, native placement and continuous human-view JPEG previews.",
   "permissions": ["storage", "alarms", "debugger", "downloads"],
   "host_permissions": ["http://127.0.0.1/*"],
   "content_scripts": [{

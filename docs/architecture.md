@@ -10,7 +10,7 @@ flowchart LR
     API --> Native["Exact HWND / PID / property"]
     API <-->|"127.0.0.1 capability HTTP / WebSocket"| Ext["MV3 extension"]
     Ext --> Window["Owned Chrome WindowId"]
-    Window --> Pixels["Active-tab JPEG while PARKED"]
+    Window --> Pixels["Active-tab JPEG while Visible or Parked"]
     Pixels --> Ext
     API --> Frame["Encoded frame + metadata"]
     Frame --> App
@@ -52,10 +52,11 @@ and returns actual bounds. Manual Set is Visible-only and uses the same checked 
 Each placement transition advances a generation.
 
 ## Monitoring and presentation
-Global monitoring requests every eligible PARKED session independently. Per-session
+Global monitoring requests every eligible live owned Visible or Parked session independently. Per-session
 entries retain a connection, generation, native identity, latest JPEG, counters and
-error. An authenticated control socket may remain for a Visible session, but it
-receives disabled capture control and no monitoring debugger attaches.
+error. Either placement can have a monitoring debugger attached and receive fresh JPEGs.
+Monitor state and native placement are separate. Current Source is Chat-accepted
+V1-M005-R011 in the combined R011 checkpoint; published 0.1.0 retains the earlier contract.
 
 The extension queries only the active tab of the already-owned window. It uses
 Page.getLayoutMetrics and Page.captureScreenshot, one acquisition per target at a
@@ -64,20 +65,37 @@ sizes reject obsolete or excessive frames. The caller checks session/window/nati
 connection/generation before and after decode. One target's failure does not stop peers.
 
 Core supplies a `MonitorFrame` with read-only encoded memory. SampleCaller uses
-PictureBox Zoom, independent ~200–300px tiles and a 500ms UI refresh. A bitmap is
+PictureBox Zoom, independent ~200–300px tiles, a 33ms preview poll and 500ms session refresh. A bitmap is
 replaced only for a new frame; the preview does not deliberately blank between frames.
-Visible, stopped, failed or invalidated requests clear obsolete pixels.
+Stopped, failed or invalidated requests clear obsolete pixels. Placement does not.
+Explicit session pause is the exception: it advances only the target generation to
+reject in-flight frames, keeps the exact latest JPEG, and exposes Paused instead of Live.
+The caller owns policy; PARK/RESTORE never automatically switches Monitor ON/OFF.
+Session ON reuses the waiting socket and returns Waiting then Live; peers are unaffected.
 
 ## Lifetime
-Restore invalidates pixels and wakes capture control promptly; an in-flight frame
-may finish but cannot be accepted. Re-PARK starts a new generation of the same session.
+Park/Restore preserves the monitor generation, latest JPEG, socket and same-tab debugger.
+StartMonitoring(options) while enabled signals an in-place update. The pump wakes and
+uses new options at its next practical iteration, retaining any already acquired frame.
+It preserves explicit per-session OFF. Only global stopped-to-started is batch ON for
+all live sessions. Session control during global Stop rejects without starting capture.
+Requests allow 1–30 fps (default2); output bounds default240×135, fixed quality70,
+aspect-preserving and no upscale. Native size, viewport and zoom are unaffected.
+30fps is a request ceiling, not a performance promise.
 Closing an attached tab permits same-window active-tab reacquisition. User cancellation
 remains blocked until an explicit new generation. Worker recovery cleans persisted
 owned debugger targets and reconnects currently eligible requests.
 
+Stop clears previews and stops frame traffic/debugger capture. Idle control sockets
+remain for Start; CapturingConnections is zero, while Connections may remain nonzero.
+
 Normal async disposal stops monitoring, waits up to seven seconds for connection/
 debugger cleanup, restores protected Normal geometry and stops the loopback server.
 It leaves Chrome open. Forced process termination cannot perform this sequence.
+ChromeLauncher includes --silent-debugger-extension-api in its structured launch
+arguments. Chrome-dependent infobar suppression is best effort; permissions and the
+production two-command debugger allowlist are unchanged if a notice is suppressed.
+If Chrome ignores the flag or reuses a process with old flags, monitoring still works.
 
 ## Download observation
 Official Chrome download events feed a bounded storage.session outbox. Grouping by
