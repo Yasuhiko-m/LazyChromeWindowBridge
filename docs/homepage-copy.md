@@ -1,15 +1,17 @@
 # Homepage copy
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
-This copy describes Chat-accepted R010/R011 Source at V1-M005-R011, not published 0.1.0 binaries.
-Version 0.2.0 is a prepared release candidate; do not present it as publicly released.
+This copy describes the unreleased 0.3.0 R013 Source candidate. GitHub/NuGet 0.2.0
+publication and the submitted CWS 0.2.0 review are historical; do not present 0.3.0
+as accepted or publicly released.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.
 
 ## Short paragraph
 LazyChromeWindowBridge connects .NET Windows applications to session-bound Chrome
-windows. Manage native placement, PARK/RESTORE and small human-view thumbnails, and
+windows. Manage native placement, PARK/RESTORE, taskbar presence and small human-view
+BrowserViewport or exact-native-window thumbnails, and
 observe Chrome download lifecycle events without DOM automation.
 
 ## Medium feature description
@@ -17,16 +19,19 @@ Build Windows Chrome integration around exact ownership: an appSessionId maps to
 Chrome WindowId and a retained HWND/PID/property identity, independent of navigation.
 Persist the original launch URL's normal geometry, set physical window position and
 size, and PARK a full-size window outside every monitor before restoring it. Manifest
-V3 JPEG monitoring runs for both Visible and Parked windows, retaining its generation,
-latest preview and same-tab attachment through placement and option changes.
+V3 BrowserViewport JPEG monitoring and exact-HWND NativeWindow WGC monitoring both run
+for Visible and Parked windows. NativeWindow captures composed window pixels without a
+picker; BrowserViewport preserves the active-tab CDP path.
 The caller owns monitoring policy: **PARK/RESTORE never automatically switches Monitor
 ON/OFF.** Pause one session to retain a frozen last JPEG while peers remain live; Resume
 reuses its waiting socket. Global Start/Stop remain batch controls; option updates preserve
 explicit session pauses. Global Stop clears previews and the next Start enables all live sessions.
 LCWB-launched Chrome uses --silent-debugger-extension-api for best-effort infobar
 suppression on supported Chrome. It does not weaken debugger permission; Chrome may
-ignore it and show a notice. Production commands remain Page.getLayoutMetrics and
-Page.captureScreenshot, independent of whether suppression works.
+ignore it and show a notice. BrowserViewport commands remain Page.getLayoutMetrics and
+Page.captureScreenshot; NativeWindow does not attach Chrome debugger for capture.
+Taskbar show/hide affects only the selected validated HWND and is independent of
+placement/monitoring; normal release restores LCWB-modified state.
 Read-only Chrome downloads API events report Created, Complete and
 Interrupted once per Bridge, with no guessed session attribution. Your consumer owns
 the UI and all filesystem checks and moves. Source is available under MIT.
@@ -47,7 +52,10 @@ Publish that button only once the repository has actually been made public.
 - Native Chrome window control using HWND/PID/property validation.
 - Physical-pixel geometry, multi-monitor placement and negative coordinates.
 - Full offscreen PARK/RESTORE and manual bounds for Visible windows.
-- Continuous human monitoring: default 2 fps / 240×135 JPEG, fixed quality70; 1–30 fps requests.
+- Continuous BrowserViewport or exact-HWND NativeWindow monitoring: default 2 fps /
+  240×135 JPEG, fixed quality70; 1–30 fps requests.
+- Independent exact-owned-window taskbar show/hide with normal-disposal restoration.
 - Profile-global Chrome download lifecycle; bounded MV3 recovery and retry deduplication.
 - .NET Windows Core library, Manifest V3 extension and independent WinForms sample.
-- Windows-only, broad debugger/downloads permissions and documented early-release limits.
+- Windows-only; NativeWindow requires Windows 10 1903+ WGC/D3D11. Debugger/downloads
+  permissions and early-release limits are documented.

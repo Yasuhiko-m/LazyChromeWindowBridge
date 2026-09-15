@@ -1,18 +1,19 @@
 # LazyChromeWindowBridge.Core
 
 Windows-only .NET 10 Core library for session-bound Chrome windows, native geometry,
-PARK/RESTORE, human-only thumbnails and profile-global download lifecycle events.
-**0.2.0 is a prepared release candidate, not a published NuGet version.** It packages
-the accepted R010/R011 monitoring capabilities. Published NuGet 0.1.0 from R009 remains
-an older baseline and does not contain those features. This is a feature release:
+PARK/RESTORE, human-only thumbnails, exact-HWND native capture, per-window taskbar
+policy and profile-global download lifecycle events.
+**0.3.0 is an unreleased Source candidate, not a published NuGet version.** Published
+NuGet 0.1.0 and 0.2.0 remain immutable historical releases. This is a feature candidate:
 the additive public API and expanded monitoring contract warrant a minor version,
 not a patch. Existing ownership, geometry and downloads contracts are retained;
 compatibility is bounded by the tested consumer/regression coverage.
 
 ## Consumer setup
 
-For this candidate, add `LazyChromeWindowBridge.Core` version `0.2.0` from the prepared local feed to a
-`net10.0-windows` application. The package carries the ASP.NET Core and Windows
+For local candidate validation, add `LazyChromeWindowBridge.Core` version `0.3.0` from
+the generated local feed. BrowserViewport consumers can target `net10.0-windows`;
+NativeWindow consumers target `net10.0-windows10.0.18362.0`. The package carries the ASP.NET Core and Windows
 Desktop framework references; those shared runtimes are required for a framework-
 dependent consumer. The Core assembly does not expose WinForms/WPF UI types.
 
@@ -40,6 +41,9 @@ bridge.Park(session.AppSessionId); // Placement only; still Paused.
 bridge.Restore(session.AppSessionId); // Placement only; still Paused.
 bridge.SetSessionMonitoring(session.AppSessionId, true); // Fresh capture, same waiting socket.
 bridge.StartMonitoring(new CaptureOptions(5, 640, 360)); // In-place options update.
+bridge.StartMonitoring(new CaptureOptions(2, 240, 135, CaptureMode.NativeWindow));
+bridge.SetShowInTaskbar(session.AppSessionId, false); // Exact HWND; independent policy.
+bridge.SetShowInTaskbar(session.AppSessionId, true);
 bridge.StopMonitoring(); // Batch stop; clears all JPEGs, retains restart sockets.
 ```
 
@@ -54,8 +58,10 @@ sessions again. Dispose closes retained connections.
 FPS requests accept 1–30 inclusive, default 2; 30 is a ceiling, not a throughput SLA.
 Default bounds 240x135, aspect preservation, no upscale and JPEG quality 70 remain.
 Options affect JPEG output only, never native size, viewport or zoom. Placement and
-ordinary options updates preserve the monitor connection and same-tab debugger.
-Production debugger commands are exactly Page.getLayoutMetrics and Page.captureScreenshot.
+ordinary same-mode options updates preserve the acquisition generation. A mode change
+advances only that target generation. BrowserViewport debugger commands are exactly
+Page.getLayoutMetrics and Page.captureScreenshot. NativeWindow uses exact-HWND WGC,
+GPU crop/resize and bounded CPU JPEG encoding; it has no picker or BrowserViewport fallback.
 LCWB launches request --silent-debugger-extension-api as Chrome-dependent best-effort
 notice suppression only. Permission remains broad; existing profiles may retain old
 flags and Chrome may ignore it. Capture does not require suppression. Visual infobar
@@ -72,10 +78,10 @@ MIT licensed.
 ## Maintainer validation and publishing
 
 Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses SDK 10.0.400,
-restores and builds Release, runs the existing 154 Core / 29 public API / 39 extension
-checks, packs Core, inspects both package archives and runs the public API checks
+restores and builds Release, runs the complete Core/public API/extension checks, packs
+both Core target assets, inspects both package archives and runs public API checks
 again from an isolated local-feed PackageReference consumer. It never publishes.
-Generated packages and consumer work stay under ignored `artifacts/nuget/0.2.0`; the
+Generated packages and consumer work stay under ignored `artifacts/nuget/0.3.0`; the
 single invocation log stays under `Scripts/Outputs`.
 
 Trusted-publishing policy: `LazyChromeWindowBridge-publish`; NuGet owner `Yasuhiko-m`;
@@ -98,12 +104,6 @@ symbol-push command. See the official
 [symbol package documentation](https://learn.microsoft.com/en-us/nuget/create-packages/symbol-packages-snupkg)
 and [Trusted Publishing documentation](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
 
-R009 publication is historical; its package is immutable. R010/R011 are accepted
-Source in the combined R011 checkpoint. Git checkpoint/push does not authorize
-workflow dispatch or NuGet publication.
-Chat accepted R012 preparation; M006 is Complete. This does not authorize publication.
-Accepted pre-checkpoint package hashes are validation evidence, not final publication
-hashes. Their repository/Source Link metadata identifies the older R011 Git HEAD.
-After the independent R012 checkpoint is created and pushed, rebuild and verify from
-that exact checkpoint before separately authorized publication. The final package
-must identify the publication checkpoint; the prepared version is not yet published.
+NuGet 0.1.0 and 0.2.0 publication is historical and immutable. The 0.3.0 R013 candidate
+does not authorize a checkpoint, workflow dispatch or publication; generated package
+hashes are validation evidence only.

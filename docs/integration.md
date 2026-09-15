@@ -1,15 +1,13 @@
 # Integration with the public Core API
 
-These capabilities are prepared for the 0.2.0 distribution candidate; that package
-version is not yet publicly released. The source examples below target this candidate.
-
-This describes Chat-accepted R010/R011 Source at V1-M005-R011 in the combined R011
-checkpoint. GitHub v0.1.0 and NuGet 0.1.0 contain neither behavior; use matching Core
-and extension Source. PARK/RESTORE controls native window placement only and does not
+This describes the accepted, unreleased 0.3.0 Source at V1-M007-R013, based on the
+accepted/public 0.2.0 behavior. It is not yet published. Use matching Core and
+extension Source. PARK/RESTORE controls native window placement only and does not
 automatically start, stop, pause or resume monitoring. Monitoring policy belongs to
 the Caller, who explicitly chooses it with `SetSessionMonitoring(appSessionId, enabled)`.
 
-Target `net10.0-windows` and reference the Core project. Start one `BridgeRuntime`
+Target `net10.0-windows` for BrowserViewport compatibility, or
+`net10.0-windows10.0.18362.0` or later for NativeWindow, and reference the Core project. Start one `BridgeRuntime`
 per consuming application's intended lifetime. SampleCaller demonstrates this directly:
 its project references Core, has no InternalsVisibleTo grant and uses no coordinator
 or native implementation type.
@@ -39,7 +37,8 @@ while ((window = bridge.GetWindow(session.AppSessionId))?.State != PlacementStat
 // Current/Normal are physical pixels. Choose a reachable position on your displays.
 var bounds = window.Current!;
 bridge.SetWindowBounds(session.AppSessionId, bounds);
-bridge.StartMonitoring();
+bridge.StartMonitoring(new CaptureOptions(2, 240, 135, CaptureMode.NativeWindow));
+bridge.SetShowInTaskbar(session.AppSessionId, false); // Exact HWND; independent of capture/placement.
 bridge.Park(session.AppSessionId);
 
 // Poll on subsequent UI/timer ticks; a frame may initially be null.
@@ -51,6 +50,7 @@ if (frame is not null)
 }
 
 bridge.Restore(session.AppSessionId);
+bridge.SetShowInTaskbar(session.AppSessionId, true);
 bridge.StopMonitoring();
 // await using performs normal async shutdown.
 ```
@@ -67,7 +67,8 @@ product retry framework. Do not block a UI thread while waiting for launch/dispo
 | GetWindow(id) | WindowSnapshot or null while unmapped |
 | SetWindowBounds(id, bounds) | Exact live Visible window only; physical pixels, checked native result |
 | Park(id), Restore(id) | Explicit placement transitions on the exact owned window |
-| StartMonitoring(options?), StopMonitoring() | Global eligible Visible/Parked JPEG requests; defaults 2fps/240×135; repeated Start updates options in place |
+| SetShowInTaskbar(id, show) | Exact-owned-HWND taskbar policy; independent, idempotent and restored on disposal |
+| StartMonitoring(options?), StopMonitoring() | Global eligible Visible/Parked JPEG requests; defaults BrowserViewport at 2fps/240×135; repeated same-mode Start updates options in place |
 | GetMonitorState() | Aggregate and per-session monitoring status/counters |
 | SetSessionMonitoring(id, enabled) | Pause/resume one live owned session; requires global Start; placement never changes this policy |
 | GetLatestFrame(id) | Latest encoded frame/metadata, including a frozen Paused frame, or null |
@@ -90,14 +91,23 @@ age derived by your UI and Error can inform presentation. Frame.Sequence is cumu
 use (Generation, Sequence) for replacement. Discard a displayed image when latest
 becomes null, and never identify the session by pixels or its current page URL.
 
-Park/Restore and placement-generation changes keep the same monitor generation,
-latest JPEG, WebSocket and same-tab debugger. To update a running preview, call
+`CaptureOptions.Mode` defaults to `CaptureMode.BrowserViewport`, so existing calls such
+as `new CaptureOptions(2, 240, 135)` keep the 0.2.0 behavior. NativeWindow captures the
+exact `NativeIdentity.Hwnd`; it does not attach Chrome debugger for capture and never
+falls back to BrowserViewport. Its `MonitorFrame.Mode` is NativeWindow and `TabId` is
+the documented `-1` not-applicable sentinel. A mode change advances each enabled
+target generation and clears its live latest frame so late frames from the prior
+provider cannot publish. Paused previews remain frozen until caller-controlled resume.
+
+Park/Restore and placement-generation changes keep the same monitor generation and
+latest JPEG. BrowserViewport also keeps its WebSocket and same-tab debugger. To update a running preview, call
 `bridge.StartMonitoring(new CaptureOptions(15, 640, 360))`. The next practical capture
 uses the new options without a restart; an in-flight frame may use prior settings.
 FPS accepts inclusive1–30 (default2), with roughly2–30 recommended. 30 is a requested
 ceiling, not measured throughput. MaxWidth/MaxHeight bound only the aspect-preserving
 JPEG, without upscale, native resize, viewport resize or zoom change; quality stays70.
-An explicit Start after Error is a separate retry generation.
+An explicit Start after Error is a separate retry generation. NativeWindow uses a
+bounded D3D11 GPU resize followed by bounded CPU JPEG encoding at quality70.
 
 Core returns ReadOnlyMemory<byte> JPEG data; it does not return Bitmap or a UI control.
 Decode only when a new frame is available. SampleCaller retains only one displayed
@@ -114,8 +124,9 @@ bridge.Restore(id);                     // Still Paused.
 bridge.StartMonitoring(new(15, 640, 360)); // In-place options; id remains Paused.
 bridge.SetSessionMonitoring(id, true);  // Same waiting socket; Waiting then fresh Live.
 ```
-Pause advances only the target generation, rejecting late frames, and detaches its
-debugger while retaining ownership, geometry and the waiting connection. Peers continue.
+Pause advances only the target generation, rejecting late frames, and stops its capture
+resource while retaining ownership, geometry and the waiting extension connection.
+BrowserViewport detaches its debugger; NativeWindow releases its WGC/D3D resources. Peers continue.
 A frozen frame is not Live; inspect State and retain its original timestamp. Resume
 clears the frozen frame until a new frame arrives; Sequence then advances. Repeated
 OFF/healthy ON is idempotent; ON after Error explicitly retries that session.
@@ -123,9 +134,10 @@ Unknown/unbound/closed/stale targets or calls during global Stop throw
 InvalidOperationException. Disposal throws ObjectDisposedException. No implicit global Start.
 New live sessions default to ON while the global subsystem is running.
 
-LCWB launches Chrome with `--silent-debugger-extension-api` as best-effort notice
+LCWB launches Chrome with `--silent-debugger-extension-api` as best-effort BrowserViewport notice
 suppression. It does not change debugger permission or the production command allowlist
-(Page.getLayoutMetrics/Page.captureScreenshot). Chrome may ignore it, and existing
+(Page.getLayoutMetrics/Page.captureScreenshot). NativeWindow uses neither command.
+Chrome may ignore the flag, and existing
 profile processes may retain their original flags; monitoring still functions.
 
 ## Shutdown and restart

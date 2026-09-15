@@ -15,11 +15,15 @@ internal sealed class SampleCallerForm : Form
     private readonly Button monitorStop = new() { Text = "Stop monitor", AutoSize = true, Enabled = false };
     private readonly Button monitorPause = new() { Text = "Pause preview", AutoSize = true, Enabled = false };
     private readonly Button monitorResume = new() { Text = "Resume preview", AutoSize = true, Enabled = false };
+    private readonly Button hideTaskbar = new() { Text = "Hide from taskbar", AutoSize = true, Enabled = false };
+    private readonly Button showTaskbar = new() { Text = "Show in taskbar", AutoSize = true, Enabled = false };
+    private readonly HashSet<Guid> taskbarHidden = [];
+    private readonly ComboBox captureMode = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145, AccessibleName = "Capture mode" };
     private readonly NumericUpDown monitorFps = new() { Minimum = 1, Maximum = 30, Value = 2, Width = 55, AccessibleName = "Monitor FPS" };
     private readonly NumericUpDown monitorWidth = new() { Minimum = 160, Maximum = 1920, Value = 240, Width = 70, AccessibleName = "JPEG max width" };
     private readonly NumericUpDown monitorHeight = new() { Minimum = 90, Maximum = 1080, Value = 135, Width = 70, AccessibleName = "JPEG max height" };
     private readonly Button monitorApply = new() { Text = "Apply preview", AutoSize = true, Enabled = false };
-    private readonly Label monitorStatus = new() { Text = "Monitor stopped. Human view only; Chrome debugger permission/notice applies.", AutoSize = true, Dock = DockStyle.Top };
+    private readonly Label monitorStatus = new() { Text = "Monitor stopped. BrowserViewport uses Chrome debugger; NativeWindow captures only the owned HWND.", AutoSize = true, Dock = DockStyle.Top };
     private readonly FlowLayoutPanel thumbnails = new() { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = true, AccessibleName = "Session monitor overview" };
     private readonly Dictionary<Guid, MonitorTile> tiles = [];
     private bool monitoring;
@@ -67,11 +71,13 @@ internal sealed class SampleCallerForm : Form
         };
         launchButton.Margin = new Padding(3, 10, 3, 10);
         launchButton.TabIndex = 1;
+        captureMode.Items.AddRange(Enum.GetNames<CaptureMode>());
+        captureMode.SelectedItem = CaptureMode.BrowserViewport.ToString();
 
         layout.Controls.Add(urlLabel, 0, 0);
         layout.Controls.Add(launchUrl, 1, 0);
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
-        actions.Controls.AddRange([launchButton, parkButton, restoreButton, monitorStart, monitorStop, monitorPause, monitorResume, selected]);
+        actions.Controls.AddRange([launchButton, parkButton, restoreButton, hideTaskbar, showTaskbar, monitorStart, monitorStop, monitorPause, monitorResume, selected]);
         layout.Controls.Add(actions, 0, 1);
         layout.SetColumnSpan(actions, 2);
         layout.Controls.Add(status, 0, 2);
@@ -85,6 +91,7 @@ internal sealed class SampleCallerForm : Form
         monitorPanel.Controls.Add(thumbnails); monitorPanel.Controls.Add(monitorStatus);
         var previewOptions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Top };
         previewOptions.Controls.AddRange([
+            new Label { Text = "Capture", AutoSize = true }, captureMode,
             new Label { Text = "FPS", AutoSize = true }, monitorFps,
             new Label { Text = "JPEG max width", AutoSize = true }, monitorWidth,
             new Label { Text = "height", AutoSize = true }, monitorHeight, monitorApply,
@@ -143,6 +150,8 @@ internal sealed class SampleCallerForm : Form
         monitorStop.Click += (_, _) => { monitoring = false; host?.StopMonitoring(); RefreshMonitor(); };
         monitorPause.Click += (_, _) => SetSelectedMonitoring(false);
         monitorResume.Click += (_, _) => SetSelectedMonitoring(true);
+        hideTaskbar.Click += (_, _) => SetSelectedTaskbar(false);
+        showTaskbar.Click += (_, _) => SetSelectedTaskbar(true);
         FormClosing += async (_, args) =>
         {
             if (shutdownComplete) return;
@@ -151,6 +160,7 @@ internal sealed class SampleCallerForm : Form
             closing = true;
             launchButton.Enabled = false;
             parkButton.Enabled = restoreButton.Enabled = false;
+            hideTaskbar.Enabled = showTaskbar.Enabled = false;
             monitorStart.Enabled = monitorStop.Enabled = monitorApply.Enabled = false;
             monitorPause.Enabled = monitorResume.Enabled = false;
             refresh.Stop();
@@ -162,12 +172,24 @@ internal sealed class SampleCallerForm : Form
         FormClosed += (_, _) => { refresh.Dispose(); previewRefresh.Dispose(); };
     }
 
-    private CaptureOptions RequestedCapture() => new((int)monitorFps.Value, (int)monitorWidth.Value, (int)monitorHeight.Value);
+    private CaptureOptions RequestedCapture() => new((int)monitorFps.Value, (int)monitorWidth.Value, (int)monitorHeight.Value,
+        Enum.Parse<CaptureMode>((string)captureMode.SelectedItem!));
     private void SetSelectedMonitoring(bool enabled)
     {
         if (host is null || SelectedId is not { } id) return;
         try { host.SetSessionMonitoring(id, enabled); RefreshMonitor(); }
         catch (Exception error) { monitorStatus.Text = "Monitor: " + error.Message; }
+    }
+    private void SetSelectedTaskbar(bool show)
+    {
+        if (host is null || SelectedId is not { } id) return;
+        try
+        {
+            host.SetShowInTaskbar(id, show);
+            if (show) taskbarHidden.Remove(id); else taskbarHidden.Add(id);
+            RefreshSelection();
+        }
+        catch (Exception error) { status.Text = "Status: " + error.Message; }
     }
 
     private void RefreshSessions()
@@ -203,6 +225,8 @@ internal sealed class SampleCallerForm : Form
         var active = !closing && !operating && session?.State == SessionState.Bound && geometry is not null && geometry.State != PlacementState.Closed;
         parkButton.Enabled = active && geometry?.State == PlacementState.Visible;
         restoreButton.Enabled = active && geometry?.State != PlacementState.Visible;
+        hideTaskbar.Enabled = active && id is { } sessionId && !taskbarHidden.Contains(sessionId);
+        showTaskbar.Enabled = active && id is { } selectedId && taskbarHidden.Contains(selectedId);
         monitorStart.Enabled = !closing && host is not null;
         monitorStop.Enabled = !closing && monitoring;
     }
@@ -228,7 +252,7 @@ internal sealed class SampleCallerForm : Form
         {
             var tile = tiles[id]; thumbnails.Controls.Remove(tile); tile.Dispose(); tiles.Remove(id); SizeTiles();
         }
-        monitorStatus.Text = $"Monitoring {(snapshot.Enabled ? "enabled" : "stopped")} · {snapshot.CapturingConnections} JPEG captures · Visible + Parked · human view only";
+        monitorStatus.Text = $"Monitoring {(snapshot.Enabled ? "enabled" : "stopped")} · {snapshot.CapturingConnections} JPEG captures · {RequestedCapture().Mode} · Visible + Parked · human view only";
         monitorStart.Enabled = true; monitorStop.Enabled = monitorApply.Enabled = monitoring;
         var selectedMonitor = snapshot.Sessions.FirstOrDefault(s => s.AppSessionId == SelectedId);
         var canControl = monitoring && selectedMonitor is not null && selectedMonitor.State != "Unavailable";

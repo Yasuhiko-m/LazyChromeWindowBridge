@@ -39,7 +39,8 @@ export class MonitorManager {
         if (!Number.isSafeInteger(control.generation) || typeof control.enabled !== 'boolean' ||
             !Number.isInteger(settings.framesPerSecond) || settings.framesPerSecond < 1 || settings.framesPerSecond > 30 ||
             !Number.isInteger(settings.maxWidth) || settings.maxWidth < 160 || settings.maxWidth > 1920 ||
-            !Number.isInteger(settings.maxHeight) || settings.maxHeight < 90 || settings.maxHeight > 1080) throw Error('Invalid monitor control.');
+            !Number.isInteger(settings.maxHeight) || settings.maxHeight < 90 || settings.maxHeight > 1080 ||
+            !Number.isInteger(settings.mode) || ![0, 1].includes(settings.mode) || (settings.mode === 1 && control.enabled)) throw Error('Invalid monitor control.');
         const previous = client.control;
         client.control = control;
         if (previous?.generation !== control.generation || previous?.enabled !== control.enabled || control.closing ||

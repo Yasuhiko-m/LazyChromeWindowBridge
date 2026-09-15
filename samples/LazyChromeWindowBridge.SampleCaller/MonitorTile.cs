@@ -27,7 +27,7 @@ internal sealed class MonitorTile : Panel
             displayed = (frame.Generation, frame.Sequence);
         }
         var age = state.State == "Paused" ? " · frozen" : state.LastFrameAt is { } timestamp ? $" · {(DateTimeOffset.UtcNow - timestamp).TotalSeconds:F1}s" : "";
-        status.Text = $"{placement?.ToString() ?? "Unavailable"} / {state.State} · G{state.Generation}\n" +
+        status.Text = $"{placement?.ToString() ?? "Unavailable"} / {state.State} · {state.Mode} · G{state.Generation}\n" +
             (state.Error ?? $"{state.Frames} frames · {state.Width}×{state.Height}{age}");
     }
     private void ClearImage() { var old = image.Image; image.Image = null; old?.Dispose(); displayed = default; }

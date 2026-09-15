@@ -5,7 +5,7 @@ using System.Drawing.Imaging;
 namespace LazyChromeWindowBridge.Core;
 
 internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing, NativeIdentity? Identity);
-internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoordinator geometry)
+internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoordinator geometry, INativeCaptureFactory? captureFactory = null)
 {
     private sealed class Entry
     {
@@ -16,18 +16,24 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         public MonitorFrame? Latest;
         public string? Error;
         public string State = "Unavailable";
+        public CancellationTokenSource? NativeCancellation;
+        public Task? NativeTask;
+        public long NativeGeneration;
     }
     private readonly object gate = new();
     private readonly Dictionary<Guid, Entry> entries = [];
     private bool enabled, disposed;
     private long generation;
     private CaptureOptions options = new();
+    private readonly INativeCaptureFactory nativeCaptureFactory = captureFactory ?? new NativeWindowCaptureFactory();
+    private readonly HashSet<Task> nativeWorkers = [];
     private TaskCompletionSource changed = NewSignal();
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Task Changed { get { lock (gate) return changed.Task; } }
     private void Signal() { var previous = changed; changed = NewSignal(); previous.TrySetResult(); }
     private void Invalidate(Entry entry, bool clearError = true, bool keepLatest = false)
     {
+        entry.NativeCancellation?.Cancel();
         entry.Generation = ++generation;
         if (!keepLatest) entry.Latest = null;
         if (clearError) entry.Error = null;
@@ -52,9 +58,95 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         else if (entry.Paused) entry.State = "Paused";
         else if (!eligible) { entry.Latest = null; entry.State = window!.State.ToString(); }
         else if (entry.Error is not null) entry.State = "Error";
-        else if (entry.Connection is null) entry.State = "Disconnected";
+        else if (options.Mode == CaptureMode.BrowserViewport && entry.Connection is null) entry.State = "Disconnected";
         else entry.State = entry.Latest is null ? "Waiting" : "Live";
+        EnsureNativeWorker(id, entry, window);
         return entry;
+    }
+
+    private void EnsureNativeWorker(Guid id, Entry entry, WindowSnapshot? window)
+    {
+        var shouldRun = entry.Eligible && entry.Error is null && options.Mode == CaptureMode.NativeWindow &&
+            window is { WindowId: not null, Current: not null } && window.Identity == entry.Identity;
+        if (!shouldRun)
+        {
+            entry.NativeCancellation?.Cancel();
+            return;
+        }
+        if (entry.NativeTask is { IsCompleted: false } && entry.NativeGeneration == entry.Generation) return;
+        entry.NativeCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        var workerGeneration = entry.Generation;
+        var identity = entry.Identity!;
+        var windowId = window!.WindowId!.Value;
+        entry.NativeCancellation = cancellation;
+        entry.NativeGeneration = workerGeneration;
+        var worker = Task.Run(() => NativeLoop(id, workerGeneration, windowId, identity, cancellation.Token));
+        entry.NativeTask = worker;
+        nativeWorkers.Add(worker);
+        _ = worker.ContinueWith(completed => { lock (gate) nativeWorkers.Remove(completed); }, TaskScheduler.Default);
+    }
+
+    private async Task NativeLoop(Guid id, long workerGeneration, int windowId, NativeIdentity identity, CancellationToken token)
+    {
+        INativeCaptureSession? capture = null;
+        try
+        {
+            if (geometry.RequireOwned(id) != identity) throw new InvalidOperationException("Native capture identity became stale before acquisition.");
+            capture = nativeCaptureFactory.Open(identity);
+            lock (gate)
+            {
+                if (!ExpectedNative(id, workerGeneration, windowId, identity)) return;
+                entries[id].Capturing = true;
+            }
+            while (!token.IsCancellationRequested)
+            {
+                CaptureOptions requested;
+                lock (gate)
+                {
+                    if (!ExpectedNative(id, workerGeneration, windowId, identity)) return;
+                    requested = options;
+                }
+                if (geometry.RequireOwned(id) != identity) throw new InvalidOperationException("Native capture identity became stale before frame acquisition.");
+                var started = DateTimeOffset.UtcNow;
+                var frame = await capture.CaptureAsync(requested, token).ConfigureAwait(false);
+                if (geometry.RequireOwned(id) != identity) throw new InvalidOperationException("Native capture identity became stale during frame acquisition.");
+                AcceptNative(id, workerGeneration, windowId, identity, requested, frame);
+                var interval = TimeSpan.FromSeconds(1d / requested.FramesPerSecond);
+                var remaining = interval - (DateTimeOffset.UtcNow - started);
+                if (remaining > TimeSpan.Zero) await Task.Delay(remaining, token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            lock (gate)
+            {
+                if (ExpectedNative(id, workerGeneration, windowId, identity))
+                {
+                    var entry = entries[id];
+                    entry.Error = error.Message[..Math.Min(240, error.Message.Length)];
+                    entry.Latest = null;
+                    entry.State = "Error";
+                    entry.Capturing = false;
+                    Signal();
+                }
+            }
+        }
+        finally
+        {
+            if (capture is not null) await capture.DisposeAsync().ConfigureAwait(false);
+            lock (gate)
+            {
+                if (entries.TryGetValue(id, out var entry) && entry.NativeGeneration == workerGeneration)
+                {
+                    entry.Capturing = false;
+                    entry.NativeTask = null;
+                    entry.NativeCancellation?.Dispose();
+                    entry.NativeCancellation = null;
+                }
+            }
+        }
     }
     public void Reconcile()
     {
@@ -71,8 +163,10 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             var restarting = !enabled;
+            var modeChanged = enabled && options.Mode != requested.Mode;
             enabled = true; options = requested;
             if (restarting) foreach (var entry in entries.Values) entry.Paused = false;
+            if (modeChanged) foreach (var entry in entries.Values) Invalidate(entry, keepLatest: entry.Paused);
             foreach (var session in sessions.GetAll())
             {
                 var entry = Sync(session.AppSessionId);
@@ -121,7 +215,9 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
             if (disposed || sessions.Get(id)?.State != SessionState.Bound || geometry.Get(id) is not { Current: not null, State: not PlacementState.Closed }) return false;
             var entry = Sync(id);
             if (entry.Connection is not null) return false;
-            entry.Connection = connection; Invalidate(entry, false); Signal();
+            entry.Connection = connection;
+            if (options.Mode == CaptureMode.BrowserViewport) Invalidate(entry, false);
+            Signal();
             return true;
         }
     }
@@ -130,7 +226,9 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         lock (gate)
         {
             if (!entries.TryGetValue(id, out var entry) || entry.Connection != connection) return;
-            entry.Connection = null; entry.Capturing = false; Invalidate(entry, false); Sync(id); Signal();
+            entry.Connection = null;
+            if (options.Mode == CaptureMode.BrowserViewport) { entry.Capturing = false; Invalidate(entry, false); }
+            Sync(id); Signal();
         }
     }
     public MonitorControl Control(Guid id)
@@ -138,7 +236,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         lock (gate)
         {
             var entry = Sync(id);
-            return new(entry.Eligible && entry.Error is null, entry.Generation, options, disposed, entry.Identity);
+            return new(entry.Eligible && entry.Error is null && options.Mode == CaptureMode.BrowserViewport, entry.Generation, options, disposed, entry.Identity);
         }
     }
     public void Status(Guid id, Guid connection, long frameGeneration, string? failure, bool capturing)
@@ -147,9 +245,9 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         {
             if (!entries.TryGetValue(id, out var entry) || entry.Connection != connection) return;
             // A stopped old generation confirms detach even after eligibility changed.
-            if (!capturing) entry.Capturing = false;
+            if (!capturing && options.Mode == CaptureMode.BrowserViewport) entry.Capturing = false;
             entry = Sync(id);
-            if (entry.Generation != frameGeneration || !entry.Eligible || disposed) return;
+            if (entry.Generation != frameGeneration || !entry.Eligible || disposed || options.Mode != CaptureMode.BrowserViewport) return;
             entry.Capturing = capturing;
             if (failure is not null)
             {
@@ -160,8 +258,14 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
     private bool Expected(Guid id, Guid connection, long frameGeneration, int windowId, NativeIdentity? identity)
     {
         var entry = Sync(id);
-        return !disposed && entry.Eligible && entry.Error is null && entry.Connection == connection &&
+        return !disposed && options.Mode == CaptureMode.BrowserViewport && entry.Eligible && entry.Error is null && entry.Connection == connection &&
             entry.Generation == frameGeneration && identity is not null && entry.Identity == identity && sessions.Get(id)?.WindowId == windowId;
+    }
+    private bool ExpectedNative(Guid id, long frameGeneration, int windowId, NativeIdentity identity)
+    {
+        var entry = Sync(id);
+        return !disposed && options.Mode == CaptureMode.NativeWindow && entry.Eligible && entry.Error is null &&
+            entry.Generation == frameGeneration && entry.Identity == identity && sessions.Get(id)?.WindowId == windowId;
     }
     public void Accept(Guid id, Guid connection, long frameGeneration, int windowId, int tabId, NativeIdentity? identity, string data, double captureMilliseconds)
     {
@@ -198,6 +302,32 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
             entry.Bytes += data.Length; entry.State = "Live"; entry.Capturing = true;
         }
     }
+    private void AcceptNative(Guid id, long frameGeneration, int windowId, NativeIdentity identity, CaptureOptions requested, NativeCaptureFrame frame)
+    {
+        if (frame.Jpeg.Length < 4 || frame.Jpeg[0] != 0xff || frame.Jpeg[1] != 0xd8 || frame.Width < 1 || frame.Height < 1 ||
+            !double.IsFinite(frame.CaptureMilliseconds)) throw new ArgumentException("Invalid NativeWindow monitor frame.");
+        lock (gate)
+        {
+            if (!ExpectedNative(id, frameGeneration, windowId, identity)) return;
+        }
+        if (frame.Width > requested.MaxWidth || frame.Height > requested.MaxHeight) throw new ArgumentException("NativeWindow monitor frame exceeds requested bounds.");
+        using (var input = new MemoryStream(frame.Jpeg))
+        using (var image = Image.FromStream(input, false, true))
+            if (image.Width != frame.Width || image.Height != frame.Height) throw new ArgumentException("NativeWindow JPEG dimensions do not match metadata.");
+        lock (gate)
+        {
+            // A same-mode update deliberately keeps the generation. An acquisition
+            // already in flight under the prior snapshot is obsolete, not an error;
+            // the next loop iteration performs the GPU resize with current bounds.
+            if (!ExpectedNative(id, frameGeneration, windowId, identity) || options != requested) return;
+            var entry = entries[id];
+            entry.Latest = new(id, identity, windowId, -1, entry.Generation, ++entry.Frames, frame.Width, frame.Height,
+                frame.Jpeg, DateTimeOffset.UtcNow, frame.CaptureMilliseconds) { Mode = CaptureMode.NativeWindow };
+            entry.Bytes += frame.Jpeg.Length;
+            entry.State = "Live";
+            entry.Capturing = true;
+        }
+    }
     public MonitorFrame? Latest(Guid id) { lock (gate) return Sync(id).Latest; }
     public MonitorSnapshot Snapshot()
     {
@@ -209,7 +339,8 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
                 var entry = Sync(session.AppSessionId);
                 return new SessionMonitorSnapshot(session.AppSessionId, session.WindowId, entry.Identity, entry.Generation, entry.State,
                     entry.Frames, entry.Bytes, entry.Latest?.ReceivedAt, entry.Latest?.Width ?? 0, entry.Latest?.Height ?? 0, entry.Error,
-                    entry.Connection is not null, entry.Capturing);
+                    entry.Connection is not null, entry.Capturing)
+                    { Mode = options.Mode };
             }).ToArray();
             return new(enabled, rows.Sum(r => r.Frames), rows.Sum(r => r.Bytes), entries.Values.Count(e => e.Connection is not null),
                 entries.Values.Count(e => e.Capturing), rows);
@@ -220,6 +351,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         Stop();
         lock (gate) { disposed = true; Signal(); }
         var until = DateTimeOffset.UtcNow.AddSeconds(7); // Includes bounded five-second in-flight acquisition.
-        while (Snapshot().Connections != 0 && DateTimeOffset.UtcNow < until) await Task.Delay(50);
+        while ((Snapshot().Connections != 0 || ActiveNativeWorkers()) && DateTimeOffset.UtcNow < until) await Task.Delay(50);
     }
+    private bool ActiveNativeWorkers() { lock (gate) return nativeWorkers.Count != 0; }
 }

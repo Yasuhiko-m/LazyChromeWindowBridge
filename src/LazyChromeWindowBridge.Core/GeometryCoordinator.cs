@@ -24,6 +24,11 @@ internal sealed class GeometryCoordinator(SessionRegistry sessions, INativeWindo
     public MonitorGeometry[] Monitors() => native.Monitors();
     public GeometryProfile? Profile(string url) => store.Load(SessionRegistry.ValidateLaunchUrl(url));
 
+    internal NativeIdentity RequireOwned(Guid id)
+    {
+        lock (gate) return Active(id).Identity;
+    }
+
     public bool EnsureMapped(Guid id)
     {
         lock (gate)

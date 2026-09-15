@@ -10,8 +10,10 @@ flowchart LR
     API --> Native["Exact HWND / PID / property"]
     API <-->|"127.0.0.1 capability HTTP / WebSocket"| Ext["MV3 extension"]
     Ext --> Window["Owned Chrome WindowId"]
-    Window --> Pixels["Active-tab JPEG while Visible or Parked"]
-    Pixels --> Ext
+    Window --> Viewport["BrowserViewport: CDP JPEG"]
+    Native --> WGC["NativeWindow: exact-HWND WGC / D3D11"]
+    Viewport --> Ext
+    WGC --> API
     API --> Frame["Encoded frame + metadata"]
     Frame --> App
 ```
@@ -54,15 +56,22 @@ Each placement transition advances a generation.
 ## Monitoring and presentation
 Global monitoring requests every eligible live owned Visible or Parked session independently. Per-session
 entries retain a connection, generation, native identity, latest JPEG, counters and
-error. Either placement can have a monitoring debugger attached and receive fresh JPEGs.
-Monitor state and native placement are separate. Current Source is Chat-accepted
-V1-M005-R011 in the combined R011 checkpoint; published 0.1.0 retains the earlier contract.
+error. Either placement can receive fresh JPEGs. Monitor state, native placement and
+taskbar policy are separate. Current Source is the accepted V1-M007-R013 0.3.0 runtime
+baseline; 0.3.0 remains unpublished and historical 0.2.0 publications are unchanged.
 
-The extension queries only the active tab of the already-owned window. It uses
+BrowserViewport is the default. The extension queries only the active tab of the already-owned window. It uses
 Page.getLayoutMetrics and Page.captureScreenshot, one acquisition per target at a
 time, bounded to five seconds. Generations, socket backlog limits and bounded image
 sizes reject obsolete or excessive frames. The caller checks session/window/native/
 connection/generation before and after decode. One target's failure does not stop peers.
+
+NativeWindow validates the retained HWND/PID/property, creates a WGC item directly with
+`IGraphicsCaptureItemInterop.CreateForWindow`, then validates identity across acquisition.
+There is no picker or candidate list. The WGC texture stays on the GPU while D3D11 crops
+to `ContentSize` and performs bounded aspect-preserving no-upscale resize. Only that
+bounded staging texture is mapped to CPU memory for GDI+ JPEG quality70 encoding.
+Native frames use `TabId=-1`; WindowId and NativeIdentity remain authoritative.
 
 Core supplies a `MonitorFrame` with read-only encoded memory. SampleCaller uses
 PictureBox Zoom, independent ~200–300px tiles, a 33ms preview poll and 500ms session refresh. A bitmap is
@@ -81,7 +90,10 @@ It preserves explicit per-session OFF. Only global stopped-to-started is batch O
 all live sessions. Session control during global Stop rejects without starting capture.
 Requests allow 1–30 fps (default2); output bounds default240×135, fixed quality70,
 aspect-preserving and no upscale. Native size, viewport and zoom are unaffected.
-30fps is a request ceiling, not a performance promise.
+30fps is a request ceiling, not a performance promise. A same-mode option update keeps
+its generation. A CaptureMode change cancels/disposes the old backend and advances only
+that target generation before new acquisition, rejecting late frames without changing
+session ownership or browser binding.
 Closing an attached tab permits same-window active-tab reacquisition. User cancellation
 remains blocked until an explicit new generation. Worker recovery cleans persisted
 owned debugger targets and reconnects currently eligible requests.
@@ -90,12 +102,21 @@ Stop clears previews and stops frame traffic/debugger capture. Idle control sock
 remain for Start; CapturingConnections is zero, while Connections may remain nonzero.
 
 Normal async disposal stops monitoring, waits up to seven seconds for connection/
-debugger cleanup, restores protected Normal geometry and stops the loopback server.
+debugger/WGC cleanup, restores LCWB-modified taskbar style and protected Normal geometry,
+then stops the loopback server.
 It leaves Chrome open. Forced process termination cannot perform this sequence.
 ChromeLauncher includes --silent-debugger-extension-api in its structured launch
 arguments. Chrome-dependent infobar suppression is best effort; permissions and the
 production two-command debugger allowlist are unchanged if a notice is suppressed.
 If Chrome ignores the flag or reuses a process with old flags, monitoring still works.
+
+## Taskbar policy
+
+`SetShowInTaskbar` operates only on the exact validated owned HWND. Hide replaces the
+window's APPWINDOW classification with TOOLWINDOW and refreshes the non-client frame
+without activation; show and normal disposal restore the original extended style.
+The policy is idempotent, session-local, runtime-only and unaffected by PARK/RESTORE or
+monitor control. It never searches for or modifies another Chrome window.
 
 ## Download observation
 Official Chrome download events feed a bounded storage.session outbox. Grouping by

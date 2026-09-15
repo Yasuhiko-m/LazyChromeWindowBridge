@@ -2,6 +2,9 @@
 
 - Windows desktop only. Core relies on native Windows placement and GDI+ imaging;
   there is no Linux/macOS implementation. The sample uses WinForms.
+- NativeWindow additionally requires Windows 10 version 1903/build 18362 or later,
+  Windows Graphics Capture support and a functioning Direct3D 11 video processor.
+  Unsupported systems fail that mode explicitly; BrowserViewport remains available.
 - Chrome 120+ is declared by the extension; real acceptance uses a specific Chrome
   for Testing build. A pass on that build is not proof for every Chrome version.
 - Installed Chrome requires the extension to be enabled in the selected profile.
@@ -18,14 +21,16 @@
   a deterministic visible fallback. Real acceptance uses three 96-DPI monitors;
   mixed DPI, removal and topology changes also have deterministic simulated coverage,
   not a complete physical mixed-DPI hardware matrix.
-- Monitoring is a human JPEG preview, not remote desktop/video/control.
+- Monitoring is a human JPEG preview, not remote desktop/video/control. NativeWindow
+  captures the composed owned window and may include title bar/border; it is not a
+  client-area-only mode and has no BrowserViewport fallback.
   Requests allow 1–30 fps, with default2 and roughly 2–30 recommended. 30fps is a request
   ceiling, not a throughput guarantee. Five mixed Visible/Parked targets are the
   accepted reference workload. Debugger attachment may exist in either placement. Loads vary
   with page activity, viewport, Chrome version, startup and machine contention.
 - Short neutral-page samples are not long-run leak, worst-case video bandwidth or
   background-throttling guarantees. Recorded CPU includes test hash sampling.
-- Initial offscreen screenshots can hit the five-second capture budget in CfT.
+- Initial offscreen BrowserViewport screenshots can hit the five-second capture budget in CfT.
   The affected session reports Error and detaches while peers retain their own
   state; explicit Start is needed to request a new generation. A passing short run
   does not establish the cause or eliminate this intermittent startup limitation.
@@ -47,13 +52,12 @@
   consumer code safe. Queue slow work and handle asynchronous failures in the consumer.
   Chrome Complete does not replace consumer filesystem validation or eliminate a
   filesystem race between exclusive-open checks and a later move.
-- Normal DisposeAsync restores PARKED windows and releases debugger transports.
+- Normal DisposeAsync restores PARKED windows, taskbar styles changed by LCWB, debugger
+  transports and WGC/D3D resources.
   Forced process kill, OS crash or power loss cannot guarantee restoration/detachment.
   A hung peer can exceed graceful shutdown bounds; callers should still await disposal.
 - The pre-release product rename starts a new geometry directory. Legacy pre-release
   data is not a supported migration contract; no migration subsystem is provided.
-- No installer, updater or Web Store submission is established. The existing GitHub
-  v0.1.0 and NuGet Core0.1.0 distributions retain their earlier behavior. Continuous
-  preview (R010) and session control/silent launch (R011) are Chat-accepted Source at
-  V1-M005-R011 in the combined R011 checkpoint. Neither is in published 0.1.0;
-  the checkpoint/push creates no package/release version or publication.
+- No installer or updater is established. GitHub/NuGet 0.1.0 and 0.2.0 publication and
+  the already-submitted CWS 0.2.0 artifact/review are historical. The 0.3.0 R013 Source
+  is accepted as Current VMR but is not yet tagged or published.

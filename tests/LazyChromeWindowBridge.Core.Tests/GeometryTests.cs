@@ -86,6 +86,25 @@ internal static class GeometryTests
         check(new GeometryStore(temp).Load(urlA)?.Normal != park, "persisted placement remains normal after parked close");
         var c = Bind("https://example.test/shutdown", 13);
         check(coordinator.EnsureMapped(c.AppSessionId), "shutdown fixture binds its own native window");
+        var d = Bind("https://example.test/taskbar-peer", 14);
+        check(coordinator.EnsureMapped(d.AppSessionId), "taskbar peer binds an independent native window");
+        var cStyle = native.Style(13); var dStyle = native.Style(14);
+        using (var taskbar = new TaskbarCoordinator(coordinator, native))
+        {
+            taskbar.Set(c.AppSessionId, false);
+            check((native.Style(13) & 0x80) != 0 && (native.Style(13) & 0x40000) == 0 && native.Style(14) == dStyle,
+                "taskbar hide changes only the exact owned HWND");
+            var hidden = native.Style(13); taskbar.Set(c.AppSessionId, false);
+            check(native.Style(13) == hidden, "taskbar hide is idempotent");
+            coordinator.Park(c.AppSessionId); coordinator.Restore(c.AppSessionId);
+            check(native.Style(13) == hidden, "PARK and RESTORE preserve independent taskbar policy");
+            taskbar.Set(c.AppSessionId, true); taskbar.Set(c.AppSessionId, true);
+            check(native.Style(13) == cStyle && native.Style(14) == dStyle, "taskbar show restores the original style idempotently");
+            taskbar.Set(c.AppSessionId, false);
+            native.ReplaceIdentity(14, new(14, 999, 999));
+            check(RejectTaskbar(() => taskbar.Set(d.AppSessionId, false)), "taskbar API rejects a stale exact NativeIdentity");
+        }
+        check(native.Style(13) == cStyle, "taskbar coordinator restores modified live HWND state on disposal");
         var beforeShutdown = coordinator.Get(c.AppSessionId)!.Current;
         coordinator.Park(c.AppSessionId);
         coordinator.Dispose();
@@ -94,13 +113,16 @@ internal static class GeometryTests
         try { coordinator.Park(c.AppSessionId); } catch (InvalidOperationException) { rejected = true; }
         check(rejected && !coordinator.EnsureMapped(c.AppSessionId), "shutdown rejects queued PARK and late native mapping");
         Console.WriteLine("Unit fixtures retained in temporary directory: " + temp);
+
+        static bool RejectTaskbar(Action action) { try { action(); return false; } catch (InvalidOperationException) { return true; } }
     }
     internal sealed class FakeNative(MonitorGeometry[] monitors) : INativeWindows
     {
         private readonly Dictionary<string, long> markers = [];
         private readonly Dictionary<long, (NativeIdentity Identity, PixelRect Rect)> windows = [];
+        private readonly Dictionary<long, long> styles = [];
         public MonitorGeometry[] Topology = monitors;
-        public void Add(string marker, NativeIdentity identity, PixelRect rect) { markers[marker] = identity.Hwnd; windows[identity.Hwnd] = (identity, rect); }
+        public void Add(string marker, NativeIdentity identity, PixelRect rect) { markers[marker] = identity.Hwnd; windows[identity.Hwnd] = (identity, rect); styles[identity.Hwnd] = 0x40000; }
         public void Remove(long hwnd) => windows.Remove(hwnd);
         public void ReplaceIdentity(long hwnd, NativeIdentity identity) => windows[hwnd] = (identity, windows[hwnd].Rect);
         public NativeIdentity? FindAndTag(string marker, string chromeExecutable) => markers.TryGetValue(marker, out var hwnd) ? windows[hwnd].Identity : null;
@@ -110,6 +132,9 @@ internal static class GeometryTests
         public void Move(NativeIdentity identity, PixelRect rectangle) { _ = Read(identity); windows[identity.Hwnd] = (identity, rectangle); }
         public uint Dpi(NativeIdentity identity) => Topology.FirstOrDefault(m => Read(identity).Intersects(m.Bounds))?.DpiX ?? 96;
         public MonitorGeometry[] Monitors() => Topology;
+        public long ReadExtendedStyle(NativeIdentity identity) => Alive(identity) ? styles[identity.Hwnd] : throw new InvalidOperationException("stale native identity");
+        public void WriteExtendedStyle(NativeIdentity identity, long style) { _ = Read(identity); styles[identity.Hwnd] = style; }
+        public long Style(long hwnd) => styles[hwnd];
         public void Release(NativeIdentity identity) { }
     }
 }

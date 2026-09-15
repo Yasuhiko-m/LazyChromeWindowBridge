@@ -200,5 +200,114 @@ internal static class MonitorTests
         check(native.Read(geometry.Get(b.AppSessionId)!.Identity) == normal && store.Load(b.LaunchUrl)!.Normal == normal, "normal shutdown restores protected Normal after small PARK");
         check(Reject(() => monitor.Start(new())), "monitor cannot restart after shutdown");
         check(Reject(() => monitor.SetSessionMonitoring(a.AppSessionId, true)), "session monitor cannot resume after shutdown");
+        RunNativeWindow(check);
+    }
+
+    private static void RunNativeWindow(Action<bool, string> check)
+    {
+        check(new CaptureOptions().Mode == CaptureMode.BrowserViewport, "CaptureOptions default remains BrowserViewport");
+        var nativeOptions = new CaptureOptions(2, 240, 135, CaptureMode.NativeWindow); nativeOptions.Validate();
+        check(nativeOptions.Mode == CaptureMode.NativeWindow, "explicit NativeWindow capture option validates");
+        check(NativeWindowCaptureSession.OutputSize(1200, 800, 240, 135) == (202, 135) &&
+            NativeWindowCaptureSession.OutputSize(80, 40, 240, 135) == (80, 40), "NativeWindow output is aspect-preserving and never upscaled");
+
+        var registry = new SessionRegistry();
+        var native = new GeometryTests.FakeNative([new("primary", new(0, 0, 1920, 1080), new(0, 0, 1920, 1040), true, 96, 96)]);
+        var store = new GeometryStore(Path.Combine(Path.GetTempPath(), "LazyChromeWindowBridge-NativeMonitorTests-" + Guid.NewGuid().ToString("N")));
+        using var geometry = new GeometryCoordinator(registry, native, store, "fake");
+        var browser = Guid.NewGuid().ToString("D");
+        SessionSnapshot Bind(int window)
+        {
+            var value = registry.Create("https://example.test/native/" + window, DateTimeOffset.UtcNow).Session;
+            registry.Report(value.AppSessionId, new(browser, window, window + 100), false, DateTimeOffset.UtcNow);
+            native.Add(GeometryCoordinator.Marker(value.AppSessionId), new(window, 300, window), new(20, 30, 1200, 800));
+            geometry.EnsureMapped(value.AppSessionId);
+            return registry.Get(value.AppSessionId)!;
+        }
+        var rows = new[] { Bind(31), Bind(32) };
+        var factory = new FakeCaptureFactory();
+        var monitor = new MonitorCoordinator(registry, geometry, factory);
+        geometry.Changed += monitor.Reconcile;
+        monitor.Start(nativeOptions);
+        check(SpinWait.SpinUntil(() => rows.All(row => monitor.Latest(row.AppSessionId) is not null), 3000),
+            "independent NativeWindow peers publish bounded frames");
+        var first = monitor.Latest(rows[0].AppSessionId)!;
+        check(first is { Mode: CaptureMode.NativeWindow, TabId: -1, Width: 202, Height: 135 } && first.Identity == geometry.Get(rows[0].AppSessionId)!.Identity,
+            "NativeWindow frame retains exact ownership and documents non-applicable TabId");
+        using (var stream = new MemoryStream(first.Jpeg.ToArray()))
+        using (var image = Image.FromStream(stream, false, true))
+            check(image.RawFormat.Guid == ImageFormat.Jpeg.Guid && image.Width == first.Width && image.Height == first.Height,
+                "NativeWindow frame is a valid bounded JPEG with truthful dimensions");
+        check(rows.All(row => !monitor.Control(row.AppSessionId).Enabled) && factory.Opened.SequenceEqual(rows.Select(row => geometry.Get(row.AppSessionId)!.Identity).OrderBy(i => i.Hwnd)),
+            "NativeWindow uses exact HWND capture workers and never enables the CDP screenshot control path");
+
+        var peerFrames = monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[1].AppSessionId).Frames;
+        monitor.SetSessionMonitoring(rows[0].AppSessionId, false);
+        var frozen = monitor.Latest(rows[0].AppSessionId)!;
+        check(SpinWait.SpinUntil(() => monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[0].AppSessionId) is { State: "Paused", Capturing: false }, 3000),
+            "NativeWindow pause stops only its capture worker");
+        check(SpinWait.SpinUntil(() => monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[1].AppSessionId).Frames > peerFrames, 1500) &&
+            ReferenceEquals(frozen, monitor.Latest(rows[0].AppSessionId)),
+            "NativeWindow pause freezes exact preview while peer continues");
+        geometry.Park(rows[0].AppSessionId); geometry.Restore(rows[0].AppSessionId);
+        check(ReferenceEquals(frozen, monitor.Latest(rows[0].AppSessionId)) && monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[0].AppSessionId).State == "Paused",
+            "NativeWindow PARK/RESTORE does not resume a paused session");
+        monitor.SetSessionMonitoring(rows[0].AppSessionId, true);
+        check(SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId)?.Sequence > frozen.Sequence, 3000),
+            "NativeWindow resume starts fresh capture for only the target");
+
+        var generation = monitor.Control(rows[0].AppSessionId).Generation;
+        monitor.Start(new(30, 640, 360, CaptureMode.NativeWindow));
+        check(monitor.Control(rows[0].AppSessionId).Generation == generation &&
+            SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId) is { Width: 540, Height: 360 }, 3000),
+            "same-mode NativeWindow FPS and size update remains in place");
+        var beforeTransition = monitor.Control(rows[0].AppSessionId).Generation;
+        monitor.Start(new(2, 240, 135, CaptureMode.BrowserViewport));
+        check(monitor.Control(rows[0].AppSessionId).Generation > beforeTransition && monitor.Latest(rows[0].AppSessionId) is null &&
+            SpinWait.SpinUntil(() => monitor.Snapshot().CapturingConnections == 0, 3000),
+            "mode transition advances acquisition generation, rejects late NativeWindow frames and releases workers");
+        monitor.Start(nativeOptions);
+        check(SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId) is not null, 3000), "global Start/update can re-enter NativeWindow capture");
+        native.ReplaceIdentity(31, new(31, 999, 999)); monitor.Reconcile();
+        check(SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId) is null && !monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[0].AppSessionId).Capturing, 3000),
+            "stale/reused HWND identity stops NativeWindow capture without retargeting");
+        check(monitor.Latest(rows[1].AppSessionId) is not null, "NativeWindow identity failure leaves independent peer running");
+        monitor.Stop();
+        check(SpinWait.SpinUntil(() => monitor.Snapshot().CapturingConnections == 0, 3000) && rows.All(row => monitor.Latest(row.AppSessionId) is null),
+            "global Stop clears NativeWindow frames and reaches zero active captures");
+        monitor.ShutdownAsync().GetAwaiter().GetResult();
+        check(factory.Active == 0 && factory.Opened.Count >= 3, "NativeWindow shutdown deterministically disposes every acquisition resource");
+    }
+
+    private sealed class FakeCaptureFactory : INativeCaptureFactory
+    {
+        private readonly object gate = new();
+        private readonly List<NativeIdentity> opened = [];
+        private int active;
+        public IReadOnlyList<NativeIdentity> Opened { get { lock (gate) return opened.OrderBy(value => value.Hwnd).ToArray(); } }
+        public int Active => Volatile.Read(ref active);
+        public INativeCaptureSession Open(NativeIdentity identity)
+        {
+            lock (gate) opened.Add(identity);
+            Interlocked.Increment(ref active);
+            return new FakeCaptureSession(() => Interlocked.Decrement(ref active));
+        }
+    }
+    private sealed class FakeCaptureSession(Action dispose) : INativeCaptureSession
+    {
+        private int disposed;
+        public async Task<NativeCaptureFrame> CaptureAsync(CaptureOptions options, CancellationToken token)
+        {
+            await Task.Delay(15, token);
+            var (width, height) = NativeWindowCaptureSession.OutputSize(1200, 800, options.MaxWidth, options.MaxHeight);
+            using var bitmap = new Bitmap(width, height); using (var graphics = Graphics.FromImage(bitmap)) graphics.Clear(Color.DarkSlateBlue);
+            using var output = new MemoryStream(); bitmap.Save(output, ImageFormat.Jpeg);
+            return new(output.ToArray(), width, height, 2);
+        }
+        public ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) == 0) dispose();
+            return ValueTask.CompletedTask;
+        }
     }
 }

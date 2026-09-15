@@ -95,7 +95,7 @@ async function caller(operation, argumentsOrUrl) {
 }
 function evidence(label, value) { console.log(JSON.stringify({ check: label, ...value })); }
 try {
-  browser = spawn('dotnet', [path.join(root, 'tests/LazyChromeWindowBridge.Core.Tests/bin/Debug/net10.0-windows/LazyChromeWindowBridge.Core.Tests.dll'), '--browser-fixture', chromeExe, profile, extensionRoot, ...(testWindowPosition ? [testWindowPosition] : [])], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+  browser = spawn('dotnet', [path.join(root, 'tests/LazyChromeWindowBridge.Core.Tests/bin/Debug/net10.0-windows10.0.18362.0/LazyChromeWindowBridge.Core.Tests.dll'), '--browser-fixture', chromeExe, profile, extensionRoot, ...(testWindowPosition ? [testWindowPosition] : [])], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
   browser.on('exit', () => { browserExited = true; });
   browser.stderr.on('data', bytes => { browserStderr += bytes.toString(); });
   const launchRecord = await new Promise((resolve, reject) => {
@@ -118,10 +118,10 @@ try {
   const manifest = await cdp.extension('chrome.runtime.getManifest()');
   assert.equal(manifest.name, 'LazyChromeWindowBridge');
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '0.2.0');
+  assert.equal(manifest.version, '0.3.0');
   evidence('browser', { version: version.Browser, profile, manifest, extensionRoot, testWindowPosition });
   if (gui) {
-    const sampleExe = process.env.LCWB_TEST_SAMPLE_EXECUTABLE ?? path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows/LazyChromeWindowBridge.SampleCaller.exe');
+    const sampleExe = process.env.LCWB_TEST_SAMPLE_EXECUTABLE ?? path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows10.0.18362.0/LazyChromeWindowBridge.SampleCaller.exe');
     await fs.access(sampleExe);
     driver = spawn(sampleExe, ['--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: path.dirname(sampleExe), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: false });
     driver.on('exit', () => { driverExited = true; });
@@ -130,7 +130,7 @@ try {
     await until(async () => driverExited, Boolean, 'operator closes SampleCaller after GUI acceptance', 900000);
     console.log('GUI fixture closed normally. Record observed GUI checks separately.');
   } else {
-  driver = spawn('dotnet', [path.join(root, 'tests/LazyChromeWindowBridge.Core.Tests/bin/Debug/net10.0-windows/LazyChromeWindowBridge.Core.Tests.dll'), '--browser-driver', '--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+  driver = spawn('dotnet', [path.join(root, 'tests/LazyChromeWindowBridge.Core.Tests/bin/Debug/net10.0-windows10.0.18362.0/LazyChromeWindowBridge.Core.Tests.dll'), '--browser-driver', '--chrome-executable', chromeExe, '--chrome-user-data-dir', profile, '--geometry-directory', path.join(profile, 'geometry')], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
   driver.on('exit', () => { driverExited = true; });
   driver.stderr.on('data', bytes => process.stderr.write(bytes));
   createInterface({ input: driver.stdout }).on('line', line => {
@@ -149,6 +149,9 @@ try {
   } else if (process.argv.includes('--monitor')) {
     const { testMonitor } = await import('./MonitorAcceptance.mjs');
     await testMonitor({ caller, cdp, until, delay, evidence, pageA, pageB });
+  } else if (process.argv.includes('--native-window')) {
+    const { testNativeWindow } = await import('./NativeWindowAcceptance.mjs');
+    await testNativeWindow({ caller, cdp, until, delay, evidence, pageA, pageB });
   } else {
   const a = await caller('launch', pageA.url + '/launch');
   const boundA = (await until(() => caller('sessions'), list => list.find(s => s.appSessionId === a.appSessionId)?.state === 'Bound', 'A binds'))[0];

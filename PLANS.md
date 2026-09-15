@@ -163,9 +163,20 @@ publication artifacts from the exact accepted checkpoint; pre-checkpoint hashes 
 validation evidence only. No tag/Release, NuGet publication or live CWS operation
 belongs to this authority closeout.
 
+### M007 — Native Window Capture and Taskbar Policy
+Goal: add exact-HWND Windows Graphics Capture as an additive monitor mode and independent
+per-owned-window taskbar visibility while preserving the accepted BrowserViewport,
+ownership, placement, monitoring and download contracts.
+
+Status: **Complete**. Accepted by Chat at V1-M007-R013. Source version 0.3.0 is the
+accepted runtime baseline and remains unpublished. BrowserViewport compatibility,
+exact-HWND NativeWindow WGC/D3D11 capture, caller-owned monitoring policy and independent
+taskbar visibility passed deterministic and real Windows/CfT acceptance. Git checkpoint
+and publication are separate boundaries.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M006-R012; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M007-R013; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

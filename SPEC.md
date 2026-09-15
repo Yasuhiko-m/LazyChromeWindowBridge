@@ -5,18 +5,21 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M006-R012 — v0.2.0-distribution-preparation**, accepted by Chat.
-Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M006 and V0 are
-Complete; V1 remains In Progress. This accepted Source includes R010 continuous-
-monitor-preview and R011 session-monitor-control in the combined R011 checkpoint.
-Package/release publication is separate. Published GitHub v0.1.0 and NuGet 0.1.0
-retain their earlier monitoring behavior and contain neither R010 nor R011.
-Product name is LazyChromeWindowBridge; immutable ProjectID does not change.
-R012 establishes accepted 0.2.0 version/package/Store distribution preparation from
-that R010/R011 runtime behavior, not a new runtime feature. The prepared candidate
-is established but not publicly published. Rebuild publication artifacts from
-the exact accepted checkpoint; existing candidate hashes are pre-checkpoint
-validation evidence only, not final public 0.2.0 hashes.
+Established baseline: **V1-M007-R013 — native-window-capture-taskbar**, accepted by Chat.
+Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M007 and V0 are
+Complete; V1 remains In Progress. Source version 0.3.0 is the accepted runtime baseline
+and remains unpublished at this authority closeout.
+
+R013 preserves the accepted ownership, geometry, PARK/RESTORE, caller-owned monitoring
+and download contracts while adding source-compatible `CaptureMode.BrowserViewport` /
+`CaptureMode.NativeWindow` selection and independent exact-HWND taskbar visibility.
+BrowserViewport remains the default two-command CDP path. NativeWindow uses exact-HWND
+Windows Graphics Capture plus D3D11 bounded resize and no picker/CDP screenshot fallback.
+`SetShowInTaskbar` is runtime-only and restored on normal disposal when LCWB changed it.
+
+Historical GitHub/NuGet 0.1.0 and 0.2.0 releases and the submitted CWS 0.2.0 review
+remain unchanged. R013 acceptance does not itself authorize or establish a 0.3.0 tag,
+Release, NuGet publication or any Chrome Web Store action.
 
 Historical V1 M002/R008 established MIT licensing, public documentation, a neutral
 demo screenshot and deterministic extension packaging without changing R007 runtime.
@@ -27,19 +30,20 @@ and measurements remain in Revisions.md and the R005 Git checkpoint. Current
 maintainable product documentation is in README.md and docs/.
 
 ## Components and API
-- LazyChromeWindowBridge.Core: net10.0-windows reusable library, built-in Kestrel,
-  Windows native geometry, bounded GDI+ JPEG decoding and encoded frame metadata.
+- LazyChromeWindowBridge.Core: dual-target net10.0-windows reusable library, built-in
+  Kestrel, Windows native geometry, exact-HWND WGC/D3D11 capture on the Windows 10
+  1903+ target, bounded GDI+ JPEG encoding/decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, candidate version 0.2.0.
-- Core package and SampleCaller product version: candidate 0.2.0; no runtime behavior
-  change is introduced by distribution preparation.
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, accepted Source version 0.3.0; not yet published.
+- Core package and SampleCaller product version: accepted Source version 0.3.0; publication remains separate.
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.
 
 BridgeRuntime is the public façade: StartAsync, LaunchAsync, GetSessions/GetSession,
-GetWindow, SetWindowBounds, Park, Restore, StartMonitoring/StopMonitoring, SetSessionMonitoring,
+GetWindow, SetWindowBounds, Park, Restore, SetShowInTaskbar,
+StartMonitoring/StopMonitoring, SetSessionMonitoring,
 GetMonitorState, GetLatestFrame and DisposeAsync. Coordinators and transport/native
 implementation stay internal. Public snapshot/rectangle/options types are immutable
 records; MonitorFrame supplies ReadOnlyMemory<byte> JPEG data rather than UI images.
@@ -83,6 +87,13 @@ PARKED or transitional states require Restore. Closed/unmapped/stale identities 
 Get immediately after Set may show the prior Normal until observer stabilization.
 Normal shutdown restores PARKED windows and leaves Chrome open.
 
+`SetShowInTaskbar(appSessionId, show)` is independent runtime policy for the exact
+owned HWND. Default is shown. Hide removes WS_EX_APPWINDOW and applies WS_EX_TOOLWINDOW;
+show restores the captured original extended style. Calls are idempotent, validate the
+same live NativeIdentity, never activate/move/resize/monitor/rebind, survive PARK/RESTORE,
+are not persisted to geometry, and restore the original style on normal disposal while
+the owned window is still alive.
+
 ## Human-only monitoring
 Global Start from stopped requests all live Bound sessions with a valid native identity and mapped
 Visible or Parked window. Both placements use Waiting/Live/Error/Disconnected monitor
@@ -92,7 +103,16 @@ connection/generation/native identity, latest image, counters and error. Session
 capability, connection, generation, WindowId and native identity must match before
 and after decode. A capture failure cannot corrupt ownership/Normal or stop peers.
 
-Only Page.getLayoutMetrics and Page.captureScreenshot are used. FPS accepts inclusive
+`CaptureOptions.Mode` is additive and defaults to `CaptureMode.BrowserViewport`, so
+existing three-argument construction preserves the accepted behavior. BrowserViewport
+uses only Page.getLayoutMetrics and Page.captureScreenshot. `CaptureMode.NativeWindow`
+captures the exact validated `NativeIdentity.Hwnd` through
+`IGraphicsCaptureItemInterop.CreateForWindow`; it has no picker, candidate enumeration,
+replacement discovery or BrowserViewport fallback and does not attach the debugger.
+Its frame metadata uses `Mode=NativeWindow` and `TabId=-1` as the documented
+not-applicable sentinel; appSessionId, WindowId and NativeIdentity remain authority.
+
+FPS accepts inclusive
 1–30, defaults to 2, with roughly 2–30 recommended; 30 is a request ceiling, not a measured
 throughput guarantee. Default output is max240×135, fixed JPEG quality70,
 aspect-preserving and no capture upscale. Output bounds never change the native
@@ -101,13 +121,20 @@ window remains full size: experimentally shrinking it was rejected in R005.
 The internal test-only shrink path preserves prior comparison/Normal-safety coverage
 and is never called by production monitoring.
 
-Frames are bounded, latest-only and sent over authenticated loopback WebSocket.
+BrowserViewport frames are bounded, latest-only and sent over authenticated loopback
+WebSocket. NativeWindow surfaces remain in Core: WGC supplies the exact HWND surface;
+D3D11 VideoProcessorBlt crops to actual content and performs aspect-preserving no-upscale
+resize on the GPU; only the bounded staging texture crosses to CPU memory, where GDI+
+encodes JPEG quality70. A full-size native frame never crosses the loopback transport.
 Visible↔Parked and placement-generation changes preserve monitor generation, latest
 JPEG, control WebSocket and same-tab debugger attachment. StartMonitoring(options)
 while enabled updates options in place and wakes the pump; the next practical iteration
 uses new settings. An acquisition already in flight may finish with its prior settings.
 Option updates do not clear the latest frame, reconnect or detach.
-They never enable a session explicitly paused by the caller. Newly bound live sessions
+They never enable a session explicitly paused by the caller. A same-mode update preserves
+the acquisition generation. A mode change advances that target generation, cancels and
+disposes its old acquisition, rejects late frames and starts the selected backend without
+creating/rebinding the owned session. Newly bound live sessions
 are enabled by default while the global subsystem is started.
 
 Monitoring policy belongs to the caller. PARK/RESTORE never automatically changes
@@ -139,11 +166,13 @@ the image and frame number, displaying a static frozen marker instead of live ag
 Stop/invalidated state clears obsolete pixels; placement alone does not. Layout size is independent
 of captured JPEG maxima. Core supplies no PictureBox/Bitmap presentation API.
 
-Stop disables monitoring, clears latest JPEGs, detaches debugger targets and stops frame
-traffic; CapturingConnections becomes zero. Idle restart-control WebSockets remain and
+Stop disables monitoring, clears latest JPEGs, detaches BrowserViewport debugger targets,
+disposes NativeWindow acquisition resources and stops frame traffic;
+CapturingConnections becomes zero. Idle restart-control WebSockets remain and
 Start reuses them. Normal async shutdown sends closing control, closes WebSockets,
 stops capture, waits up to seven seconds for transport/debugger
-cleanup including a five-second acquisition bound, restores Normal and stops Kestrel.
+cleanup including a five-second acquisition bound, releases WGC/D3D resources, restores
+any LCWB-modified taskbar styles, restores Normal and stops Kestrel.
 Forced termination cannot guarantee graceful cleanup.
 
 ## Download lifecycle
@@ -186,7 +215,8 @@ include --silent-debugger-extension-api exactly once, alongside the existing lau
 This is best-effort Chrome-dependent infobar suppression, not an extension permission
 change or a security guarantee. If Chrome ignores it, a notice may appear and the
 monitoring path still works. Reusing an already-running profile may retain that process's
-original flags. Production commands remain Page.getLayoutMetrics/Page.captureScreenshot.
+original flags. BrowserViewport commands remain Page.getLayoutMetrics/Page.captureScreenshot;
+NativeWindow does not use CDP capture.
 This is not extension-side suppression, and debugger permission remains broad.
 Visual infobar absence was not established in acceptance and is not guaranteed.
 The known third-display initial offscreen capture timeout remains unresolved;
@@ -194,13 +224,15 @@ passing runs do not establish a fix or justify weaker timeouts/assertions.
 
 No DOM/Runtime/Network extraction, OCR/semantic analysis, webpage completion detection,
 remote input, recording, cloud, telemetry, provider framework, installer or updater.
-R008 introduced no third-party package or runtime feature. The older GitHub v0.1.0
-and NuGet 0.1.0 publications remain unchanged and do not contain this accepted behavior.
+R013 introduces no third-party runtime package. Historical GitHub/NuGet 0.1.0 and
+0.2.0 releases and the submitted CWS 0.2.0 artifact/review remain unchanged.
 
 Scripts/Test-All.ps1 is the stable validation entry. It restores/builds and runs Core,
 external public-API and extension tests. With a supplied Chrome for Testing executable,
-it runs download acceptance, session/native/monitor regressions then five mixed Visible/Parked JPEG streams in real
-acceptance; -Gui supplies the actual sample fixture. Assertions preserve R005 coverage.
+it runs download acceptance, session/native/BrowserViewport regressions and, when the
+OS supports it, NativeWindow exact-composition, mixed-placement, pause/resume, taskbar
+isolation and shutdown acceptance; -Gui supplies the actual sample fixture.
+Assertions preserve R005 coverage.
 Source name/security/hygiene auditing uses an explicit immutable-history allowlist.
 Logs remain ignored flat Scripts/Outputs files. See docs/testing.md and the current
 transient CHANGELOG for exact run results, identities and limits.

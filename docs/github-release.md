@@ -1,8 +1,9 @@
 # GitHub release preparation
 
-For the upcoming 0.2.0 candidate, use the [release notes](releases/v0.2.0.md) and
-[distribution preparation](releases/v0.2.0-distribution.md). No 0.2.0 tag, Release
-or asset upload has occurred. The procedure below remains historical 0.1.0 context.
+GitHub/NuGet 0.2.0 publication and the submitted CWS 0.2.0 artifact/review are now
+historical. Their preparation records remain at [release notes](releases/v0.2.0.md) and
+[distribution preparation](releases/v0.2.0-distribution.md). V1-M007-R013 is the accepted
+0.3.0 runtime Source baseline and remains unreleased; this document authorizes no publication.
 
 This is the historical R008 GitHub-release procedure. For historical R009 NuGet and
 Chrome Web Store preparation, see the [distribution preparation notes](releases/v0.1.0-distribution.md).

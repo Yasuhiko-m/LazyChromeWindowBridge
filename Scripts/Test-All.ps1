@@ -20,9 +20,9 @@ try {
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Restore failed.' }
         & dotnet build '.\LazyChromeWindowBridge.sln' --no-restore 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Build failed.' }
-        & dotnet '.\tests\LazyChromeWindowBridge.Core.Tests\bin\Debug\net10.0-windows\LazyChromeWindowBridge.Core.Tests.dll' 2>&1 | Tee-Object -FilePath $scriptLog -Append
+        & dotnet '.\tests\LazyChromeWindowBridge.Core.Tests\bin\Debug\net10.0-windows10.0.18362.0\LazyChromeWindowBridge.Core.Tests.dll' 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Caller/transport tests failed.' }
-        & dotnet '.\tests\LazyChromeWindowBridge.PublicApi.Tests\bin\Debug\net10.0-windows\LazyChromeWindowBridge.PublicApi.Tests.dll' 2>&1 | Tee-Object -FilePath $scriptLog -Append
+        & dotnet '.\tests\LazyChromeWindowBridge.PublicApi.Tests\bin\Debug\net10.0-windows10.0.18362.0\LazyChromeWindowBridge.PublicApi.Tests.dll' 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Public API consumer tests failed.' }
         & node --test '.\tests\LazyChromeWindowBridge.Extension.Tests\bindings.test.mjs' '.\tests\LazyChromeWindowBridge.Extension.Tests\monitor.test.mjs' '.\tests\LazyChromeWindowBridge.Extension.Tests\downloads.test.mjs' 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Extension rehydration tests failed.' }
@@ -34,7 +34,7 @@ try {
         # Every real-browser mode loads a fresh extraction of the audited distribution ZIP.
         $cwsExtension = Join-Path $sourceRoot ('artifacts/cws/unpacked-' + [Guid]::NewGuid().ToString('N'))
         if ($ChromeExecutable) {
-            [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $sourceRoot 'artifacts/cws/LazyChromeWindowBridge.Extension-0.2.0-cws.zip'), $cwsExtension)
+            [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $sourceRoot 'artifacts/cws/LazyChromeWindowBridge.Extension-0.3.0-cws.zip'), $cwsExtension)
         }
         if ($ChromeExecutable -and -not $Gui) {
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --downloads --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
@@ -43,6 +43,8 @@ try {
             if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Session/native geometry regressions failed.' }
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --monitor --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
             if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Monitor regressions failed.' }
+            & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --native-window --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
+            if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'NativeWindow/taskbar acceptance failed.' }
         }
         if ($ChromeExecutable) {
             $testMode = if ($Gui) { '--gui' } else { '--multi-monitor' }

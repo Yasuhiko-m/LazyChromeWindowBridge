@@ -15,16 +15,16 @@ try {
         & dotnet build ./LazyChromeWindowBridge.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true -warnaserror 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
         foreach ($test in @('Core', 'PublicApi')) {
-            & dotnet "./tests/LazyChromeWindowBridge.$test.Tests/bin/Release/net10.0-windows/LazyChromeWindowBridge.$test.Tests.dll" 2>&1 | Tee-Object -FilePath $log -Append
+            & dotnet "./tests/LazyChromeWindowBridge.$test.Tests/bin/Release/net10.0-windows10.0.18362.0/LazyChromeWindowBridge.$test.Tests.dll" 2>&1 | Tee-Object -FilePath $log -Append
             if ($LASTEXITCODE -ne 0) { throw "$test tests failed." }
         }
         & node --test ./tests/LazyChromeWindowBridge.Extension.Tests/bindings.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/monitor.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/downloads.test.mjs 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed.' }
-        $packageRoot = Join-Path (Get-Location).Path 'artifacts/nuget/0.2.0'
+        $packageRoot = Join-Path (Get-Location).Path 'artifacts/nuget/0.3.0'
         New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
         # Remove only these two known generated outputs, never a directory or Source.
         foreach ($extension in @('nupkg', 'snupkg')) {
-            $oldPackage = Join-Path $packageRoot "LazyChromeWindowBridge.Core.0.2.0.$extension"
+            $oldPackage = Join-Path $packageRoot "LazyChromeWindowBridge.Core.0.3.0.$extension"
             if (Test-Path -LiteralPath $oldPackage) { Remove-Item -LiteralPath $oldPackage -ErrorAction Stop }
         }
         & dotnet pack ./src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj -c Release --no-build --no-restore -p:ContinuousIntegrationBuild=true -warnaserror -o $packageRoot 2>&1 | Tee-Object -FilePath $log -Append

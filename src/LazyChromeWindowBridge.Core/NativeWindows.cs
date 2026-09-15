@@ -14,6 +14,8 @@ internal interface INativeWindows
     void Move(NativeIdentity identity, PixelRect rectangle);
     uint Dpi(NativeIdentity identity);
     MonitorGeometry[] Monitors();
+    long ReadExtendedStyle(NativeIdentity identity);
+    void WriteExtendedStyle(NativeIdentity identity, long style);
     void Release(NativeIdentity identity);
 }
 internal sealed class NativeWindows : INativeWindows
@@ -35,6 +37,11 @@ internal sealed class NativeWindows : INativeWindows
     [DllImport("user32.dll")] private static extern bool IsZoomed(nint window);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool GetWindowRect(nint window, out Rect rect);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowPos(nint window, nint after, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)] private static extern nint GetWindowLongPtr64(nint window, int index);
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)] private static extern nint SetWindowLongPtr64(nint window, int index, nint value);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW", SetLastError = true)] private static extern int GetWindowLong32(nint window, int index);
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongW", SetLastError = true)] private static extern int SetWindowLong32(nint window, int index, int value);
+    [DllImport("kernel32.dll")] private static extern void SetLastError(uint error);
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint window, int command);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern bool SetProp(nint window, string name, nint value);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern nint GetProp(nint window, string name);
@@ -131,6 +138,22 @@ internal sealed class NativeWindows : INativeWindows
             for (var i = 0; i < 10; i++) { Thread.Sleep(40); if (Read(identity).Near(rectangle)) return; }
         }
         throw new InvalidOperationException("Windows did not apply the requested physical rectangle within 2 pixels.");
+    }
+    public long ReadExtendedStyle(NativeIdentity identity)
+    {
+        Require(identity); SetLastError(0);
+        var value = IntPtr.Size == 8 ? (long)GetWindowLongPtr64((nint)identity.Hwnd, -20) : GetWindowLong32((nint)identity.Hwnd, -20);
+        if (value == 0 && Marshal.GetLastPInvokeError() != 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        return value;
+    }
+    public void WriteExtendedStyle(NativeIdentity identity, long style)
+    {
+        Require(identity); SetLastError(0);
+        var prior = IntPtr.Size == 8 ? (long)SetWindowLongPtr64((nint)identity.Hwnd, -20, (nint)style) : SetWindowLong32((nint)identity.Hwnd, -20, (int)style);
+        if (prior == 0 && Marshal.GetLastPInvokeError() != 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        Require(identity);
+        if (!SetWindowPos((nint)identity.Hwnd, 0, 0, 0, 0, 0, 0x0020 | 0x0010 | 0x0004 | 0x0002 | 0x0001))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
     }
     public void Release(NativeIdentity identity) { if (Alive(identity)) RemoveProp((nint)identity.Hwnd, Property); }
 }

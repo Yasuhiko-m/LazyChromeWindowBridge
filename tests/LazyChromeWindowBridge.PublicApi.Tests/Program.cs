@@ -24,7 +24,13 @@ Check(!assembly.GetExportedTypes().Any(t => t.Name is "SessionRegistry" or "Geom
     "implementation coordinators remain internal");
 Check(typeof(MonitorFrame).GetProperty(nameof(MonitorFrame.Jpeg))!.PropertyType == typeof(ReadOnlyMemory<byte>),
     "public frame data is encoded read-only memory, not a UI image");
-Check(new CaptureOptions() is { FramesPerSecond: 2, MaxWidth: 240, MaxHeight: 135 }, "accepted capture defaults preserved");
+Check(new CaptureOptions() is { FramesPerSecond: 2, MaxWidth: 240, MaxHeight: 135, Mode: CaptureMode.BrowserViewport }, "accepted BrowserViewport capture defaults preserved");
+var legacyCapture = new CaptureOptions(2, 240, 135);
+var (legacyFps, legacyWidth, legacyHeight) = legacyCapture;
+Check((legacyFps, legacyWidth, legacyHeight, legacyCapture.Mode) == (2, 240, 135, CaptureMode.BrowserViewport),
+    "three-position CaptureOptions construction and deconstruction remain source compatible");
+new CaptureOptions(2, 240, 135, CaptureMode.NativeWindow).Validate();
+Check(Enum.GetValues<CaptureMode>().SequenceEqual([CaptureMode.BrowserViewport, CaptureMode.NativeWindow]), "public CaptureMode exposes only BrowserViewport and NativeWindow");
 foreach (var fps in new[] { 1, 30 }) { new CaptureOptions(fps).Validate(); Check(true, $"public capture accepts {fps} fps request"); }
 foreach (var fps in new[] { 0, 31 })
 {
@@ -34,6 +40,8 @@ foreach (var fps in new[] { 0, 31 })
 }
 Check(typeof(CaptureOptions).GetProperty("JpegQuality") is null, "JPEG quality is fixed rather than a public option");
 Check(typeof(BridgeRuntime).GetMethod("SetSessionMonitoring", [typeof(Guid), typeof(bool)])?.ReturnType == typeof(void), "public session monitoring API is available without policy abstractions");
+Check(typeof(BridgeRuntime).GetMethod("SetShowInTaskbar", [typeof(Guid), typeof(bool)])?.ReturnType == typeof(void), "public exact-session taskbar API is available");
+Check(typeof(MonitorFrame).GetProperty(nameof(MonitorFrame.Mode))?.PropertyType == typeof(CaptureMode), "public frame metadata identifies its capture mode");
 Check(new PixelRect(-1820, 80, 1100, 720).Valid, "public physical rectangles allow negative coordinates");
 
 var data = Path.Combine(Path.GetTempPath(), "LazyChromeWindowBridge-PublicApi-" + Guid.NewGuid().ToString("N"));
@@ -50,11 +58,15 @@ Check(typeof(DownloadLifecycleEvent).GetProperty("AppSessionId") is null, "exter
 Reject(() => bridge.SetWindowBounds(unknown, new PixelRect(40, 50, 800, 600)), "public Set cannot retarget an unmapped session");
 Reject(() => bridge.Park(unknown), "public PARK rejects unmapped session");
 Reject(() => bridge.Restore(unknown), "public RESTORE rejects unmapped session");
+Reject(() => bridge.SetShowInTaskbar(unknown, false), "public taskbar API rejects an unmapped session");
 bridge.StartMonitoring(); bridge.StartMonitoring();
 Reject(() => bridge.SetSessionMonitoring(unknown, true), "public session ON rejects unknown session");
 Reject(() => bridge.SetSessionMonitoring(unknown, false), "public session OFF rejects unknown session");
 bridge.StartMonitoring(new(30, 640, 360));
 Check(bridge.GetMonitorState() is { Enabled: true, Connections: 0, CapturingConnections: 0 }, "public global Start is idempotent without targets");
+bridge.StartMonitoring(new(2, 240, 135, CaptureMode.NativeWindow));
+Check(bridge.GetMonitorState() is { Enabled: true, Connections: 0, CapturingConnections: 0 } native && native.Sessions.Length == 0,
+    "external consumer exercises NativeWindow mode without hidden targets or debugger work");
 bridge.StopMonitoring(); bridge.StopMonitoring();
 Reject(() => bridge.SetSessionMonitoring(unknown, true), "session control rejects global Stop without hidden start");
 Check(bridge.GetMonitorState() is { Enabled: false, Frames: 0, Bytes: 0 }, "public global Stop is idempotent");

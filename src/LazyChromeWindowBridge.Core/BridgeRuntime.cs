@@ -20,6 +20,7 @@ public sealed class BridgeRuntime : IAsyncDisposable
     internal SessionRegistry Sessions { get; } = new();
     internal GeometryCoordinator Geometry { get; }
     internal MonitorCoordinator Monitor { get; }
+    internal TaskbarCoordinator Taskbar { get; }
     private readonly DownloadTracker downloads;
     public event EventHandler<DownloadLifecycleEvent>? DownloadChanged;
     internal Guid BridgeId { get; } = Guid.NewGuid();
@@ -29,9 +30,11 @@ public sealed class BridgeRuntime : IAsyncDisposable
         this.server = server;
         this.chrome = chrome;
         downloads = new DownloadTracker(RaiseDownloadChanged);
-        Geometry = new GeometryCoordinator(Sessions, new NativeWindows(), new GeometryStore(chrome.GeometryDirectory ??
+        var native = new NativeWindows();
+        Geometry = new GeometryCoordinator(Sessions, native, new GeometryStore(chrome.GeometryDirectory ??
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LazyChromeWindowBridge", "Geometry")), chrome.Executable);
         Monitor = new MonitorCoordinator(Sessions, Geometry);
+        Taskbar = new TaskbarCoordinator(Geometry, native);
         Geometry.Changed += Monitor.Reconcile;
         expiryTimer = new System.Threading.Timer(_ => { Sessions.Sweep(DateTimeOffset.UtcNow); Geometry.Poll(DateTimeOffset.UtcNow); }, null, 500, 500);
     }
@@ -139,6 +142,8 @@ public sealed class BridgeRuntime : IAsyncDisposable
     public WindowSnapshot SetWindowBounds(Guid appSessionId, PixelRect bounds) => Geometry.SetWindowBounds(appSessionId, bounds);
     public WindowSnapshot Park(Guid appSessionId) => Geometry.Park(appSessionId);
     public WindowSnapshot Restore(Guid appSessionId) => Geometry.Restore(appSessionId);
+    /// <summary>Shows or hides only the exact owned native window in the Windows taskbar. This does not change placement or monitoring.</summary>
+    public void SetShowInTaskbar(Guid appSessionId, bool show) => Taskbar.Set(appSessionId, show);
     public void StartMonitoring(CaptureOptions? options = null) => Monitor.Start(options ?? new());
     public void StopMonitoring() => Monitor.Stop();
     /// <summary>Pauses or resumes one live owned session while global monitoring is started.
@@ -165,6 +170,7 @@ public sealed class BridgeRuntime : IAsyncDisposable
         DownloadChanged = null;
         await expiryTimer.DisposeAsync();
         await Monitor.ShutdownAsync();
+        Taskbar.Dispose();
         await Task.Run(Geometry.Dispose);
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         try { await server.StopAsync(stop.Token); }

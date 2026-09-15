@@ -11,7 +11,7 @@ try {
     Push-Location -LiteralPath $sourceRoot
     try {
         if ((dotnet --version) -ne '10.0.400') { throw 'SDK 10.0.400 is required.' }
-        $version = '0.2.0'
+        $version = '0.3.0'
         $name = "LazyChromeWindowBridge-v$version-win-x64"
         $artifactRoot = Join-Path $sourceRoot "artifacts/release/$version"
         $work = Join-Path $artifactRoot ('build-' + [Guid]::NewGuid().ToString('N'))

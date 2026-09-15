@@ -8,21 +8,21 @@ Chrome Download Manager lifecycle events — without DOM automation.
 
 ![Historical v0.1.0 SampleCaller with five bound sessions](docs/images/monitor-overview.png)
 
-*Historical v0.1.0 screenshot using isolated neutral fixtures. Current accepted Source
-V1-M006-R012 retains R010 continuous Visible/Parked JPEG preview and R011 session
-pause/resume and best-effort silent debugger launch. Both changes are accepted by Chat
-and included in the combined R011 Source checkpoint; GitHub v0.1.0 and NuGet 0.1.0 contain neither.*
+*Historical v0.1.0 screenshot using isolated neutral fixtures. Public 0.2.0 added
+continuous Visible/Parked BrowserViewport preview and per-session pause/resume.
+Current Source is an unreleased 0.3.0 candidate; this image does not demonstrate its
+NativeWindow capture or taskbar controls.*
 
 Built for .NET Windows applications that need Chrome window management and browser
 integration through a Manifest V3 extension. Unlike DOM-oriented browser automation
 tools, it works with Chrome application/window state and exact native ownership.
 Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
 
-**0.2.0 release candidate:** Chat accepted R012 distribution preparation of the R010/R011 features
-for GitHub, NuGet and the initial public Chrome Web Store submission. It is not yet
-released. Existing public v0.1.0 / NuGet 0.1.0 retain their older behavior. See the
-[0.2.0 release notes](docs/releases/v0.2.0.md) and
-[candidate distribution instructions](docs/releases/v0.2.0-distribution.md).
+**0.3.0 Source candidate:** V1-M007-R013 adds exact-HWND NativeWindow capture and
+independent per-window taskbar visibility. It is implemented for validation and has
+not been accepted or published. BrowserViewport preserves the public 0.2.0 behavior.
+GitHub and NuGet 0.1.0/0.2.0 remain historical releases; the already-submitted CWS
+0.2.0 review artifact is unchanged. See the [0.3.0 candidate notes](docs/releases/v0.3.0.md).
 
 ## What it does
 - Launch independent Chrome windows, including several with the same launch URL.
@@ -31,7 +31,8 @@ released. Existing public v0.1.0 / NuGet 0.1.0 retain their older behavior. See 
 - Persist Chrome window position and size by the original launch URL; set manual bounds.
 - PARK a window fully outside all monitors and RESTORE its protected Normal bounds.
 - Read state/bounds and set a Visible window's physical-pixel placement.
-- Monitor all eligible Visible and Parked sessions independently through the same JPEG path.
+- Monitor all eligible Visible and Parked sessions independently as BrowserViewport or exact-HWND NativeWindow JPEGs.
+- Hide/show only one owned HWND in the taskbar without changing placement or monitoring.
 - Observe profile-global Created / Complete / Interrupted downloads once per Bridge.
 
 ## What it intentionally does not do
@@ -50,6 +51,7 @@ flowchart TB
     Consumer[Windows Consumer] <-->|public Core API| Core[LazyChromeWindowBridge.Core]
     Core <-->|authenticated 127.0.0.1 HTTP / WebSocket| Extension[LazyChromeWindowBridge.Extension]
     Extension <-->|Chrome APIs| Chrome[Chrome]
+    Core -->|exact HWND: WGC + D3D11| Windows[Windows compositor]
 ```
 
 This Chrome extension native bridge uses the existing loopback listener rather than a
@@ -68,6 +70,7 @@ built-in Windows Desktop GDI+ imaging runtime. SampleCaller owns PictureBox/Zoom
 
 ## Requirements
 - Windows desktop session supported by .NET 10, with an interactive display.
+- NativeWindow specifically requires Windows 10 version 1903 (build 18362) or later and a D3D11/WGC-capable device; BrowserViewport remains in the `net10.0-windows` package asset.
 - .NET 10 SDK for development (includes the required build/targeting components).
 - Runtime deployments need .NET 10, ASP.NET Core and Windows Desktop shared runtimes.
 - Google Chrome 120+ with the unpacked extension enabled in the same profile.
@@ -104,7 +107,8 @@ The optional `--chrome-user-data-dir` and `--geometry-directory` arguments accep
 ordinary paths; use a dedicated test profile for acceptance. Do not attach debugger
 tooling to a profile containing unrelated personal sessions for these tests.
 
-Enter a launch URL and click Launch. Wait for Bound / Visible, then Start monitor.
+Enter a launch URL and click Launch. Wait for Bound / Visible, choose BrowserViewport
+or NativeWindow, then Start monitor.
 Every eligible Visible window supplies a LIVE JPEG tile. Park or Restore a session:
 its preview continues with the same monitor generation and attachment. Change FPS /
 JPEG max width / height and click Apply preview to update without restarting.
@@ -116,13 +120,16 @@ timestamp stay fixed; the sample displays a frozen marker instead of an updating
 PARK/RESTORE controls native window placement only; it does not automatically start,
 stop, pause or resume monitoring. The Caller explicitly chooses per-session monitoring
 with `SetSessionMonitoring(appSessionId, enabled)`.
+Hide from taskbar / Show in taskbar changes only the selected owned HWND. That runtime
+policy survives PARK/RESTORE and monitor changes and is restored on normal disposal.
 Stop monitor stops every capture and clears previews; Start reuses the control sockets.
 Global Start after Stop is a batch restart that enables all live sessions again.
 Closing SampleCaller normally restores PARKED windows and leaves Chrome open.
 
 ## Integrating Core
 Reference `src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj` from
-a `net10.0-windows` application. The sample is not a library dependency.
+a `net10.0-windows` application for BrowserViewport compatibility, or target
+`net10.0-windows10.0.18362.0` or later to use NativeWindow. The sample is not a library dependency.
 
 ```csharp
 using LazyChromeWindowBridge.Core;
@@ -134,7 +141,8 @@ var session = await bridge.LaunchAsync("https://example.com/");
 var window = bridge.GetWindow(session.AppSessionId);
 if (window?.State == PlacementState.Visible)
 {
-    bridge.StartMonitoring();             // Global; Visible and Parked sessions qualify.
+    bridge.StartMonitoring(new CaptureOptions(2, 240, 135, CaptureMode.NativeWindow));
+    bridge.SetShowInTaskbar(session.AppSessionId, false); // Independent exact-HWND policy.
     bridge.Park(session.AppSessionId);
     // On later UI ticks: bridge.GetLatestFrame(id)?.Jpeg supplies encoded bytes.
     bridge.Restore(session.AppSessionId);  // Same owned window, protected Normal.
@@ -160,7 +168,16 @@ The maximum is a request ceiling, not a promise of measured 30fps. Five mixed Vi
 Parked streams form the accepted validation workload. Native shrinking was rejected; the native window
 keeps its normal size while only the captured image is scaled.
 
-Chrome's debugger permission is broad, although this implementation only uses
+`CaptureMode.BrowserViewport` is the default and preserves the 0.2.0 CDP path.
+`CaptureMode.NativeWindow` creates a Windows Graphics Capture item directly from the
+validated owned HWND—without a picker, foreground activation or debugger capture.
+Its full-window composition may include title bar and border. D3D11 crops to the WGC
+ContentSize and resizes without upscale before bounded CPU readback and JPEG encoding.
+NativeWindow frames use `TabId == -1` because active-tab identity is not applicable;
+`AppSessionId`, `NativeIdentity`, `WindowId`, `Generation` and `Mode` remain authoritative.
+Mode changes advance acquisition generations; same-mode FPS/size changes stay in place.
+
+Chrome's debugger permission is broad for BrowserViewport, although that path only uses
 Page.getLayoutMetrics and Page.captureScreenshot. LCWB-launched Chrome includes
 `--silent-debugger-extension-api` for best-effort infobar suppression on supported Chrome.
 Visual infobar absence was not established in acceptance and is not guaranteed.
@@ -168,7 +185,7 @@ This is Chrome behavior, not the extension removing warnings or weakening debugg
 permission. Chrome may ignore the flag and show a notice; capture does not depend on
 suppression. An already-running profile can retain its original process flags.
 Cancellation is respected; explicit Start is required to retry a canceled monitor.
-Monitoring can attach Chrome's debugger while either Visible or Parked. Placement and
+BrowserViewport can attach Chrome's debugger while either Visible or Parked. Placement and
 option changes keep that same-tab attachment. JPEG bounds never change viewport or zoom.
 Chrome window control remains
 limited to the owned native window and explicit consumer commands.

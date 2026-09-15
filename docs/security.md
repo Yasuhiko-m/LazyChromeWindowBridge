@@ -21,7 +21,7 @@ The extension requests only storage, alarms, debugger, downloads and 127.0.0.1 h
 Its content script runs only on the exact local bootstrap path, never on a remote
 application page. It reads the bootstrap location, not document content.
 
-Chrome's debugger permission itself is broad. Product code uses only
+Chrome's debugger permission itself is broad. BrowserViewport product code uses only
 Page.getLayoutMetrics and Page.captureScreenshot for human thumbnails. It does not
 use Runtime/DOM/Network inspection or browser input commands. Monitoring can attach
 the debugger to live owned Visible or Parked windows. Placement/option changes retain
@@ -31,10 +31,13 @@ suppression. This does not narrow or weaken debugger permission and is not a saf
 guarantee; the extension itself does not remove notices. Chrome may ignore the flag
 or reuse a process without it. Capture does not require suppression. When a notice exists,
 user cancellation blocks the affected request until an explicit new generation.
-Other debuggers can contend for the target.
+Other debuggers can contend for the BrowserViewport target. NativeWindow capture does
+not attach the debugger; it uses the already-authoritative HWND directly through WGC,
+with identity checks before and across acquisition and no picker or window enumeration.
 Caller policy controls session pause/resume; PARK/RESTORE never auto-toggles monitoring.
 Pause detaches only its target and retains the last JPEG as Paused/frozen; global Stop
-clears it. Frozen data is still sensitive page imagery, with no semantic processing.
+clears it. Frozen data is still sensitive imagery, with no semantic processing.
+NativeWindow may also include Chrome non-client chrome, title bar and border.
 
 Chrome's downloads permission is also broad. Product calls are only onCreated/onChanged
 listeners and search({id}); no initiation, cancellation, pause/resume, removal, opening,
@@ -47,9 +50,15 @@ Session capability, browser/window IDs and retained HWND/PID/property protect ag
 cross-binding and reused native handles. Late or wrong-generation frames are rejected.
 A capture failure cannot change session ownership or saved Normal geometry.
 
+Taskbar control uses that same exact native identity. It changes only APPWINDOW/
+TOOLWINDOW classification on the selected HWND, never enumerates peer Chrome windows,
+does not activate the target and restores the captured original style on normal release.
+The policy is memory-only and is not added to geometry profiles.
+
 ## Data boundaries
-JPEGs contain the monitored page's visible pixels and can therefore contain sensitive
-content. They remain in local memory and loopback transport for human display.
+JPEGs contain monitored pixels and can therefore contain sensitive content.
+BrowserViewport frames use local loopback transport; NativeWindow surfaces and frames
+stay inside Core. Both modes keep only the bounded latest encoded frame in local memory.
 The product keeps only the latest frame; it has no recording archive, telemetry,
 cloud relay, OCR, semantic analysis, webpage completion detection or output extraction.
 

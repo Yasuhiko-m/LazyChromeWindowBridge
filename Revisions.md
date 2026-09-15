@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M006-R012`
+- Current VMR: `V1-M007-R013`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,53 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M007-R013 — native-window-capture-taskbar
+
+Purpose:
+Establish LazyChromeWindowBridge 0.3.0 runtime behavior for an additive exact-HWND
+NativeWindow monitor backend and independent per-owned-window taskbar visibility,
+while preserving BrowserViewport and all accepted ownership/placement/monitor/download contracts.
+
+Result:
+Accepted by Chat. V1 M007 Complete; V1 remains In Progress. `CaptureMode.BrowserViewport`
+remains the default and source-compatible 0.2.0 path. `CaptureMode.NativeWindow` captures the
+validated owned HWND through Windows Graphics Capture `CreateForWindow`, performs crop/resize
+with D3D11 before bounded CPU readback, and encodes JPEG quality70 without a picker, candidate
+window list, replacement-window discovery, CDP screenshot capture or BrowserViewport fallback.
+`SetShowInTaskbar(Guid,bool)` is an independent exact-HWND runtime policy; it is idempotent,
+does not activate/move/resize/rebind or alter monitoring, survives PARK/RESTORE, isolates peers,
+and restores the original extended style on normal disposal while the owned window remains live.
+PARK/RESTORE continues to control native placement only; monitoring policy remains Caller-owned.
+Source version authorities are 0.3.0. Publication is not part of this Revision.
+
+Build / Test:
+Accepted complete CfT 155.0.8058.0 validation: build 0 warnings/errors; Core 179, external
+PublicApi 35 and Extension 40 checks PASS; source/public audits, downloads, ownership, navigation,
+same-URL concurrency, geometry/PARK/RESTORE, BrowserViewport, NativeWindow/taskbar, MV3 recovery,
+global Start/Stop and shutdown PASS. Native composition measured 1266x793 versus BrowserViewport
+1264x649, proving non-client native extent; NativeWindow issued zero CDP captures. One default
+NativeWindow session measured 2.140 fps, 6,033 JPEG bytes/s and 99.76 ms mean capture. Five mixed
+Visible/Parked sessions measured 7.408 aggregate fps and 20,578 JPEG bytes/s; all produced fresh
+bounded 215x135 JPEGs. These are measurements, not throughput SLAs. Pause retained exact frozen
+JPEG/Sequence/ReceivedAt, peers continued, PARK/RESTORE did not auto-resume, resume became fresh,
+and shutdown reached zero capture resources/connections while restoring taskbar state and geometry.
+Final NuGet validation PASS for both TFMs and isolated local-feed consumer. Evidence:
+Scripts/Outputs/20260915-121243432-Test-All.log,
+Scripts/Outputs/20260915-121613144-R013-NativeWindow.log and
+Scripts/Outputs/20260915-121652535-Test-NuGet.log.
+
+Remaining:
+Explorer taskbar-button pixels were not separately inspected; accepted evidence covers exact-HWND
+style transitions, successful native refresh, peer isolation and disposal restoration, so no visual
+pixel certainty is claimed. The known third-display initial offscreen BrowserViewport timeout remains
+unresolved. Silent debugger suppression remains Chrome-dependent best effort. Git checkpoint/push,
+GitHub/NuGet 0.3.0 publication and any Chrome Web Store operation are separate boundaries. Historical
+GitHub/NuGet 0.2.0 publication and the submitted CWS 0.2.0 review remain unchanged.
+
+Git Commit:
+Acceptance occurred with HEAD still at the V1-M006-R012 checkpoint. The independent R013 checkpoint
+and push follow this authority closeout and are recorded by Git when completed.
 
 ### V1-M006-R012 — v0.2.0-distribution-preparation
 

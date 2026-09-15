@@ -44,7 +44,7 @@ const extensionRoot = path.join(root, 'src/LazyChromeWindowBridge.Extension');
 const manifest = JSON.parse(await fs.readFile(path.join(extensionRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'LazyChromeWindowBridge');
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.2.0');
+assert.equal(manifest.version, '0.3.0');
 assert.deepEqual(manifest.icons, Object.fromEntries([16,32,48,128].map(size => [size, `icons/icon-${size}.png`])));
 assert(!Object.hasOwn(manifest, 'action'), 'No unnecessary toolbar action.');
 assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'downloads', 'storage']);
@@ -54,6 +54,15 @@ assert.equal(manifest.content_scripts.length, 1);
 const monitor = await fs.readFile(path.join(extensionRoot, 'monitor.js'), 'utf8');
 const commands = [...monitor.matchAll(/sendCommand\(\{ tabId \}, '([^']+)'/g)].map(m => m[1]).sort();
 assert.deepEqual(commands, ['Page.captureScreenshot', 'Page.getLayoutMetrics']);
+const nativeCapture = await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Core/NativeWindowCapture.cs'), 'utf8');
+assert(nativeCapture.includes('CreateForWindow(hwnd, GraphicsCaptureItemId)'));
+assert(!nativeCapture.includes('GraphicsCapturePicker'));
+assert(!/Page\.(?:captureScreenshot|getLayoutMetrics)/.test(nativeCapture));
+const gpuResize = nativeCapture.indexOf('CallBlt(videoContext');
+const boundedMap = nativeCapture.indexOf('Call(context, 14, staging');
+const jpegEncode = nativeCapture.indexOf('EncodeJpeg(mapped');
+assert(gpuResize >= 0 && boundedMap > gpuResize && jpegEncode > boundedMap,
+  'Native capture must resize on the GPU before bounded CPU readback/JPEG encoding.');
 const downloadCalls = [];
 for (const name of manifest.content_scripts[0].js.concat(['bindings.js', 'monitor.js', 'service-worker.js', 'downloads.js'])) {
   const code = await fs.readFile(path.join(extensionRoot, name), 'utf8');

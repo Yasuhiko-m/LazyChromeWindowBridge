@@ -1,11 +1,11 @@
 # Testing
 
-The 0.2.0 distribution candidate additionally uses Scripts/Test-NuGet.ps1 for exact
+The unreleased 0.3.0 Source candidate uses Scripts/Test-NuGet.ps1 for exact
 package/symbol metadata and isolated PackageReference checks, and
 Scripts/Package-Windows.ps1 for Release/win-x64 self-contained packaging. To exercise
 the fresh extracted EXE through the existing -Gui fixture, set LCWB_TEST_SAMPLE_EXECUTABLE
 to the inventory.json freshExecutable path. The default still runs the Debug sample.
-The real fixture loads the audited Extension 0.2.0 ZIP. No publication is performed.
+The real fixture loads the audited Extension 0.3.0 validation ZIP. No publication is performed.
 
 The stable entry is `Scripts/Test-All.ps1` (PowerShell 7). Node.js 22+ and the .NET 10
 SDK are required. No historical Revision numbers are needed to run validation.
@@ -24,7 +24,9 @@ nonzero exit code on a failing child. Those disposable logs are ignored.
 
 ## Layers
 - Core.Tests: session/HTTP, geometry/native simulation, continuous-monitor identity/
-  placement/options/latest-frame checks and download transport/lifecycle/bounds/disposal.
+  placement/options/latest-frame checks, both capture modes, exact-identity rejection,
+  bounded native JPEGs, mode generations, taskbar bookkeeping/restoration and download
+  transport/lifecycle/bounds/disposal.
   It also hosts the isolated real-browser driver. Product operations in that driver
   call the public façade; internal access is limited to deterministic fixtures and
   explicit test evidence such as topology/profile/process/shutdown measurements.
@@ -43,6 +45,10 @@ nonzero exit code on a failing child. Those disposable logs are ignored.
 - MonitorAcceptance: Visible JPEG, repeated placement and option continuity, exact
   monitor generation/socket identity and debugger attach/detach counters, output bounds,
   unchanged native bounds/viewport, single-session30fps measurement, lifecycle/regressions.
+- NativeWindowAcceptance: exact-HWND WGC composition with a measurable non-client extent,
+  no additional CDP screenshot commands, one/five-session performance, mixed Visible/
+  Parked streams, pause/frozen/peer/resume, mode generation, taskbar isolation/restoration,
+  global Stop/Start and zero-resource shutdown. Its deterministic pages are local.
 - MultiSessionAcceptance: five JPEG streams with mixed Visible/Parked placement, separate
   native identities/colors/fresh hashes, navigation, worker restart, Restore/re-PARK,
   active tab/close, manual Set, close/relaunch and shutdown.
@@ -112,6 +118,10 @@ frozen label while peers continue. Park/Restore and Apply options must not resum
 Resume it, then global Stop/Start; verify target-only fresh frames then batch restart.
 Observe Visible Chrome for the debugger infobar on the tested build without assuming
 the flag changes permission or guarantees suppression on other versions.
+Repeat with NativeWindow selected: verify the title-bar/window composition is present,
+PARKED sessions remain live, no picker appears, and debugger audit counters do not grow.
+Hide/show one selected taskbar entry while another remains normal; PARK/RESTORE and
+Pause/Resume must not change that policy. Confirm normal sample close restores it.
 
 The GUI helper reports local fixture URLs and waits for normal sample close. Dynamic
 paths /dynamic-a through /dynamic-e provide different fixture colors. An optional
@@ -128,3 +138,9 @@ Performance reports effective fps, changing hashes, maximum useful gap, capture
 latency, Base64 bytes/s and owned caller/Chrome tree CPU and memory. CPU is a percentage
 of one core; Base64 excludes JSON/WebSocket headers. Short tests include sampling and
 startup overhead and impose no invented hard CPU threshold.
+NativeWindow additionally requires Windows 10 1903+ and WGC/D3D11 availability; an
+explicit unsupported-mode result is not a BrowserViewport failure or fallback.
+Automated taskbar acceptance establishes exact-HWND extended-style transitions,
+successful native refresh calls, peer isolation and disposal restoration. Final
+Explorer button pixels require the separate visual GUI checklist and are not claimed
+by deterministic query evidence.

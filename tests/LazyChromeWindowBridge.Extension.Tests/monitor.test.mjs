@@ -31,7 +31,7 @@ function fixture() {
     send(message) { this.sent.push(JSON.parse(message)); }
     close() { if (this.readyState !== 1) return; this.readyState = 3; this.onclose?.(); }
     control(generation, enabled = true, closing = false, options = { framesPerSecond: 10, maxWidth: 960, maxHeight: 540 }) {
-      this.onmessage({ data: JSON.stringify({ generation, enabled, closing, options }) });
+      this.onmessage({ data: JSON.stringify({ generation, enabled, closing, options: { mode: 0, ...options } }) });
     }
   }
   const manager = new MonitorManager(browser, Socket);
@@ -53,6 +53,16 @@ test('monitor targets the owned window active tab, uses only pixel/viewport comm
   await until(() => f.attached.size === 0);
   f.manager.remove(f.record.appSessionId); f.manager.remove(f.record.appSessionId);
   await until(() => f.manager.connections.size === 0);
+});
+
+test('NativeWindow control never attaches debugger or requests viewport screenshot commands', async () => {
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0];
+  socket.control(2, false, false, { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 1 });
+  await pause(100);
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.attached.size, 0);
+  socket.control(3, false, true, { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 1 });
+  await until(() => socket.readyState === 3);
 });
 
 test('session pause isolates peers and resumes using the same waiting socket', async () => {

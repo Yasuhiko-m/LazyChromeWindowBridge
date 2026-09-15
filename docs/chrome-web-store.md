@@ -1,11 +1,12 @@
-# Chrome Web Store submission preparation — 0.2.0 candidate
+# Chrome Web Store submission record — 0.2.0
 
-Chat accepted this R012 future submission preparation for the R010/R011 behavior.
-Version 0.2.0 is prepared, not uploaded, submitted, approved or published. Publisher setup was
+Chat accepted the R012 submission preparation for the R010/R011 behavior, and its
+0.2.0 artifact was subsequently uploaded/submitted for review. That historical artifact
+and review are not changed by the 0.3.0 Source task. Publisher setup was
 reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.
-The URLs below become submission-ready only after accepted 0.2.0 Source is pushed
-and its privacy page is confirmed publicly reachable. The Store item remains a draft,
-not publicly released. This task performs no live dashboard operation.
+Approval/publication status is not inferred here.
+The 0.3.0 R013 candidate is not packaged for, uploaded to or submitted to the Store.
+This task performs no live dashboard operation.
 
 ## Name
 
