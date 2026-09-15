@@ -60,16 +60,18 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Accepted Source revisions remain unstaged/uncommitted until the
 independent checkpoint boundary explicitly stages the accepted task delta.
-Current accepted base and Current VMR are V1-M007-R013. M007 Native Window Capture and
-Taskbar Policy is Complete; V1 remains In Progress. The accepted Source version is 0.3.0
-and remains unpublished. BrowserViewport remains the compatibility default; NativeWindow
-adds exact-HWND WGC/D3D11 capture and taskbar visibility is independent exact-HWND runtime
-policy. PARK/RESTORE and monitoring policy remain separate.
+Current accepted base and Current VMR are V1-M008-R014. M008 v0.3.0 Distribution and
+Publication Preparation is Complete; V1 remains In Progress. Runtime behavior remains
+the accepted R013 0.3.0 contract while R014 establishes release packaging, NuGet/GitHub
+distribution guidance and publication validation. BrowserViewport remains the compatibility
+default; NativeWindow adds exact-HWND WGC/D3D11 capture and taskbar visibility is
+independent exact-HWND runtime policy. PARK/RESTORE and monitoring policy remain separate.
 
 GitHub and NuGet 0.2.0 publication and the already-submitted CWS 0.2.0 artifact/review
 are historical publication state and remain unchanged. The R013 Git checkpoint/push is
-an independent Controller boundary after authority closeout. No 0.3.0 tag, Release,
-NuGet publication or Chrome Web Store operation is implicit.
+complete. The R014 checkpoint/push and authorized 0.3.0 GitHub/NuGet publication are
+independent Controller boundaries after acceptance. No Chrome Web Store operation is
+part of R014.
 The third-display initial offscreen capture timeout remains unresolved; silent launch
 suppression is best-effort and visual infobar absence was not established in acceptance.
 The project is early-release software licensed under MIT, copyright 2026 Yasuhiko Mori,

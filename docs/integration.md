@@ -1,8 +1,8 @@
 # Integration with the public Core API
 
-This describes the accepted, unreleased 0.3.0 Source at V1-M007-R013, based on the
-accepted/public 0.2.0 behavior. It is not yet published. Use matching Core and
-extension Source. PARK/RESTORE controls native window placement only and does not
+This describes the accepted 0.3.0 runtime at V1-M007-R013, based on the accepted/public
+0.2.0 behavior. Use matching Core and extension versions. The GitHub Release and NuGet
+publication remain separate from this Source preparation. PARK/RESTORE controls native window placement only and does not
 automatically start, stop, pause or resume monitoring. Monitoring policy belongs to
 the Caller, who explicitly chooses it with `SetSessionMonitoring(appSessionId, enabled)`.
 

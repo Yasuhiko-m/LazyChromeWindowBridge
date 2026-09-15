@@ -5,10 +5,12 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M007-R013 — native-window-capture-taskbar**, accepted by Chat.
-Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M007 and V0 are
-Complete; V1 remains In Progress. Source version 0.3.0 is the accepted runtime baseline
-and remains unpublished at this authority closeout.
+Established baseline: **V1-M008-R014 — v0.3.0-distribution-publication**, accepted by Chat.
+Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M008 and V0 are
+Complete; V1 remains In Progress. Runtime behavior remains the accepted V1-M007-R013
+0.3.0 contract; R014 establishes Core-only NuGet/GitHub distribution preparation,
+matching Extension fallback guidance and publication-safe package validation.
+Publication itself remains a separate Controller boundary.
 
 R013 preserves the accepted ownership, geometry, PARK/RESTORE, caller-owned monitoring
 and download contracts while adding source-compatible `CaptureMode.BrowserViewport` /
@@ -18,8 +20,9 @@ Windows Graphics Capture plus D3D11 bounded resize and no picker/CDP screenshot 
 `SetShowInTaskbar` is runtime-only and restored on normal disposal when LCWB changed it.
 
 Historical GitHub/NuGet 0.1.0 and 0.2.0 releases and the submitted CWS 0.2.0 review
-remain unchanged. R013 acceptance does not itself authorize or establish a 0.3.0 tag,
-Release, NuGet publication or any Chrome Web Store action.
+remain unchanged. R014 accepts 0.3.0 distribution preparation and the user has separately
+authorized GitHub v0.3.0 and NuGet 0.3.0 publication after the accepted checkpoint;
+no Chrome Web Store operation is part of R014.
 
 Historical V1 M002/R008 established MIT licensing, public documentation, a neutral
 demo screenshot and deterministic extension packaging without changing R007 runtime.

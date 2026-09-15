@@ -174,9 +174,20 @@ exact-HWND NativeWindow WGC/D3D11 capture, caller-owned monitoring policy and in
 taskbar visibility passed deterministic and real Windows/CfT acceptance. Git checkpoint
 and publication are separate boundaries.
 
+### M008 — v0.3.0 Distribution and Publication Preparation
+Goal: prepare the accepted 0.3.0 runtime Source for separately authorized GitHub v0.3.0
+Release and NuGet Core 0.3.0 publication, with Core-only NuGet delivery, matching
+extension GitHub fallback, exact artifacts and full package validation.
+
+Status: **Complete**. Accepted by Chat at V1-M008-R014; V1 remains In Progress.
+Core-only NuGet 0.3.0 delivery, matching GitHub Extension fallback, deterministic
+Extension packaging, Windows x64 bundle and strict package/README validation are
+accepted. Git checkpoint/push and publication are separate Controller boundaries.
+The submitted CWS 0.2.0 review remains historical and untouched.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M007-R013; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M008-R014; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

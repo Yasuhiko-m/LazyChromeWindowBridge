@@ -2,11 +2,17 @@
 
 Chat accepted the R012 submission preparation for the R010/R011 behavior, and its
 0.2.0 artifact was subsequently uploaded/submitted for review. That historical artifact
-and review are not changed by the 0.3.0 Source task. Publisher setup was
+and review are not changed by R014 distribution preparation. Publisher setup was
 reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.
 Approval/publication status is not inferred here.
-The 0.3.0 R013 candidate is not packaged for, uploaded to or submitted to the Store.
-This task performs no live dashboard operation.
+
+The accepted 0.3.0 runtime is not asserted to be approved, uploaded or published in
+the Store. Store review can delay a matching extension version. The normal convenient
+path is the Store when its version matches Core; otherwise users obtain the matching
+`LazyChromeWindowBridge.Extension-0.3.0-cws.zip` from GitHub Release `v0.3.0`, extract
+it, open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**.
+The older submitted CWS 0.2.0 build must not be presented as automatically matching
+Core 0.3.0. This task performs no live dashboard operation.
 
 ## Name
 

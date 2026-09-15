@@ -9,20 +9,24 @@ Chrome Download Manager lifecycle events — without DOM automation.
 ![Historical v0.1.0 SampleCaller with five bound sessions](docs/images/monitor-overview.png)
 
 *Historical v0.1.0 screenshot using isolated neutral fixtures. Public 0.2.0 added
-continuous Visible/Parked BrowserViewport preview and per-session pause/resume.
-Current Source is an unreleased 0.3.0 candidate; this image does not demonstrate its
-NativeWindow capture or taskbar controls.*
+continuous Visible/Parked BrowserViewport preview and per-session pause/resume. The
+accepted 0.3.0 runtime adds NativeWindow capture and taskbar controls, which this
+historical image does not demonstrate.*
 
 Built for .NET Windows applications that need Chrome window management and browser
 integration through a Manifest V3 extension. Unlike DOM-oriented browser automation
 tools, it works with Chrome application/window state and exact native ownership.
 Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
 
-**0.3.0 Source candidate:** V1-M007-R013 adds exact-HWND NativeWindow capture and
-independent per-window taskbar visibility. It is implemented for validation and has
-not been accepted or published. BrowserViewport preserves the public 0.2.0 behavior.
-GitHub and NuGet 0.1.0/0.2.0 remain historical releases; the already-submitted CWS
-0.2.0 review artifact is unchanged. See the [0.3.0 candidate notes](docs/releases/v0.3.0.md).
+**0.3.0 release preparation:** the accepted V1-M007-R013 runtime adds exact-HWND
+NativeWindow capture and independent per-window taskbar visibility while BrowserViewport
+preserves the public 0.2.0 behavior. The actual GitHub Release and NuGet publication
+are separate Controller operations and have not been created by this Source preparation.
+Install the matching extension with Core: use the Chrome Web Store when its matching
+version is available; otherwise download the deterministic extension ZIP from the
+`v0.3.0` GitHub Release, extract it, and use **Load unpacked** in Chrome. GitHub and
+NuGet 0.1.0/0.2.0 remain historical releases; the submitted CWS 0.2.0 review is
+unchanged. See the [0.3.0 release notes](docs/releases/v0.3.0.md).
 
 ## What it does
 - Launch independent Chrome windows, including several with the same launch URL.

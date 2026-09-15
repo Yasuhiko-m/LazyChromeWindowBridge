@@ -58,7 +58,8 @@ Global monitoring requests every eligible live owned Visible or Parked session i
 entries retain a connection, generation, native identity, latest JPEG, counters and
 error. Either placement can receive fresh JPEGs. Monitor state, native placement and
 taskbar policy are separate. Current Source is the accepted V1-M007-R013 0.3.0 runtime
-baseline; 0.3.0 remains unpublished and historical 0.2.0 publications are unchanged.
+baseline. Its GitHub/NuGet publication is a separate Controller operation; historical
+0.2.0 publications remain unchanged.
 
 BrowserViewport is the default. The extension queries only the active tab of the already-owned window. It uses
 Page.getLayoutMetrics and Page.captureScreenshot, one acquisition per target at a

@@ -1,7 +1,7 @@
 # Testing
 
-The unreleased 0.3.0 Source candidate uses Scripts/Test-NuGet.ps1 for exact
-package/symbol metadata and isolated PackageReference checks, and
+The accepted 0.3.0 Source uses Scripts/Test-NuGet.ps1 for exact package/symbol metadata
+and isolated PackageReference checks, and
 Scripts/Package-Windows.ps1 for Release/win-x64 self-contained packaging. To exercise
 the fresh extracted EXE through the existing -Gui fixture, set LCWB_TEST_SAMPLE_EXECUTABLE
 to the inventory.json freshExecutable path. The default still runs the Debug sample.

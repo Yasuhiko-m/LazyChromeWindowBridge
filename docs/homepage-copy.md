@@ -1,9 +1,10 @@
 # Homepage copy
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
-This copy describes the unreleased 0.3.0 R013 Source candidate. GitHub/NuGet 0.2.0
-publication and the submitted CWS 0.2.0 review are historical; do not present 0.3.0
-as accepted or publicly released.
+This copy describes the accepted 0.3.0 R013 runtime. GitHub/NuGet 0.2.0 publication
+and the submitted CWS 0.2.0 review are historical. The authorized 0.3.0 GitHub/NuGet
+publication remains a separate Controller operation; do not present it as completed
+until that operation has occurred.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.

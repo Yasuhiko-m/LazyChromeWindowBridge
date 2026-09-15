@@ -16,6 +16,8 @@ $dllHashes = @{}
 foreach ($extension in @('nupkg', 'snupkg')) {
     $package = Join-Path $packageRoot "$packageId.$version.$extension"
     $archive = [IO.Compression.ZipFile]::OpenRead($package)
+    $packageReadmeDistribution = $null
+    $chromeExtensionPayload = $null
     try {
         $nuspecEntry = $archive.GetEntry("$packageId.nuspec")
         if ($null -eq $nuspecEntry) { throw 'Nuspec missing.' }
@@ -72,8 +74,30 @@ foreach ($extension in @('nupkg', 'snupkg')) {
             $readmeEntry = $archive.GetEntry('README.md')
             if ($null -eq $readmeEntry) { throw 'Package README missing.' }
             $readmeStream = $readmeEntry.Open()
-            try { $readmeHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($readmeStream)) } finally { $readmeStream.Dispose() }
+            try {
+                $readmeBytes = [IO.MemoryStream]::new()
+                try {
+                    $readmeStream.CopyTo($readmeBytes)
+                    $readmePayload = $readmeBytes.ToArray()
+                    $readmeText = [Text.Encoding]::UTF8.GetString($readmePayload)
+                } finally { $readmeBytes.Dispose() }
+                $readmeHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($readmePayload))
+            } finally { $readmeStream.Dispose() }
             if ($readmeHash -cne (Get-FileHash -LiteralPath (Join-Path $SourceRoot 'docs/nuget.md')).Hash) { throw 'Package README differs from Source.' }
+            foreach ($requiredReadmeText in @(
+                'NuGet contains **`LazyChromeWindowBridge.Core` only**.',
+                'matching Chrome extension',
+                'Chrome Web Store',
+                'Store review',
+                'GitHub Release',
+                '`v0.3.0`',
+                'chrome://extensions',
+                'Developer mode',
+                'Load unpacked')) {
+                if (-not $readmeText.Contains($requiredReadmeText)) { throw "Package README is missing required distribution guidance: $requiredReadmeText" }
+            }
+            $packageReadmeDistribution = 'PASS'
+            $chromeExtensionPayload = 'absent'
             $frameworkGroups = @($metadata.frameworkReferences.group)
             $dependencyGroups = @($metadata.dependencies.group)
             if ((Compare-Object $tfms @($frameworkGroups.targetFramework)) -or
@@ -86,7 +110,7 @@ foreach ($extension in @('nupkg', 'snupkg')) {
         } else {
             if ($metadata.packageTypes.packageType.name -ne 'SymbolsPackage') { throw 'Expected SymbolsPackage metadata.' }
         }
-        [pscustomobject]@{ Check='nuget-package'; Result='PASS'; File=[IO.Path]::GetFileName($package); Bytes=(Get-Item -LiteralPath $package).Length; SHA256=(Get-FileHash -LiteralPath $package).Hash; Commit=$head; Entries=@($archive.Entries.FullName) } | ConvertTo-Json -Depth 3 -Compress
+        [pscustomobject]@{ Check='nuget-package'; Result='PASS'; File=[IO.Path]::GetFileName($package); Bytes=(Get-Item -LiteralPath $package).Length; SHA256=(Get-FileHash -LiteralPath $package).Hash; Commit=$head; Entries=@($archive.Entries.FullName); PackageReadmeDistribution=$packageReadmeDistribution; ChromeExtensionPayload=$chromeExtensionPayload } | ConvertTo-Json -Depth 3 -Compress
     } finally { $archive.Dispose() }
 }
 

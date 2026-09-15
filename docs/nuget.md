@@ -3,24 +3,33 @@
 Windows-only .NET 10 Core library for session-bound Chrome windows, native geometry,
 PARK/RESTORE, human-only thumbnails, exact-HWND native capture, per-window taskbar
 policy and profile-global download lifecycle events.
-**0.3.0 is an unreleased Source candidate, not a published NuGet version.** Published
-NuGet 0.1.0 and 0.2.0 remain immutable historical releases. This is a feature candidate:
-the additive public API and expanded monitoring contract warrant a minor version,
-not a patch. Existing ownership, geometry and downloads contracts are retained;
-compatibility is bounded by the tested consumer/regression coverage.
 
-## Consumer setup
+## Install Core and the matching extension
 
-For local candidate validation, add `LazyChromeWindowBridge.Core` version `0.3.0` from
-the generated local feed. BrowserViewport consumers can target `net10.0-windows`;
-NativeWindow consumers target `net10.0-windows10.0.18362.0`. The package carries the ASP.NET Core and Windows
-Desktop framework references; those shared runtimes are required for a framework-
-dependent consumer. The Core assembly does not expose WinForms/WPF UI types.
+NuGet contains **`LazyChromeWindowBridge.Core` only**. Install Core `0.3.0` from NuGet
+and install/use the matching Chrome extension in the Chrome profile that hosts the
+owned windows. The `.nupkg` contains no Chrome extension files or ZIP, SampleCaller,
+or installer. Matching Core and Extension versions are recommended.
 
-The Chrome extension is distributed separately; install the matching unpacked
-extension in the intended Chrome profile. The NuGet package contains only Core,
-its metadata and this README, not Chrome, SampleCaller or the extension.
-Consumer UI code must wait for a bound native window before PARK/RESTORE.
+The Chrome Web Store is the normal convenient extension distribution path when the
+matching version is available. Store review can delay the newest extension version.
+If the Store version does not match Core `0.3.0`, obtain the matching deterministic
+extension asset from the GitHub Release instead:
+
+1. Download `LazyChromeWindowBridge.Extension-0.3.0-cws.zip` from GitHub Release
+   `v0.3.0`.
+2. Extract the ZIP to a dedicated directory.
+3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
+   and select that extracted extension directory.
+
+This guidance does not assert that Chrome Web Store 0.3.0 is approved or published.
+The submitted CWS 0.2.0 review and historical NuGet 0.1.0/0.2.0 publications are
+unaffected.
+
+BrowserViewport consumers can target `net10.0-windows`; NativeWindow consumers target
+`net10.0-windows10.0.18362.0`. The package carries the ASP.NET Core and Windows Desktop
+framework references; those shared runtimes are required for a framework-dependent
+consumer. The Core assembly does not expose WinForms/WPF UI types.
 
 ```csharp
 using LazyChromeWindowBridge.Core;
@@ -75,7 +84,7 @@ time out; explicit Start retries the affected generation. See the repository's
 and [limitations](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/blob/main/docs/limitations.md).
 MIT licensed.
 
-## Maintainer validation and publishing
+## Maintainer validation and publication boundary
 
 Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses SDK 10.0.400,
 restores and builds Release, runs the complete Core/public API/extension checks, packs
@@ -87,23 +96,12 @@ single invocation log stays under `Scripts/Outputs`.
 Trusted-publishing policy: `LazyChromeWindowBridge-publish`; NuGet owner `Yasuhiko-m`;
 scope Push new packages and package versions; glob `LazyChromeWindowBridge.*`.
 The exact publisher tuple is `Yasuhiko-m / LazyChromeWindowBridge / publish-nuget.yml / release`.
-The workflow can run only by manual dispatch on this repository's main branch.
-It checks out the dispatch SHA, not a moving branch or a supplied arbitrary ref.
-The release job has only `contents: read` and `id-token: write` permissions.
+The workflow is manual-dispatch only on this repository's main branch, checks out the
+dispatch SHA, and has only `contents: read` and `id-token: write` permissions. OIDC
+login happens after local validation; no persistent API key or GitHub secret is used.
+A duplicate version fails. The exact Core push lets the NuGet CLI send its adjacent
+matching portable-PDB `.snupkg`; there is no wildcard, duplicate suppression, or
+separate symbol-push command.
 
-The OIDC login occurs after validation. Its short-lived output is passed only to the
-push step's environment; no persistent API key, NuGet credential configuration or
-GitHub secret is required. A duplicate version fails. Do not retry blindly after a
-partial package/symbol push; inspect nuget.org first. The workflow does not modify
-GitHub tags, Releases or repository visibility.
-
-Pack produces one Core `.nupkg` and one matching `.snupkg` with portable PDBs and
-SDK Source Link metadata. The single exact `.nupkg` push uses the NuGet V3 endpoint;
-the CLI discovers and sends the adjacent matching `.snupkg`. There is no separate
-symbol-push command. See the official
-[symbol package documentation](https://learn.microsoft.com/en-us/nuget/create-packages/symbol-packages-snupkg)
-and [Trusted Publishing documentation](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
-
-NuGet 0.1.0 and 0.2.0 publication is historical and immutable. The 0.3.0 R013 candidate
-does not authorize a checkpoint, workflow dispatch or publication; generated package
-hashes are validation evidence only.
+This R014 Source preparation does not create a GitHub tag or Release, dispatch the
+workflow, authenticate to NuGet, or publish a package.

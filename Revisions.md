@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M007-R013`
+- Current VMR: `V1-M008-R014`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,57 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M008-R014 — v0.3.0-distribution-publication
+
+Purpose:
+Prepare the accepted 0.3.0 runtime for GitHub v0.3.0 and NuGet Core 0.3.0 publication,
+with a Core-only NuGet package, matching Extension delivery from GitHub Release when
+Chrome Web Store review lags, exact release artifacts and publication-safe validation.
+
+Result:
+Accepted by Chat. V1 M008 Complete; V1 remains In Progress. Runtime behavior remains
+the accepted V1-M007-R013 contract; R014 changes release documentation, NuGet publication
+workflow and package verification only. NuGet contains LazyChromeWindowBridge.Core only.
+Users use the matching Chrome extension; when the Chrome Web Store does not yet provide
+0.3.0, the GitHub v0.3.0 Extension ZIP is extracted and loaded through chrome://extensions
+with Developer mode / Load unpacked. Matching Core and Extension versions are recommended.
+The submitted CWS 0.2.0 review is historical and untouched; no CWS 0.3.0 publication is
+claimed by this Revision.
+
+Build / Test:
+Windows validation with exact SDK 10.0.400 PASS. Release build completed with zero
+build errors; Core 179, external PublicApi 35 and Extension 40 checks PASS. The isolated
+local-feed 0.3.0 PackageReference consumer passed, including both CaptureMode values and
+SetShowInTaskbar. NuGet package audit confirmed both target frameworks, portable symbols,
+repository provenance, packed README distribution guidance and no Chrome extension
+payload in the nupkg. Deterministic Extension packaging PASS and repeated bytes matched.
+Self-contained Windows x64 package inventory/extraction PASS.
+
+Accepted PRE-CHECKPOINT VALIDATION ARTIFACTS only (bytes / SHA256):
+
+| Artifact path | Bytes | SHA256 |
+| --- | ---: | --- |
+| artifacts/cws/LazyChromeWindowBridge.Extension-0.3.0-cws.zip | 28535 | 6B7446564C1F6751BB8731135429C0DEA855EB837E1E2EAC546507D588FD70CB |
+| artifacts/release/0.3.0/LazyChromeWindowBridge-v0.3.0-win-x64.zip | 95046058 | AA5C96600321E3ADE23773091AE967867545040FA81F87E0D039B47A12F544CA |
+| artifacts/nuget/0.3.0/LazyChromeWindowBridge.Core.0.3.0.nupkg | 121896 | AE7EB75F0B4A038C6C423858E6556D7DC265E8BCFA01A31EC7CAD8B98BBA3068 |
+| artifacts/nuget/0.3.0/LazyChromeWindowBridge.Core.0.3.0.snupkg | 57962 | 08986BFBA8CF6A39C6086405A6D8538B214B1ABA45C6D0350410D908F968F73E |
+
+These bytes were generated before the R014 checkpoint, so final publication artifacts
+must be rebuilt from the exact accepted checkpoint. In particular, final NuGet
+RepositoryCommit/Source Link must identify that checkpoint rather than R013 commit
+991457ec6fa8692c3ab0b5ccd7b2c8b2f0ccf30d.
+
+Remaining:
+Git checkpoint/push and the explicitly authorized GitHub v0.3.0 / NuGet 0.3.0 publication
+are independent Controller boundaries after this acceptance. The known third-display
+initial offscreen BrowserViewport timeout remains unresolved. Silent debugger suppression
+remains Chrome-dependent best effort. CWS 0.2.0 review remains untouched.
+
+Git Commit:
+Acceptance occurred with HEAD at the R013 checkpoint
+991457ec6fa8692c3ab0b5ccd7b2c8b2f0ccf30d. The independent R014 checkpoint/push follows
+this authority closeout and is recorded by Git when completed.
 
 ### V1-M007-R013 — native-window-capture-taskbar
 

@@ -1,36 +1,39 @@
 # LazyChromeExtension PLAN
 
 - Current Version: `V1`
-- Current Milestone: `M007`
-- Milestone Goal: Native Window Capture and Taskbar Policy
-- Current Revision: `R013`
-- Current Baseline: `V1-M007-R013`
+- Current Milestone: `M008`
+- Milestone Goal: v0.3.0 Distribution and Publication Preparation
+- Current Revision: `R014`
+- Current Baseline: `V1-M008-R014`
 - Milestone Status: **Complete**
 - Version Status: **In Progress**
 
 ## Handoff
 
-Chat accepted `V1-M007-R013` (native-window-capture-taskbar). M007 is Complete;
+Chat accepted `V1-M008-R014` (v0.3.0-distribution-publication). M008 is Complete;
 V1 remains In Progress and V0 remains Complete. Revisions.md establishes
-V1-M007-R013 as Current VMR.
+V1-M008-R014 as Current VMR.
 
-The accepted Source version is 0.3.0 and remains unpublished. BrowserViewport stays
-the source-compatible default; NativeWindow adds exact-HWND WGC/D3D11 capture without
-picker/CDP screenshot fallback, and SetShowInTaskbar adds independent exact-HWND taskbar
-policy with normal-disposal restoration. PARK/RESTORE never changes monitoring policy.
+Runtime behavior remains the accepted R013 0.3.0 contract. R014 establishes the
+distribution/publication preparation: Core-only NuGet 0.3.0, matching Extension delivery,
+GitHub Release fallback when Chrome Web Store review lags, deterministic Extension ZIP,
+self-contained Windows x64 bundle and strict NuGet package/README verification.
 
-Implementation acceptance is separate from Git checkpoint/push and publication. At this
-authority closeout HEAD is still the accepted V1-M006-R012 checkpoint; the next boundary
-is an independent R013 checkpoint/push after full-worktree and staged hygiene gates.
+Windows validation with SDK 10.0.400 passed Core 179 / external PublicApi 35 / Extension
+40 checks, isolated local-feed consumer, deterministic Extension packaging and Windows
+bundle inventory/extraction. Pre-checkpoint artifact hashes are recorded in Revisions.md
+and must not be published as final bytes because NuGet provenance must identify the
+accepted R014 checkpoint.
 
-GitHub and NuGet 0.2.0 are already published. CWS 0.2.0 was submitted for review on
-2026-09-13 with automatic publication requested after approval; approval/publication is
-not asserted here. No 0.3.0 tag, Release, NuGet publication or CWS operation is authorized
-by this authority closeout.
+The next boundary is the independent R014 Git checkpoint/push, followed by the user's
+already-authorized GitHub v0.3.0 Release and NuGet 0.3.0 publication. Final artifacts
+must be rebuilt from that exact checkpoint before publication.
 
-Explorer taskbar-button pixels were not separately inspected; exact-HWND style/native-call
-isolation and restoration evidence is accepted with that boundary. The third-display initial
-offscreen BrowserViewport timeout remains unresolved. The --silent-debugger-extension-api
-launch flag remains best-effort suppression only.
+GitHub/NuGet 0.1.0 and 0.2.0 remain immutable historical releases. CWS 0.2.0 was
+submitted for review with automatic publication requested after approval; its current
+approval/publication state is not asserted here and R014 performs no CWS operation.
+
+The known third-display initial offscreen BrowserViewport timeout remains unresolved.
+The --silent-debugger-extension-api launch flag remains best-effort suppression only.
 
 This legacy file mirrors the established baseline.
