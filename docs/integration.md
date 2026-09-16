@@ -1,8 +1,8 @@
 # Integration with the public Core API
 
-This describes the 0.3.1 release-ready working tree, pending Chat acceptance, checkpoint
-and Controller publication. Use matching Core and extension versions; Chrome Web Store
-0.3.1 availability is not asserted. PARK/RESTORE controls native window placement only and does not
+This describes the published GitHub v0.3.1 Source/API. Use matching Core and
+extension versions; Chrome Web Store 0.3.1 availability is not asserted.
+PARK/RESTORE controls native window placement only and does not
 automatically start, stop, pause or resume monitoring. Monitoring policy belongs to
 the Caller, who explicitly chooses it with `SetSessionMonitoring(appSessionId, enabled)`.
 

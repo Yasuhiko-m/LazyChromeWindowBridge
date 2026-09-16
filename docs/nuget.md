@@ -113,6 +113,8 @@ A duplicate version fails. The exact Core push lets the NuGet CLI send its adjac
 matching portable-PDB `.snupkg`; there is no wildcard, duplicate suppression, or
 separate symbol-push command.
 
-This release-preparation task does not create a GitHub tag or Release, dispatch the
-workflow, authenticate to NuGet, or publish a package. Those Controller operations occur
-only after Chat acceptance and checkpoint verification.
+`Scripts/Test-NuGet.ps1` validates and packs the package; it never publishes. The
+manual OIDC `Publish NuGet` workflow is the publication boundary. For v0.3.1,
+workflow run `35049074171` completed successfully, including its verified Core
+package push. NuGet Gallery indexing/visibility was not independently measured
+and may lag.

@@ -8,7 +8,7 @@ Approval/publication status is not inferred here.
 
 Chrome Web Store 0.3.1 is not asserted to be approved, uploaded or published. Store
 review can delay a matching extension version. The convenient path is the Store only
-when its version matches Core; otherwise, after GitHub publication, users obtain
+when its version matches Core; otherwise, users obtain
 `LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from Release `v0.3.1`, extract it,
 open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**.
 The submitted CWS 0.2.0 build must not be presented as automatically matching Core 0.3.1.

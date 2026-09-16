@@ -57,9 +57,10 @@ Each placement transition advances a generation.
 Global monitoring requests every eligible live owned Visible or Parked session independently. Per-session
 entries retain a connection, generation, native identity, latest JPEG, counters and
 error. Either placement can receive fresh JPEGs. Monitor state, native placement and
-taskbar policy are separate. Current Source is the working 0.3.1 release-preparation
-tree, including launch policy, capture refinement and preview-liveness stabilization.
-Its GitHub/NuGet publication remains a separate Controller operation; historical
+taskbar policy are separate. GitHub v0.3.1 is published, including launch policy,
+capture refinement and preview-liveness stabilization. The matching NuGet
+publication workflow completed successfully, though Gallery indexing was not
+independently measured. Chrome Web Store 0.3.1 remains unpublished; historical
 publications remain unchanged.
 
 Chrome launch construction keeps LCWB ownership arguments authoritative. It adds

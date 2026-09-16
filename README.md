@@ -18,9 +18,9 @@ integration through a Manifest V3 extension. Unlike DOM-oriented browser automat
 tools, it works with Chrome application/window state and exact native ownership.
 Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
 
-**0.3.1 release preparation:** the working tree contains the Chrome launch policy,
-capture-region/resize/source-size, and preview-liveness work prepared for Chat
-acceptance and checkpoint. It keeps the accepted NativeWindow/taskbar runtime and
+**v0.3.1 is published on GitHub:** [the v0.3.1 release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1)
+contains the Chrome launch policy, capture-region/resize/source-size, and
+preview-liveness work. It keeps the accepted NativeWindow/taskbar runtime and
 R015 caller-controlled Chrome launch switches, and refines monitoring with
 natural-source `CaptureRegion` selection, explicit `CaptureResize`, and pre-monitor
 `GetCaptureSourceSizeAsync`. BrowserViewport now takes a natural PNG without CDP clip or
@@ -31,9 +31,10 @@ offscreen retain Chrome rendering where Chrome honors that switch. Set
 `BridgeOptions.PreserveBackgroundRendering` to false to omit only that default, or use
 `AdditionalChromeArguments` / repeatable `--chrome-argument` for allowed caller switches.
 `--load-extension=<directory>` is useful with Chrome for Testing/Chromium; branded
-Chrome support is not promised. Use matching Core and Extension versions. Publication
-is pending the accepted checkpoint and Controller release operations; Chrome Web Store
-0.3.1 availability is not asserted. See the [0.3.1 release notes](docs/releases/v0.3.1.md).
+Chrome support is not promised. Use matching Core and Extension versions. The matching
+Core 0.3.1 NuGet publication workflow completed successfully; NuGet Gallery indexing
+was not independently measured and may lag. Chrome Web Store 0.3.1 availability is not
+asserted. See the [0.3.1 release notes](docs/releases/v0.3.1.md).
 
 ## What it does
 - Launch independent Chrome windows, including several with the same launch URL.

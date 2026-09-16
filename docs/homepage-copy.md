@@ -1,9 +1,9 @@
 # Homepage copy
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
-This copy describes the 0.3.1 release-preparation working tree built on the accepted
-0.3.0 runtime. Historical publication facts and the submitted CWS 0.2.0 review remain
-historical. Do not present 0.3.1 as publicly released before Controller publication.
+This copy describes the published GitHub v0.3.1 release built on the accepted
+0.3.0 runtime. Historical publication facts and the submitted CWS 0.2.0 review
+remain historical.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.

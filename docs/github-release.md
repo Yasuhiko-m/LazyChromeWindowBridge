@@ -1,14 +1,40 @@
-# GitHub v0.3.1 release procedure — publication pending
+# GitHub v0.3.1 publication record and reproducibility
 
-This is the Controller procedure after Chat accepts the 0.3.1 working tree and creates
-the independent checkpoint. It is not authorization to publish during Source preparation.
-GitHub/NuGet 0.1.0–0.3.0 are historical releases; the submitted CWS 0.2.0 review remains
-untouched. Chrome Web Store publication is outside this procedure.
+GitHub `v0.3.1` was published from checkpoint
+`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd` on 2026-09-16T02:43:20Z. It is a
+non-draft, non-prerelease release:
+<https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1>.
+GitHub/NuGet 0.1.0–0.3.0 remain historical releases; the submitted CWS 0.2.0
+review remains untouched. Chrome Web Store publication is outside this record.
 
-## Required assets
+## Published release assets
 
-Rebuild assets from the accepted checkpoint with PowerShell 7 and the stable .NET 10.0.4xx
-servicing line (10.0.401 floor, latestPatch roll-forward) on Windows:
+| Asset | Bytes | SHA256 |
+| --- | ---: | --- |
+| `LazyChromeWindowBridge.Extension-0.3.1-cws.zip` | 34,137 | `BEE26DEF8F958934DA7305E4D76B08A3C5FEBB193B8AC284999745B91EB62999` |
+| `LazyChromeWindowBridge-v0.3.1-win-x64.zip` | 95,128,807 | `C065D57426696C8A338F7A4FC62D099994A78F8B8E04995ED50FCAD116A131AD` |
+
+## NuGet publication evidence
+
+The manual `Publish NuGet` GitHub Actions run `35049074171` completed
+successfully, including exact checkout verification, SDK and Node setup,
+`Test-NuGet` validation, NuGet OIDC login, and the verified Core package push.
+
+| Package | Bytes | SHA256 |
+| --- | ---: | --- |
+| `LazyChromeWindowBridge.Core.0.3.1.nupkg` | 134,268 | `7A09659E182620A1F77965ADB04D0ED18E2A7F3821B545CD93CFBC8066E2D5A2` |
+| `LazyChromeWindowBridge.Core.0.3.1.snupkg` | 60,507 | `21FAC31D39AD8DA54845843253D5EC4EADA1D870EFBFDBF39DD4FA53BFF4B6FE` |
+
+The package repository commit is
+`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`. NuGet Gallery indexing was not
+independently measured; this records successful workflow/push evidence, not a
+stronger Gallery-visibility claim.
+
+## Reproducibility procedure
+
+For a future release, rebuild assets from the accepted checkpoint with PowerShell
+7 and the stable .NET 10.0.4xx servicing line (10.0.401 floor, latestPatch
+roll-forward):
 
 ```powershell
 ./Scripts/Test-NuGet.ps1
@@ -16,28 +42,12 @@ servicing line (10.0.401 floor, latestPatch roll-forward) on Windows:
 ./Scripts/Package-Windows.ps1
 ```
 
-Attach exactly these generated assets to GitHub Release `v0.3.1`:
-
-| Asset | Path |
-| --- | --- |
-| Matching unpacked extension ZIP | `artifacts/cws/LazyChromeWindowBridge.Extension-0.3.1-cws.zip` |
-| Windows x64 self-contained bundle | `artifacts/release/0.3.1/LazyChromeWindowBridge-v0.3.1-win-x64.zip` |
-
 Use [the v0.3.1 release notes](releases/v0.3.1.md) as release text. The extension ZIP is
 valid for extract plus **Load unpacked**; do not add a duplicate alias, CRX, installer,
 updater, or extension payload to NuGet. NuGet remains Core-only.
-
-## Ordered publication
-
-1. Verify the accepted checkpoint is on `main`, `origin/main` resolves to it, and no
-   conflicting `v0.3.1` tag or GitHub Release exists.
-2. Run the commands above and inspect the exact artifacts. Verify the Core `.nupkg` and
-   matching `.snupkg` repository commit and Source Link match the checkpoint.
-3. Create/push immutable tag `v0.3.1`, then create the GitHub Release with both assets.
-4. Dispatch only manual `publish-nuget.yml` from `main`. Its `release` environment uses
-   OIDC Trusted Publishing and pushes exactly `LazyChromeWindowBridge.Core.0.3.1.nupkg`;
-   duplicate versions fail.
-5. Confirm GitHub asset names and NuGet package version. Do not operate the CWS item.
+`Scripts/Test-NuGet.ps1` validates and packs Core; it does not publish. The
+manual `Publish NuGet` workflow is the OIDC publication boundary and pushes the
+exact verified Core package.
 
 ## User distribution wording
 
@@ -51,4 +61,4 @@ other Store version automatically matches Core 0.3.1, or that CWS 0.3.1 is appro
 ## Historical records
 
 Historical release procedures and distribution evidence remain under `docs/releases/`.
-Their facts are not rewritten by this v0.3.1 publication preparation.
+Chrome Web Store 0.3.1 was not part of this publication and remains unpublished.

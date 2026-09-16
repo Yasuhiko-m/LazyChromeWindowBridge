@@ -1,11 +1,12 @@
 # Testing
 
-The 0.3.1 release-preparation tree uses Scripts/Test-NuGet.ps1 for package/symbol metadata
+The published 0.3.1 Source uses Scripts/Test-NuGet.ps1 for package/symbol metadata
 and isolated PackageReference checks, and
 Scripts/Package-Windows.ps1 for Release/win-x64 self-contained packaging. To exercise
 the fresh extracted EXE through the existing -Gui fixture, set LCWB_TEST_SAMPLE_EXECUTABLE
 to the inventory.json freshExecutable path. The default still runs the Debug sample.
-The real fixture loads the audited Extension 0.3.1 validation ZIP. No publication is performed.
+The real fixture loads the audited Extension 0.3.1 validation ZIP. Local test scripts
+do not publish.
 
 The stable entry is `Scripts/Test-All.ps1` (PowerShell 7). Node.js 22+ and a stable
 .NET 10.0.4xx SDK (10.0.401 floor with global.json latestPatch roll-forward) are required.
