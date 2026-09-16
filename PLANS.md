@@ -190,27 +190,28 @@ Goal: add bounded caller Chrome launch switches and default offscreen rendering
 preservation without changing ownership, placement, monitoring or extension behavior.
 
 Status: **Complete**. Accepted by Chat at V1-M011-R018 as part of the established 0.3.1
-Source baseline. Git checkpoint/push and publication remain separate Controller boundaries.
+Source baseline. GitHub v0.3.1 is now published; CWS 0.3.1 remains unpublished.
 
 ### M010 — Capture Pipeline and Preview Stability
 Goal: add shared source-region/resize/source-size monitoring semantics and stabilize
 NativeWindow preview liveness without changing exact ownership or caller-owned policy.
 
 Status: **Complete**. Accepted by Chat at V1-M011-R018 as part of the established 0.3.1
-Source baseline. Git checkpoint/push and publication remain separate Controller boundaries.
+Source baseline. GitHub v0.3.1 is now published; CWS 0.3.1 remains unpublished.
 
 ### M011 — v0.3.1 Release Preparation
 Goal: prepare the complete 0.3.1 Source baseline for Chat acceptance, checkpoint, GitHub
 Release and Core-only NuGet publication.
 
-Status: **Complete**. Accepted by Chat at V1-M011-R021; R019 is an infrastructure-only
-validation-map repair and R021 is a release-toolchain servicing-policy update. Neither changes
-the established 0.3.1 Source behavior. Publication remains a Controller operation after
-checkpoint; Chrome Web Store is outside this milestone.
+Status: **Complete**. Accepted by Chat at V1-M011-R022; R019 is an infrastructure-only
+validation-map repair, R021 is a release-toolchain servicing-policy update, and R022 is the
+documentation-only publication closeout. GitHub v0.3.1 is published and the manual NuGet
+OIDC workflow/push succeeded; Gallery visibility was not independently measured. Chrome Web
+Store 0.3.1 is outside this milestone and remains unpublished.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M011-R021; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M011-R022; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

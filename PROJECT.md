@@ -60,20 +60,18 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Accepted Source revisions remain unstaged/uncommitted until the
 independent checkpoint boundary explicitly stages the accepted task delta.
-Current accepted base and Current VMR are V1-M011-R021. M009 Chrome launch options,
+Current accepted base and Current VMR are V1-M011-R022. M009 Chrome launch options,
 M010 capture pipeline/preview stability and M011 v0.3.1 release preparation are Complete;
 V1 remains In Progress. Source version 0.3.1 is established. BrowserViewport remains the
 compatibility default; NativeWindow uses exact-HWND WGC/D3D11 capture, taskbar visibility
 is independent exact-HWND runtime policy, and PARK/RESTORE remains separate from monitoring.
 R019 is an infrastructure-only restoration of the Controller validation map. R021 adopts
 stable .NET SDK 10.0.4xx servicing selection (10.0.401 floor and latestPatch roll-forward)
-for release tooling only; accepted 0.3.1 Source behavior and R018 release preparation remain unchanged.
-
-The next boundary is Controller validate-revision, then the independent R021 Git checkpoint/push,
-followed by the authorized
-GitHub v0.3.1 Release and NuGet Core 0.3.1 publication. Final public artifacts must be
-rebuilt from that checkpoint. GitHub/NuGet historical publication facts and the already-
-submitted CWS 0.2.0 artifact/review remain unchanged. CWS 0.3.1 is outside this boundary.
+for release tooling only. R022 is the documentation-only closeout of the completed GitHub
+v0.3.1 Release and successful NuGet OIDC workflow/push from checkpoint
+`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`; NuGet Gallery indexing was not independently
+measured. Accepted 0.3.1 Source behavior remains unchanged. The submitted CWS 0.2.0
+artifact/review remains unchanged and CWS 0.3.1 remains unpublished.
 The third-display initial offscreen capture timeout remains unresolved; silent launch
 suppression is best-effort and visual infobar absence was not established in acceptance.
 The project is early-release software licensed under MIT, copyright 2026 Yasuhiko Mori,

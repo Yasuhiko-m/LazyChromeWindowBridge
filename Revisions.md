@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M011-R021`
+- Current VMR: `V1-M011-R022`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,49 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M011-R022 — v0.3.1-publication-closeout
+
+Purpose / Result:
+Accepted documentation-only closeout for the completed v0.3.1 publication. GitHub
+tag/Release `v0.3.1` was published from checkpoint
+`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd` as a non-draft, non-prerelease release
+at 2026-09-16T02:43:20Z: https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1.
+Published assets are the Extension ZIP (34,137 bytes,
+`BEE26DEF8F958934DA7305E4D76B08A3C5FEBB193B8AC284999745B91EB62999`) and Windows
+x64 ZIP (95,128,807 bytes,
+`C065D57426696C8A338F7A4FC62D099994A78F8B8E04995ED50FCAD116A131AD`).
+
+GitHub Actions `Publish NuGet` run `35049074171` completed successfully, including
+exact checkout verification, SDK/Node setup, Test-NuGet, OIDC login and verified Core
+package push. The checkpoint-built nupkg is 134,268 bytes
+(`7A09659E182620A1F77965ADB04D0ED18E2A7F3821B545CD93CFBC8066E2D5A2`) and the
+snupkg is 60,507 bytes (`21FAC31D39AD8DA54845843253D5EC4EADA1D870EFBFDBF39DD4FA53BFF4B6FE`),
+both identifying that checkpoint. Gallery indexing/visibility was not independently
+measured, so successful workflow/push is the recorded boundary. CWS 0.3.1 was not
+operated or published; the submitted CWS 0.2.0 review remains untouched.
+
+Build / Test:
+Revision Journal records documentation-only delta
+`796aff16cd12e131c846ee1f667c6820da6619c8` to
+`d28b673b0a4393d402b09f9d1cfded95a368faf3` at unchanged HEAD/upstream
+`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`. The exact ten-file documentation delta
+is `README.md` plus nine `docs/` files:
+
+- `README.md`
+- `docs/architecture.md`
+- `docs/chrome-web-store.md`
+- `docs/github-release.md`
+- `docs/homepage-copy.md`
+- `docs/integration.md`
+- `docs/limitations.md`
+- `docs/nuget.md`
+- `docs/releases/v0.3.1.md`
+- `docs/testing.md`
+
+Scoped whitespace and stale-publication wording checks PASS; index remained empty and
+protected hashes remained unchanged. No runtime, API, version, build, test, workflow,
+artifact, publication, or remote change occurred in R022.
 
 ### V1-M011-R021 — sdk-servicing-line-v031
 
