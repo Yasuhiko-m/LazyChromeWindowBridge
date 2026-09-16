@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M008-R014`
+- Current VMR: `V1-M011-R021`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,90 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M011-R021 — sdk-servicing-line-v031
+
+Purpose / Result:
+Accepted release-toolchain policy update: stable .NET SDK 10.0.4xx servicing-line
+selection with global.json floor 10.0.401, `rollForward: latestPatch` and
+`allowPrerelease: false`. Product runtime, API and Source version 0.3.1 remain unchanged.
+The Windows host resolved SDK 10.0.401 and PowerShell 7.6.5.
+
+Build / Test:
+Test-NuGet.ps1 PASS: Release build 0 warnings/errors; Core 199, PublicApi 39 and
+Extension 47 PASS; package audit and local-feed consumer PASS. Package-Extension.ps1
+PASS (34,137 bytes); Package-Windows.ps1 PASS (95,128,795 bytes), including
+inventory/extraction. NuGet nupkg is 134,262 bytes and snupkg 60,515 bytes. These are
+PRE-CHECKPOINT artifacts only; final publication assets must be rebuilt from the accepted
+checkpoint. Test-All.ps1 -Clean passed build/Core/PublicApi/Extension/source audit/extension
+packaging; its public-release audit failed only on protected inherited untracked
+src/LazyChromeWindowBridge.Extension.zip, which R021 did not alter. Per Project policy,
+that inherited issue does not invalidate R021. No isolated CfT executable was available,
+so real-browser acceptance was not run.
+
+Historical R018 exact-10.0.400 evidence remains historical and is not rewritten. Next
+boundaries are Controller validate-revision, checkpoint/push, final artifact rebuild,
+GitHub v0.3.1 Release and NuGet 0.3.1 publication. CWS remains untouched.
+
+### V1-M011-R019 — restore-validation-map
+
+Purpose / Result:
+Accepted infrastructure-only repair restoring the required Starter Pack Controller
+validation map at `tests/validation-map.json`. SchemaVersion 1 maps Core source to the
+Core and external PublicApi test projects, and Extension source to the managed Core test
+harness. The map selects managed test projects only; it does not replace Test-All,
+Test-NuGet, Node, package, exact-SDK or real-browser gates. JSON/schema/path validation
+and scoped whitespace PASS; HEAD/upstream remained unchanged, index empty and protected
+hashes unchanged. No runtime, API, version, release or publication change occurred.
+
+The accepted v0.3.1 Source behavior and R018 release acceptance remain unchanged. The
+next boundary is Controller validate-revision, then checkpoint/push/publication.
+
+### V1-M011-R018 — v0.3.1-release-preparation
+
+Purpose:
+Establish the accepted 0.3.1 Source baseline after the M009 launch-policy work, M010
+capture-pipeline and preview-stability work, and M011 release preparation. This closeout
+records Source authority only; checkpoint, push and public publication remain separate.
+
+Result:
+Accepted by Chat. V1 M009, M010 and M011 are Complete; V1 remains In Progress.
+Source version 0.3.1 is the established baseline. R015 adds caller-controlled ordered
+Chrome switches, the default `--disable-backgrounding-occluded-windows` policy and its
+`PreserveBackgroundRendering` opt-out. R016/R016_1 establish CaptureRegion,
+CaptureResize/CaptureResizeFilter and CaptureSourceSize, natural BrowserViewport PNG
+capture without CDP clip/scale or Emulation resizing, extension-side region/resize before
+final JPEG transport, and exact-HWND NativeWindow GPU crop/resize before bounded readback.
+BrowserViewport supports all three filter policies; NativeWindow accepts Bilinear and
+rejects NearestNeighbor/Bicubic rather than silently substituting. R017 makes latest-frame
+and monitor-state polling observational and preserves exact-owned Visible/Parked monitor
+liveness through transient current-bounds unreadability. R018 completes release-ready
+documentation, package/release consistency and pre-checkpoint package preparation.
+
+Build / Test:
+Exact SDK 10.0.400 Release build PASS with 0 warnings/errors. Core 199 PASS, external
+PublicApi 39 PASS and Extension 47 PASS. Source security/privacy audit and scoped
+whitespace check PASS. Direct NuGet pack/inventory PASS: Core-only package, both TFMs
+and packaged README verified.
+
+Accepted PRE-CHECKPOINT VALIDATION ARTIFACTS only (SHA256):
+
+| Artifact path | SHA256 |
+| --- | --- |
+| artifacts/nuget/0.3.1/LazyChromeWindowBridge.Core.0.3.1.nupkg | DAF60258E987B9232B76185E92288A48AA3801C8CA440A8CE4157E448C6484B9 |
+| artifacts/nuget/0.3.1/LazyChromeWindowBridge.Core.0.3.1.snupkg | 86D6DD1ABAAAA7FECCA7E06DCA5D13035AA94F2DEC1130EA643A78CFEA50155A |
+
+These are validation bytes only, not final publication bytes. PowerShell 7 was unavailable
+in R018, so authoritative PowerShell release scripts, Extension/Windows bundle generation,
+full NuGet local-feed audit and real Chrome/CfT acceptance were not run there. The user
+separately authorized proceeding to public 0.3.1 publication.
+
+Remaining:
+Git checkpoint/push, GitHub v0.3.1 Release and NuGet Core 0.3.1 publication are subsequent
+Controller boundaries and are not claimed complete. CWS 0.3.1 is outside this release
+boundary; the historical submitted CWS 0.2.0 review remains untouched. The known
+third-display initial offscreen BrowserViewport timeout and Chrome-dependent silent
+debugger suppression limitation remain explicit.
 
 ### V1-M008-R014 — v0.3.0-distribution-publication
 

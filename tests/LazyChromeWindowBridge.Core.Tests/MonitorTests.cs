@@ -9,10 +9,45 @@ internal static class MonitorTests
         var bootstrap = new Uri("http://127.0.0.1:12345/lazy-chrome-window-bridge/bootstrap?session=fixture#fixture-capability");
         var launch = ChromeLauncher.CreateStartInfo(new BridgeOptions("chrome.exe", "profile with spaces"), bootstrap);
         check(launch.ArgumentList.Count(a => a == "--silent-debugger-extension-api") == 1, "Chrome launch includes exactly one silent debugger flag");
+        check(launch.ArgumentList.Count(a => a == "--disable-backgrounding-occluded-windows") == 1,
+            "default Chrome launch includes exactly one offscreen rendering preservation flag");
         check(launch.ArgumentList.Contains("--no-first-run") && launch.ArgumentList.Contains("--no-default-browser-check") &&
             launch.ArgumentList.Contains("--new-window") && launch.ArgumentList.Contains("--user-data-dir=profile with spaces") && !launch.UseShellExecute,
             "Chrome launch retains flags and structured profile argument");
+        check(new[] { "--user-data-dir=profile with spaces", "--no-first-run", "--no-default-browser-check", "--silent-debugger-extension-api", "--disable-backgrounding-occluded-windows", "--new-window" }
+            .All(flag => launch.ArgumentList.Count(argument => argument == flag) == 1), "LCWB-managed Chrome arguments are not duplicated");
         check(launch.ArgumentList.Last() == bootstrap.AbsoluteUri, "Chrome launch retains complete bootstrap URI and fragment");
+        var noBackgroundPreservation = ChromeLauncher.CreateStartInfo(new BridgeOptions("chrome.exe", "profile with spaces")
+        {
+            PreserveBackgroundRendering = false
+        }, bootstrap);
+        check(!noBackgroundPreservation.ArgumentList.Contains("--disable-backgrounding-occluded-windows") &&
+            noBackgroundPreservation.ArgumentList.Where(a => a != "--disable-backgrounding-occluded-windows").SequenceEqual(launch.ArgumentList.Where(a => a != "--disable-backgrounding-occluded-windows")),
+            "background rendering opt-out omits only the LCWB preservation flag");
+        var callerArguments = new[] { "--load-extension=C:\\fixture extension", "--force-device-scale-factor=1.25" };
+        var additional = ChromeLauncher.CreateStartInfo(new BridgeOptions("chrome.exe", "profile with spaces")
+        {
+            AdditionalChromeArguments = callerArguments
+        }, bootstrap);
+        var newWindow = additional.ArgumentList.IndexOf("--new-window");
+        check(additional.ArgumentList.Count(a => a == callerArguments[0]) == 1 && additional.ArgumentList.Count(a => a == callerArguments[1]) == 1 &&
+            additional.ArgumentList.IndexOf(callerArguments[0]) < additional.ArgumentList.IndexOf(callerArguments[1]) &&
+            additional.ArgumentList.IndexOf(callerArguments[1]) < newWindow && additional.ArgumentList.Last() == bootstrap.AbsoluteUri,
+            "caller Chrome switches preserve order before new-window and final bootstrap URI");
+        var parsed = BridgeOptions.ParseCommandLine(["--chrome-argument", callerArguments[0], "--chrome-argument", callerArguments[1]]);
+        check(parsed.AdditionalChromeArguments.SequenceEqual(callerArguments), "repeatable chrome-argument parsing preserves caller switch order");
+        bool RejectChromeArgument(string argument)
+        {
+            try
+            {
+                ChromeLauncher.CreateStartInfo(new BridgeOptions("chrome.exe", null) { AdditionalChromeArguments = [argument] }, bootstrap);
+                return false;
+            }
+            catch (ArgumentException) { return true; }
+        }
+        check(new[] { "--user-data-dir=caller", "--NEW-WINDOW", "--no-first-run=value", "--NO-DEFAULT-BROWSER-CHECK", "--silent-debugger-extension-api=1", "--DISABLE-BACKGROUNDING-OCCLUDED-WINDOWS" }
+            .All(RejectChromeArgument), "reserved LCWB Chrome arguments are rejected case-insensitively");
+        check(new[] { "", "profile", "--", "--flag\nvalue" }.All(RejectChromeArgument), "positional, empty and control-character Chrome arguments are rejected");
         var registry = new SessionRegistry();
         var native = new GeometryTests.FakeNative([new("primary", new(0, 0, 1920, 1080), new(0, 0, 1920, 1040), true, 96, 96),
             new("left", new(-1920, 0, 1920, 1080), new(-1920, 0, 1920, 1040), false, 96, 96)]);
@@ -34,16 +69,26 @@ internal static class MonitorTests
         var connections = rows.ToDictionary(s => s.AppSessionId, _ => Guid.NewGuid());
         foreach (var s in rows) check(monitor.Connect(s.AppSessionId, connections[s.AppSessionId]), "independent connection " + s.WindowId);
         check(!monitor.Connect(a.AppSessionId, Guid.NewGuid()), "duplicate socket cannot replace an owned connection");
+        var sourceProbe = monitor.GetCaptureSourceSizeAsync(a.AppSessionId, CaptureMode.BrowserViewport).AsTask();
+        var request = monitor.Control(a.AppSessionId).SourceSizeRequestId;
+        check(request is { Length: 32 } && monitor.Latest(a.AppSessionId) is null,
+            "BrowserViewport source-size request exists before Start and creates no frame");
+        monitor.SourceSize(a.AppSessionId, connections[a.AppSessionId], request!, 1280, 800);
+        check(sourceProbe.Result == new CaptureSourceSize(1280, 800), "BrowserViewport source-size accepts only the authenticated session response");
         monitor.Start(new());
         var before = monitor.Snapshot().Sessions.Select(s => s.Generation).ToArray(); monitor.Start(new());
         check(before.SequenceEqual(monitor.Snapshot().Sessions.Select(s => s.Generation)), "global Start is idempotent");
         check(monitor.Snapshot().Sessions.All(s => s.State == "Waiting") && rows.All(s => monitor.Control(s.AppSessionId).Enabled), "all live owned Visible sessions are capture eligible");
-        using var bitmap = new Bitmap(1200, 800); using (var g = Graphics.FromImage(bitmap)) g.Clear(Color.Firebrick);
-        using var jpeg = new MemoryStream(); bitmap.Save(jpeg, ImageFormat.Jpeg);
-        var data = Convert.ToBase64String(jpeg.ToArray());
+        string DataFor(CaptureOptions settings)
+        {
+            var (width, height) = CaptureSizing.OutputSize(1200, 800, settings);
+            using var bitmap = new Bitmap(width, height); using (var g = Graphics.FromImage(bitmap)) g.Clear(Color.Firebrick);
+            using var jpeg = new MemoryStream(); bitmap.Save(jpeg, ImageFormat.Jpeg);
+            return Convert.ToBase64String(jpeg.ToArray());
+        }
         void Frame(SessionSnapshot s, long? generation = null, int? window = null, Guid? connection = null, NativeIdentity? identity = null)
             => monitor.Accept(s.AppSessionId, connection ?? connections[s.AppSessionId], generation ?? monitor.Control(s.AppSessionId).Generation,
-                window ?? s.WindowId!.Value, s.TabId!.Value, identity ?? geometry.Get(s.AppSessionId)!.Identity, data, 1);
+                window ?? s.WindowId!.Value, s.TabId!.Value, identity ?? geometry.Get(s.AppSessionId)!.Identity, DataFor(monitor.Control(s.AppSessionId).Options), 1);
         Frame(a);
         check(monitor.Latest(a.AppSessionId) is { Width: 202, Height: 135 } && monitor.Snapshot().Frames == 1,
             "Visible JPEG is accepted with aspect-preserving default bounds");
@@ -210,6 +255,25 @@ internal static class MonitorTests
         check(nativeOptions.Mode == CaptureMode.NativeWindow, "explicit NativeWindow capture option validates");
         check(NativeWindowCaptureSession.OutputSize(1200, 800, 240, 135) == (202, 135) &&
             NativeWindowCaptureSession.OutputSize(80, 40, 240, 135) == (80, 40), "NativeWindow output is aspect-preserving and never upscaled");
+        var bottomRight = new CaptureRegion(2, 2, 1, 1); bottomRight.Validate();
+        check(CaptureSizing.RegionBounds(101, 99, bottomRight) == (50, 49, 51, 50) &&
+            CaptureSizing.OutputSize(101, 99, new CaptureOptions { Region = bottomRight, Resize = new(80, 40) }) == (80, 40),
+            "grid regions partition source pixels and explicit resize permits exact distortion");
+        check(CaptureSizing.OutputSize(1200, 800, new CaptureOptions { Region = new(1, 2, 0, 1), Resize = new(300) }) == (300, 100) &&
+            CaptureSizing.OutputSize(1200, 800, new CaptureOptions { Resize = new(null, 300) }) == (450, 300),
+            "single explicit dimension preserves selected source aspect and permits upscale");
+        var invalidGrid = false; var invalidResize = false;
+        try { new CaptureOptions { Region = new(2, 2, 2, 0) }.Validate(); } catch (ArgumentException) { invalidGrid = true; }
+        try { new CaptureOptions { Resize = new(0) }.Validate(); } catch (ArgumentException) { invalidResize = true; }
+        check(invalidGrid && invalidResize, "invalid grid and explicit resize are rejected");
+        check(!RejectNativeFilter(CaptureResizeFilter.Bilinear) && RejectNativeFilter(CaptureResizeFilter.NearestNeighbor) && RejectNativeFilter(CaptureResizeFilter.Bicubic),
+            "NativeWindow explicitly accepts its D3D11 bilinear path and rejects unsupported nearest/bicubic filters");
+
+        static bool RejectNativeFilter(CaptureResizeFilter filter)
+        {
+            try { D3D11Scaler.ValidateFilter(filter); return false; }
+            catch (PlatformNotSupportedException) { return true; }
+        }
 
         var registry = new SessionRegistry();
         var native = new GeometryTests.FakeNative([new("primary", new(0, 0, 1920, 1080), new(0, 0, 1920, 1040), true, 96, 96)]);
@@ -228,6 +292,8 @@ internal static class MonitorTests
         var factory = new FakeCaptureFactory();
         var monitor = new MonitorCoordinator(registry, geometry, factory);
         geometry.Changed += monitor.Reconcile;
+        check(monitor.GetCaptureSourceSizeAsync(rows[0].AppSessionId, CaptureMode.NativeWindow).Result == new CaptureSourceSize(1200, 800) && monitor.Latest(rows[0].AppSessionId) is null,
+            "NativeWindow source size is available before Start without a frame");
         monitor.Start(nativeOptions);
         check(SpinWait.SpinUntil(() => rows.All(row => monitor.Latest(row.AppSessionId) is not null), 3000),
             "independent NativeWindow peers publish bounded frames");
@@ -238,8 +304,33 @@ internal static class MonitorTests
         using (var image = Image.FromStream(stream, false, true))
             check(image.RawFormat.Guid == ImageFormat.Jpeg.Guid && image.Width == first.Width && image.Height == first.Height,
                 "NativeWindow frame is a valid bounded JPEG with truthful dimensions");
-        check(rows.All(row => !monitor.Control(row.AppSessionId).Enabled) && factory.Opened.SequenceEqual(rows.Select(row => geometry.Get(row.AppSessionId)!.Identity).OrderBy(i => i.Hwnd)),
+        check(rows.All(row => !monitor.Control(row.AppSessionId).Enabled) && factory.Opened.Distinct().SequenceEqual(rows.Select(row => geometry.Get(row.AppSessionId)!.Identity).OrderBy(i => i.Hwnd)),
             "NativeWindow uses exact HWND capture workers and never enables the CDP screenshot control path");
+
+        var pollingGeneration = monitor.Control(rows[0].AppSessionId).Generation;
+        var pollingSequence = first.Sequence; var readsBeforePolling = native.ReadCount; var openedBeforePolling = factory.Opened.Count;
+        var pollingStable = true;
+        for (var i = 0; i < 100; i++) { pollingStable &= ReferenceEquals(first, monitor.Latest(rows[0].AppSessionId)); _ = monitor.Snapshot(); }
+        check(pollingStable && monitor.Latest(rows[0].AppSessionId) is { Generation: var latestGeneration, Sequence: var latestSequence } && latestGeneration == pollingGeneration && latestSequence == pollingSequence &&
+            native.ReadCount == readsBeforePolling && factory.Opened.Count == openedBeforePolling,
+            "Latest and monitor-state polling are observational and create no geometry/native-worker lifecycle transition");
+
+        factory.BlockNextCapture(geometry.Get(rows[0].AppSessionId)!.Identity.Hwnd);
+        check(SpinWait.SpinUntil(() => factory.CaptureBlocked, 3000), "native fixture blocks the next acquisition after a complete frame exists");
+        var inFlightStable = true;
+        for (var i = 0; i < 40; i++) inFlightStable &= ReferenceEquals(first, monitor.Latest(rows[0].AppSessionId)) && monitor.Latest(rows[0].AppSessionId)!.Sequence == pollingSequence;
+        check(inFlightStable, "old complete NativeWindow frame remains published during GPU/capture replacement");
+        factory.ReleaseBlockedCapture();
+        check(SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId)?.Sequence > pollingSequence, 3000) &&
+            monitor.Control(rows[0].AppSessionId).Generation == pollingGeneration,
+            "native replacement publishes atomically once with unchanged generation and advancing sequence");
+        first = monitor.Latest(rows[0].AppSessionId)!;
+
+        var transientGeneration = monitor.Control(rows[0].AppSessionId).Generation; var transientOpened = factory.Opened.Count;
+        native.FailNextReads = 1; monitor.Reconcile();
+        check(ReferenceEquals(first, monitor.Latest(rows[0].AppSessionId)) && first.Generation == transientGeneration &&
+            factory.Opened.Count == transientOpened && monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[0].AppSessionId).Identity == geometry.Get(rows[0].AppSessionId)!.Identity,
+            "transient unreadable current rectangle preserves exact-owned NativeWindow monitor lifecycle");
 
         var peerFrames = monitor.Snapshot().Sessions.Single(s => s.AppSessionId == rows[1].AppSessionId).Frames;
         monitor.SetSessionMonitoring(rows[0].AppSessionId, false);
@@ -261,6 +352,11 @@ internal static class MonitorTests
         check(monitor.Control(rows[0].AppSessionId).Generation == generation &&
             SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId) is { Width: 540, Height: 360 }, 3000),
             "same-mode NativeWindow FPS and size update remains in place");
+        var beforeRegion = monitor.Control(rows[0].AppSessionId).Generation;
+        monitor.Start(new CaptureOptions(30, 640, 360, CaptureMode.NativeWindow) { Region = new(1, 2, 0, 1) });
+        check(monitor.Control(rows[0].AppSessionId).Generation > beforeRegion &&
+            SpinWait.SpinUntil(() => monitor.Latest(rows[0].AppSessionId) is { Width: 640, Height: 213 }, 3000),
+            "region change advances NativeWindow acquisition generation before publishing cropped pixels");
         var beforeTransition = monitor.Control(rows[0].AppSessionId).Generation;
         monitor.Start(new(2, 240, 135, CaptureMode.BrowserViewport));
         check(monitor.Control(rows[0].AppSessionId).Generation > beforeTransition && monitor.Latest(rows[0].AppSessionId) is null &&
@@ -284,26 +380,53 @@ internal static class MonitorTests
         private readonly object gate = new();
         private readonly List<NativeIdentity> opened = [];
         private int active;
+        private TaskCompletionSource? nextBlock, activeBlock;
+        public bool CaptureBlocked => Volatile.Read(ref activeBlock) is not null;
         public IReadOnlyList<NativeIdentity> Opened { get { lock (gate) return opened.OrderBy(value => value.Hwnd).ToArray(); } }
         public int Active => Volatile.Read(ref active);
         public INativeCaptureSession Open(NativeIdentity identity)
         {
             lock (gate) opened.Add(identity);
             Interlocked.Increment(ref active);
-            return new FakeCaptureSession(() => Interlocked.Decrement(ref active));
+            return new FakeCaptureSession(() => Interlocked.Decrement(ref active), token => WaitForCapture(identity.Hwnd, token));
+        }
+        private long nextBlockHwnd;
+        public void BlockNextCapture(long hwnd)
+        {
+            lock (gate)
+            {
+                if (nextBlock is not null || activeBlock is not null) throw new InvalidOperationException("A capture block is already active.");
+                nextBlockHwnd = hwnd; nextBlock = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+        }
+        public void ReleaseBlockedCapture() => Interlocked.Exchange(ref activeBlock, null)?.TrySetResult();
+        private async Task WaitForCapture(long hwnd, CancellationToken token)
+        {
+            TaskCompletionSource? wait;
+            lock (gate)
+            {
+                if (nextBlockHwnd != hwnd) return;
+                wait = nextBlock; nextBlock = null; nextBlockHwnd = 0;
+            }
+            if (wait is null) return;
+            Interlocked.Exchange(ref activeBlock, wait);
+            try { await wait.Task.WaitAsync(token); }
+            finally { Interlocked.CompareExchange(ref activeBlock, null, wait); }
         }
     }
-    private sealed class FakeCaptureSession(Action dispose) : INativeCaptureSession
+    private sealed class FakeCaptureSession(Action dispose, Func<CancellationToken, Task> waitForCapture) : INativeCaptureSession
     {
         private int disposed;
         public async Task<NativeCaptureFrame> CaptureAsync(CaptureOptions options, CancellationToken token)
         {
+            await waitForCapture(token);
             await Task.Delay(15, token);
-            var (width, height) = NativeWindowCaptureSession.OutputSize(1200, 800, options.MaxWidth, options.MaxHeight);
+            var (width, height) = CaptureSizing.OutputSize(1200, 800, options);
             using var bitmap = new Bitmap(width, height); using (var graphics = Graphics.FromImage(bitmap)) graphics.Clear(Color.DarkSlateBlue);
             using var output = new MemoryStream(); bitmap.Save(output, ImageFormat.Jpeg);
             return new(output.ToArray(), width, height, 2);
         }
+        public ValueTask<CaptureSourceSize> GetSourceSizeAsync(CancellationToken token) => ValueTask.FromResult(new CaptureSourceSize(1200, 800));
         public ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref disposed, 1) == 0) dispose();

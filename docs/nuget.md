@@ -6,23 +6,23 @@ policy and profile-global download lifecycle events.
 
 ## Install Core and the matching extension
 
-NuGet contains **`LazyChromeWindowBridge.Core` only**. Install Core `0.3.0` from NuGet
+NuGet contains **`LazyChromeWindowBridge.Core` only**. Install Core `0.3.1` from NuGet
 and install/use the matching Chrome extension in the Chrome profile that hosts the
 owned windows. The `.nupkg` contains no Chrome extension files or ZIP, SampleCaller,
 or installer. Matching Core and Extension versions are recommended.
 
 The Chrome Web Store is the normal convenient extension distribution path when the
 matching version is available. Store review can delay the newest extension version.
-If the Store version does not match Core `0.3.0`, obtain the matching deterministic
+If the Store version does not match Core `0.3.1`, obtain the matching deterministic
 extension asset from the GitHub Release instead:
 
-1. Download `LazyChromeWindowBridge.Extension-0.3.0-cws.zip` from GitHub Release
-   `v0.3.0`.
+1. Download `LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from GitHub Release
+   `v0.3.1`.
 2. Extract the ZIP to a dedicated directory.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
    and select that extracted extension directory.
 
-This guidance does not assert that Chrome Web Store 0.3.0 is approved or published.
+This guidance does not assert that Chrome Web Store 0.3.1 is approved or published.
 The submitted CWS 0.2.0 review and historical NuGet 0.1.0/0.2.0 publications are
 unaffected.
 
@@ -56,6 +56,15 @@ bridge.SetShowInTaskbar(session.AppSessionId, true);
 bridge.StopMonitoring(); // Batch stop; clears all JPEGs, retains restart sockets.
 ```
 
+LCWB launches add `--disable-backgrounding-occluded-windows` once by default so a
+fully offscreen PARKed owned window can continue rendering where Chrome supports it.
+Set `new BridgeOptions(executable, profile) { PreserveBackgroundRendering = false }`
+to omit only that policy switch. Add ordered caller switches with
+`AdditionalChromeArguments`; `--chrome-argument <switch>` is the matching repeatable
+CLI form. `--load-extension=<directory>` is allowed for Chrome for Testing/Chromium,
+with no promise for branded Chrome. LCWB rejects caller overrides of its user-data,
+new-window, first-run, browser-check, debugger-notice and background-rendering flags.
+
 Monitoring policy belongs to the Caller. PARK/RESTORE never automatically starts,
 stops, pauses or resumes monitoring. Visible and Parked live owned windows use the
 same human-view JPEG path. Pause keeps the exact last frame/Sequence/ReceivedAt in
@@ -86,11 +95,12 @@ MIT licensed.
 
 ## Maintainer validation and publication boundary
 
-Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses SDK 10.0.400,
+Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses the stable .NET
+10.0.4xx servicing line with 10.0.401 as the global.json floor and latestPatch roll-forward,
 restores and builds Release, runs the complete Core/public API/extension checks, packs
 both Core target assets, inspects both package archives and runs public API checks
 again from an isolated local-feed PackageReference consumer. It never publishes.
-Generated packages and consumer work stay under ignored `artifacts/nuget/0.3.0`; the
+Generated packages and consumer work stay under ignored `artifacts/nuget/0.3.1`; the
 single invocation log stays under `Scripts/Outputs`.
 
 Trusted-publishing policy: `LazyChromeWindowBridge-publish`; NuGet owner `Yasuhiko-m`;
@@ -103,5 +113,6 @@ A duplicate version fails. The exact Core push lets the NuGet CLI send its adjac
 matching portable-PDB `.snupkg`; there is no wildcard, duplicate suppression, or
 separate symbol-push command.
 
-This R014 Source preparation does not create a GitHub tag or Release, dispatch the
-workflow, authenticate to NuGet, or publish a package.
+This release-preparation task does not create a GitHub tag or Release, dispatch the
+workflow, authenticate to NuGet, or publish a package. Those Controller operations occur
+only after Chat acceptance and checkpoint verification.

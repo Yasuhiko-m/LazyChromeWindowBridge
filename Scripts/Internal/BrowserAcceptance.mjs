@@ -118,7 +118,7 @@ try {
   const manifest = await cdp.extension('chrome.runtime.getManifest()');
   assert.equal(manifest.name, 'LazyChromeWindowBridge');
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '0.3.0');
+  assert.equal(manifest.version, '0.3.1');
   evidence('browser', { version: version.Browser, profile, manifest, extensionRoot, testWindowPosition });
   if (gui) {
     const sampleExe = process.env.LCWB_TEST_SAMPLE_EXECUTABLE ?? path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows10.0.18362.0/LazyChromeWindowBridge.SampleCaller.exe');

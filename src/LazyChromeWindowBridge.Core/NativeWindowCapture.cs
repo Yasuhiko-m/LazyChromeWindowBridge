@@ -16,6 +16,7 @@ internal sealed record NativeCaptureFrame(byte[] Jpeg, int Width, int Height, do
 internal interface INativeCaptureSession : IAsyncDisposable
 {
     Task<NativeCaptureFrame> CaptureAsync(CaptureOptions options, CancellationToken token);
+    ValueTask<CaptureSourceSize> GetSourceSizeAsync(CancellationToken token);
 }
 internal interface INativeCaptureFactory
 {
@@ -91,8 +92,9 @@ internal sealed partial class NativeWindowCaptureSession : INativeCaptureSession
                 if (newest is null) throw new InvalidOperationException("Windows Graphics Capture did not provide a frame.");
                 var size = newest.ContentSize;
                 if (size.Width <= 0 || size.Height <= 0) throw new InvalidOperationException("Windows Graphics Capture returned an empty frame.");
-                var (width, height) = OutputSize(size.Width, size.Height, options.MaxWidth, options.MaxHeight);
-                var jpeg = scaler.ResizeReadbackAndEncode(newest.Surface, size.Width, size.Height, width, height);
+                var region = CaptureSizing.RegionBounds(size.Width, size.Height, options.Region);
+                var (width, height) = CaptureSizing.OutputSize(size.Width, size.Height, options);
+                var jpeg = scaler.ResizeReadbackAndEncode(newest.Surface, size.Width, size.Height, region.X, region.Y, region.Width, region.Height, width, height, options.Resize?.Filter ?? CaptureResizeFilter.Bilinear);
                 watch.Stop();
                 return new(jpeg, width, height, watch.Elapsed.TotalMilliseconds);
             }
@@ -109,6 +111,13 @@ internal sealed partial class NativeWindowCaptureSession : INativeCaptureSession
     {
         var ratio = Math.Min(1d, Math.Min((double)maxWidth / width, (double)maxHeight / height));
         return (Math.Max(1, (int)(width * ratio)), Math.Max(1, (int)(height * ratio)));
+    }
+
+    public ValueTask<CaptureSourceSize> GetSourceSizeAsync(CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (closed.IsCancellationRequested || item.Size.Width <= 0 || item.Size.Height <= 0) throw new InvalidOperationException("The exact native capture item closed.");
+        return ValueTask.FromResult(new CaptureSourceSize(item.Size.Width, item.Size.Height));
     }
 
     public ValueTask DisposeAsync()
@@ -203,8 +212,20 @@ internal sealed unsafe partial class D3D11Scaler : IDisposable
     }
     [StructLayout(LayoutKind.Sequential)] private struct MappedResource { public nint Data; public uint RowPitch, DepthPitch; }
 
-    public byte[] ResizeReadbackAndEncode(IDirect3DSurface surface, int inputWidth, int inputHeight, int outputWidth, int outputHeight)
+    // ID3D11VideoContext offers crop rectangles and driver-selected scaling, but its public
+    // filter enumeration is brightness/contrast/etc., not a nearest/bilinear/bicubic sampler.
+    // Retain its established default path only for Bilinear; do not silently substitute it
+    // for a caller-requested nearest-neighbor or bicubic kernel.
+    internal static void ValidateFilter(CaptureResizeFilter filter)
     {
+        if (!Enum.IsDefined(filter)) throw new ArgumentException("Unknown NativeWindow resize filter.");
+        if (filter is CaptureResizeFilter.NearestNeighbor or CaptureResizeFilter.Bicubic)
+            throw new PlatformNotSupportedException($"NativeWindow {filter} resize is unsupported by the D3D11 video-processor path; use Bilinear or BrowserViewport.");
+    }
+
+    public byte[] ResizeReadbackAndEncode(IDirect3DSurface surface, int inputWidth, int inputHeight, int sourceX, int sourceY, int sourceWidth, int sourceHeight, int outputWidth, int outputHeight, CaptureResizeFilter filter)
+    {
+        ValidateFilter(filter);
         var access = surface.As<IDirect3DDxgiInterfaceAccess>();
         var textureId = new Guid("6F15AAF2-D208-4E89-9AB4-489535D34F9C");
         var source = access.GetInterface(textureId);
@@ -234,7 +255,8 @@ internal sealed unsafe partial class D3D11Scaler : IDisposable
             var output = new OutputViewDescription { ViewDimension = 1 };
             Throw(CallOut(videoDevice, 9, outputTexture, enumerator, &output, &outputView), "Cannot bind the bounded NativeWindow output surface.");
 
-            var sourceRect = new NativeRect { Right = inputWidth, Bottom = inputHeight };
+            // D3D11 video processing performs the crop and scale while the WGC surface remains GPU-resident.
+            var sourceRect = new NativeRect { Left = sourceX, Top = sourceY, Right = sourceX + sourceWidth, Bottom = sourceY + sourceHeight };
             var destinationRect = new NativeRect { Right = outputWidth, Bottom = outputHeight };
             CallVoid(videoContext, 13, processor, 1, &destinationRect);
             CallVoid(videoContext, 30, processor, 0, 1, &sourceRect);

@@ -59,6 +59,7 @@
 - The pre-release product rename starts a new geometry directory. Legacy pre-release
   data is not a supported migration contract; no migration subsystem is provided.
 - No installer or updater is established. GitHub/NuGet 0.1.0 and 0.2.0 publication and
-  the already-submitted CWS 0.2.0 artifact/review are historical. The accepted 0.3.0
-  runtime is being prepared for separately authorized GitHub/NuGet publication; Store
-  review can lag, so use the matching GitHub Release extension ZIP when necessary.
+  the already-submitted CWS 0.2.0 artifact/review are historical. The 0.3.1 release is
+  pending checkpoint/publication; Store review can lag, so use a matching GitHub Release
+  extension ZIP when one is published. Chrome may ignore its supported
+  background-rendering switch; PreserveBackgroundRendering is not a rendering SLA.

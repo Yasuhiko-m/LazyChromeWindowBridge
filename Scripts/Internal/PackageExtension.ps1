@@ -32,10 +32,10 @@ $firstHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($fi
 $secondHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($secondArchive))
 if ($firstHash -cne $secondHash) { throw 'Reproducibility check failed.' }
 $manifest = Get-Content -LiteralPath (Join-Path $extensionRoot 'manifest.json') -Raw | ConvertFrom-Json
-if ($manifest.version -cne '0.3.0') { throw 'Unexpected CWS version.' }
+if ($manifest.version -cne '0.3.1') { throw 'Unexpected CWS version.' }
 $artifactRoot = Join-Path $packageRoot 'artifacts/cws'
 New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
-$artifact = Join-Path $artifactRoot 'LazyChromeWindowBridge.Extension-0.3.0-cws.zip'
+$artifact = Join-Path $artifactRoot 'LazyChromeWindowBridge.Extension-0.3.1-cws.zip'
 [IO.File]::WriteAllBytes($artifact, $firstArchive)
-[pscustomobject]@{check='extension-package';result='PASS';artifact='artifacts/cws/LazyChromeWindowBridge.Extension-0.3.0-cws.zip';files=$packageNames;bytes=$firstArchive.Length;sha256=$firstHash;repeatIdentical=$true;manifestVersion=$manifest.version;releaseVersion='0.3.0'} |
+[pscustomobject]@{check='extension-package';result='PASS';artifact='artifacts/cws/LazyChromeWindowBridge.Extension-0.3.1-cws.zip';files=$packageNames;bytes=$firstArchive.Length;sha256=$firstHash;repeatIdentical=$true;manifestVersion=$manifest.version;releaseVersion='0.3.1'} |
     ConvertTo-Json -Compress

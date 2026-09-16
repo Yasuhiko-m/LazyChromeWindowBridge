@@ -1,8 +1,8 @@
 // Human-view-only pixel transport. No DOM/Runtime/Network commands or image analysis.
 const TARGET = 'monitor-target:';
 export class MonitorManager {
-  constructor(browser, Socket = globalThis.WebSocket) {
-    this.browser = browser; this.Socket = Socket; this.connections = new Map();
+  constructor(browser, Socket = globalThis.WebSocket, processor = processScreenshot) {
+    this.browser = browser; this.Socket = Socket; this.processor = processor; this.connections = new Map();
     browser.debugger.onDetach.addListener((target, reason) => {
       for (const client of this.connections.values()) {
         if (client.tabId === target.tabId && !client.detaching) {
@@ -40,12 +40,14 @@ export class MonitorManager {
             !Number.isInteger(settings.framesPerSecond) || settings.framesPerSecond < 1 || settings.framesPerSecond > 30 ||
             !Number.isInteger(settings.maxWidth) || settings.maxWidth < 160 || settings.maxWidth > 1920 ||
             !Number.isInteger(settings.maxHeight) || settings.maxHeight < 90 || settings.maxHeight > 1080 ||
-            !Number.isInteger(settings.mode) || ![0, 1].includes(settings.mode) || (settings.mode === 1 && control.enabled)) throw Error('Invalid monitor control.');
+            !Number.isInteger(settings.mode) || ![0, 1].includes(settings.mode) || (settings.mode === 1 && control.enabled) || !validOptions(settings)) throw Error('Invalid monitor control.');
         const previous = client.control;
         client.control = control;
+        if (typeof control.sourceSizeRequestId === 'string' && control.sourceSizeRequestId.length === 32) void this.probeSourceSize(client, control.sourceSizeRequestId);
         if (previous?.generation !== control.generation || previous?.enabled !== control.enabled || control.closing ||
             previous?.options.framesPerSecond !== settings.framesPerSecond || previous?.options.maxWidth !== settings.maxWidth ||
-            previous?.options.maxHeight !== settings.maxHeight) client.wake?.();
+            previous?.options.maxHeight !== settings.maxHeight || JSON.stringify(previous?.options.region) !== JSON.stringify(settings.region) ||
+            JSON.stringify(previous?.options.resize) !== JSON.stringify(settings.resize)) client.wake?.();
         void this.pump(client);
       } catch { this.remove(record.appSessionId); }
     };
@@ -56,6 +58,21 @@ export class MonitorManager {
       void this.pump(client);
     };
     socket.onerror = () => socket.close();
+  }
+  async probeSourceSize(client, requestId) {
+    let tabId = client.tabId, attachedHere = false;
+    try {
+      if (tabId === null) {
+        const tabs = await this.browser.tabs.query({ windowId: client.record.windowId, active: true });
+        if (tabs.length !== 1 || tabs[0].windowId !== client.record.windowId || tabs[0].incognito) throw Error('Owned window has no eligible active tab.');
+        tabId = tabs[0].id; await this.browser.debugger.attach({ tabId }, '1.3'); attachedHere = true;
+      }
+      const viewport = (await this.browser.debugger.sendCommand({ tabId }, 'Page.getLayoutMetrics')).cssVisualViewport;
+      const current = await this.browser.tabs.get(tabId);
+      if (current.windowId !== client.record.windowId || !current.active || !Number.isFinite(viewport.clientWidth) || !Number.isFinite(viewport.clientHeight) || viewport.clientWidth <= 0 || viewport.clientHeight <= 0) throw Error('Invalid viewport extent.');
+      client.send({ type: 'source-size', requestId, width: viewport.clientWidth, height: viewport.clientHeight });
+    } catch (error) { client.send({ type: 'source-size', requestId, error: String(error.message).slice(0, 240) }); }
+    finally { if (attachedHere) try { await this.browser.debugger.detach({ tabId }); } catch { } }
   }
   remove(id) {
     const client = this.connections.get(id);
@@ -90,19 +107,18 @@ export class MonitorManager {
         }
         if (client.removed || !client.control.enabled || client.blocked === control.generation || client.control.generation !== control.generation) break;
         const viewport = (await this.browser.debugger.sendCommand({ tabId }, 'Page.getLayoutMetrics')).cssVisualViewport;
-        const scale = Math.min(1, control.options.maxWidth / viewport.clientWidth, control.options.maxHeight / viewport.clientHeight);
         const capture = this.browser.debugger.sendCommand({ tabId }, 'Page.captureScreenshot', {
-          format: 'jpeg', quality: 70, captureBeyondViewport: false,
-          clip: { x: viewport.pageX, y: viewport.pageY, width: viewport.clientWidth, height: viewport.clientHeight, scale }
+          format: 'png', captureBeyondViewport: false
         });
         let timeout;
         const frame = await Promise.race([capture, new Promise((_, reject) => { timeout = setTimeout(() => reject(Error('Monitor capture timed out.')), 5000); })]).finally(() => clearTimeout(timeout));
         const current = await this.browser.tabs.get(tabId);
         if (client.removed || !client.control.enabled || client.blocked === control.generation || control.generation !== client.control.generation) break;
         if (current.windowId !== client.record.windowId || !current.active) { await this.detach(client); continue; }
-        if (frame.data.length > 2800000) throw Error('Monitor frame exceeds transport bounds.');
+        const processed = await this.processor(frame.data, viewport.clientWidth, viewport.clientHeight, control.options);
+        if (processed.data.length > 2800000) throw Error('Monitor frame exceeds transport bounds.');
         if (client.socket.bufferedAmount < 1000000) client.send({ type: 'frame', generation: control.generation,
-          windowId: client.record.windowId, tabId, identity: control.identity, data: frame.data, captureMilliseconds: performance.now() - started });
+          windowId: client.record.windowId, tabId, identity: control.identity, data: processed.data, captureMilliseconds: performance.now() - started });
         await new Promise(resolve => {
           const timer = setTimeout(resolve, Math.max(0, 1000 / client.control.options.framesPerSecond - (performance.now() - started)));
           client.wake = () => { clearTimeout(timer); resolve(); };
@@ -128,3 +144,48 @@ export class MonitorManager {
     }
   }
 }
+
+function validOptions(options) {
+  const region = options.region ?? { columns: 1, rows: 1, column: 0, row: 0, columnSpan: 1, rowSpan: 1 };
+  if (![region.columns, region.rows, region.column, region.row, region.columnSpan, region.rowSpan].every(Number.isInteger) ||
+      region.columns < 1 || region.columns > 64 || region.rows < 1 || region.rows > 64 || region.column < 0 || region.row < 0 || region.columnSpan < 1 || region.rowSpan < 1 ||
+      region.column + region.columnSpan > region.columns || region.row + region.rowSpan > region.rows) return false;
+  const resize = options.resize;
+  return resize === null || resize === undefined || (Number.isInteger(resize.filter) && [0, 1, 2].includes(resize.filter) &&
+    (resize.width === null || resize.width === undefined || Number.isInteger(resize.width) && resize.width > 0 && resize.width <= 8192) &&
+    (resize.height === null || resize.height === undefined || Number.isInteger(resize.height) && resize.height > 0 && resize.height <= 8192));
+}
+
+export function resolveCaptureTransform(sourceWidth, sourceHeight, options) {
+  if (!Number.isInteger(sourceWidth) || !Number.isInteger(sourceHeight) || sourceWidth < 1 || sourceHeight < 1 || !validOptions(options)) throw Error('Invalid capture processing options.');
+  const region = options.region ?? { columns: 1, rows: 1, column: 0, row: 0, columnSpan: 1, rowSpan: 1 };
+  const x = Math.floor(sourceWidth * region.column / region.columns), y = Math.floor(sourceHeight * region.row / region.rows);
+  const right = Math.floor(sourceWidth * (region.column + region.columnSpan) / region.columns), bottom = Math.floor(sourceHeight * (region.row + region.rowSpan) / region.rows);
+  const cropWidth = right - x, cropHeight = bottom - y; if (cropWidth < 1 || cropHeight < 1) throw Error('Capture region has no source pixels.');
+  const resize = options.resize; let width, height;
+  if (resize) {
+    if (resize.width != null && resize.height != null) [width, height] = [resize.width, resize.height];
+    else if (resize.width != null) [width, height] = [resize.width, Math.max(1, Math.round(cropHeight * resize.width / cropWidth))];
+    else if (resize.height != null) [width, height] = [Math.max(1, Math.round(cropWidth * resize.height / cropHeight)), resize.height];
+    else [width, height] = [cropWidth, cropHeight];
+  } else { const ratio = Math.min(1, options.maxWidth / cropWidth, options.maxHeight / cropHeight); [width, height] = [Math.max(1, Math.floor(cropWidth * ratio)), Math.max(1, Math.floor(cropHeight * ratio))]; }
+  if (width > 8192 || height > 8192 || width * height > 24000000) throw Error('Capture output exceeds safe bounds.');
+  const filter = resize?.filter ?? 1;
+  return { x, y, cropWidth, cropHeight, width, height, smoothingEnabled: filter !== 0, smoothingQuality: filter === 2 ? 'high' : 'medium' };
+}
+
+async function processScreenshot(data, sourceWidth, sourceHeight, options) {
+  const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
+  try {
+    // Screenshot pixels are authoritative for crop boundaries (they may differ from CSS units under device scale).
+    sourceWidth = bitmap.width; sourceHeight = bitmap.height;
+    const transform = resolveCaptureTransform(sourceWidth, sourceHeight, options);
+    const canvas = new OffscreenCanvas(transform.width, transform.height), context = canvas.getContext('2d');
+    context.imageSmoothingEnabled = transform.smoothingEnabled;
+    context.imageSmoothingQuality = transform.smoothingQuality;
+    context.drawImage(bitmap, transform.x, transform.y, transform.cropWidth, transform.cropHeight, 0, 0, transform.width, transform.height);
+    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.7 });
+    return { data: arrayToBase64(new Uint8Array(await blob.arrayBuffer())), width: transform.width, height: transform.height };
+  } finally { bitmap.close(); }
+}
+function arrayToBase64(bytes) { let result = ''; for (const value of bytes) result += String.fromCharCode(value); return btoa(result); }

@@ -6,13 +6,13 @@ and review are not changed by R014 distribution preparation. Publisher setup was
 reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.
 Approval/publication status is not inferred here.
 
-The accepted 0.3.0 runtime is not asserted to be approved, uploaded or published in
-the Store. Store review can delay a matching extension version. The normal convenient
-path is the Store when its version matches Core; otherwise users obtain the matching
-`LazyChromeWindowBridge.Extension-0.3.0-cws.zip` from GitHub Release `v0.3.0`, extract
-it, open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**.
-The older submitted CWS 0.2.0 build must not be presented as automatically matching
-Core 0.3.0. This task performs no live dashboard operation.
+Chrome Web Store 0.3.1 is not asserted to be approved, uploaded or published. Store
+review can delay a matching extension version. The convenient path is the Store only
+when its version matches Core; otherwise, after GitHub publication, users obtain
+`LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from Release `v0.3.1`, extract it,
+open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**.
+The submitted CWS 0.2.0 build must not be presented as automatically matching Core 0.3.1.
+This task performs no live dashboard operation.
 
 ## Name
 

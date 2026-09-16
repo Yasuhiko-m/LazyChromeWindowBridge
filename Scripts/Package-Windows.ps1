@@ -10,8 +10,9 @@ try {
     $sourceRoot = Split-Path -Parent $PSScriptRoot
     Push-Location -LiteralPath $sourceRoot
     try {
-        if ((dotnet --version) -ne '10.0.400') { throw 'SDK 10.0.400 is required.' }
-        $version = '0.3.0'
+        & (Join-Path $PSScriptRoot 'Internal/AssertSdkPolicy.ps1') 2>&1 | Tee-Object -FilePath $log -Append
+        if ($LASTEXITCODE -ne 0) { throw 'SDK policy check failed.' }
+        $version = '0.3.1'
         $name = "LazyChromeWindowBridge-v$version-win-x64"
         $artifactRoot = Join-Path $sourceRoot "artifacts/release/$version"
         $work = Join-Path $artifactRoot ('build-' + [Guid]::NewGuid().ToString('N'))

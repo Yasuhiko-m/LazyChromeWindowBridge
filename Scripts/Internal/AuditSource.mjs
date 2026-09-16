@@ -18,6 +18,8 @@ const listed = [...new Set(execFileSync('git', ['ls-files', '--cached', '--other
 const files = [], residuals = [], violations = [];
 const publicImagePaths = new Set(publicImages.map(([name]) => name));
 for (const relative of listed) {
+  // Controller-protected inherited release input is byte-checked separately; it is not Source text.
+  if (relative === 'src/LazyChromeWindowBridge.Extension.zip') continue;
   let bytes;
   try { bytes = await fs.readFile(path.join(root, relative)); }
   catch (error) { if (error.code === 'ENOENT') continue; throw error; } // Deleted old paths are not current Source.
@@ -44,7 +46,9 @@ const extensionRoot = path.join(root, 'src/LazyChromeWindowBridge.Extension');
 const manifest = JSON.parse(await fs.readFile(path.join(extensionRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'LazyChromeWindowBridge');
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.3.0');
+assert.equal(manifest.version, '0.3.1');
+for (const project of ['src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj', 'samples/LazyChromeWindowBridge.SampleCaller/LazyChromeWindowBridge.SampleCaller.csproj'])
+  assert.match(await fs.readFile(path.join(root, project), 'utf8'), /<Version>0\.3\.1<\/Version>/, 'Source version mismatch: ' + project);
 assert.deepEqual(manifest.icons, Object.fromEntries([16,32,48,128].map(size => [size, `icons/icon-${size}.png`])));
 assert(!Object.hasOwn(manifest, 'action'), 'No unnecessary toolbar action.');
 assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'downloads', 'storage']);
@@ -52,8 +56,11 @@ assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1/*']);
 assert.deepEqual(manifest.content_scripts[0].matches, ['http://127.0.0.1/lazy-chrome-window-bridge/bootstrap*']);
 assert.equal(manifest.content_scripts.length, 1);
 const monitor = await fs.readFile(path.join(extensionRoot, 'monitor.js'), 'utf8');
-const commands = [...monitor.matchAll(/sendCommand\(\{ tabId \}, '([^']+)'/g)].map(m => m[1]).sort();
+const commands = [...new Set([...monitor.matchAll(/sendCommand\(\{ tabId \}, '([^']+)'/g)].map(m => m[1]))].sort();
 assert.deepEqual(commands, ['Page.captureScreenshot', 'Page.getLayoutMetrics']);
+assert.match(monitor, /format: 'png', captureBeyondViewport: false/);
+assert(!/\bclip\s*:|\bscale\s*:/.test(monitor), 'BrowserViewport capture must not use CDP clip/scale.');
+assert(!monitor.includes('Emulation.'), 'Monitoring must not resize Chrome through Emulation.');
 const nativeCapture = await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Core/NativeWindowCapture.cs'), 'utf8');
 assert(nativeCapture.includes('CreateForWindow(hwnd, GraphicsCaptureItemId)'));
 assert(!nativeCapture.includes('GraphicsCapturePicker'));
@@ -63,6 +70,13 @@ const boundedMap = nativeCapture.indexOf('Call(context, 14, staging');
 const jpegEncode = nativeCapture.indexOf('EncodeJpeg(mapped');
 assert(gpuResize >= 0 && boundedMap > gpuResize && jpegEncode > boundedMap,
   'Native capture must resize on the GPU before bounded CPU readback/JPEG encoding.');
+assert(nativeCapture.includes('ValidateFilter(filter);') && nativeCapture.includes('NativeWindow {filter} resize is unsupported'),
+  'NativeWindow must not silently ignore unsupported resize filters.');
+const monitorCoordinator = await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Core/MonitorCoordinator.cs'), 'utf8');
+assert.match(monitorCoordinator, /public MonitorFrame\? Latest\(Guid id\) \{ lock \(gate\) return entries\.TryGetValue/,
+  'Latest-frame reads must return cached state without reconciliation.');
+assert(!/public MonitorSnapshot Snapshot\(\)[\s\S]*?Reconcile\(\)/.test(monitorCoordinator),
+  'Monitor-state reads must not reconcile as a side effect.');
 const downloadCalls = [];
 for (const name of manifest.content_scripts[0].js.concat(['bindings.js', 'monitor.js', 'service-worker.js', 'downloads.js'])) {
   const code = await fs.readFile(path.join(extensionRoot, name), 'utf8');

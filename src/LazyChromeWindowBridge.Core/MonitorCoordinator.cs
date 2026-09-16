@@ -1,10 +1,8 @@
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
 
 namespace LazyChromeWindowBridge.Core;
 
-internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing, NativeIdentity? Identity);
+internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing, NativeIdentity? Identity, string? SourceSizeRequestId = null);
 internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoordinator geometry, INativeCaptureFactory? captureFactory = null)
 {
     private sealed class Entry
@@ -19,6 +17,8 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         public CancellationTokenSource? NativeCancellation;
         public Task? NativeTask;
         public long NativeGeneration;
+        public string? SourceSizeRequestId;
+        public TaskCompletionSource<CaptureSourceSize>? SourceSize;
     }
     private readonly object gate = new();
     private readonly Dictionary<Guid, Entry> entries = [];
@@ -44,7 +44,10 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         var session = sessions.Get(id);
         var window = geometry.Get(id);
         entry.Identity ??= window?.Identity;
-        var live = session?.State == SessionState.Bound && window is { Current: not null, State: not PlacementState.Closed } && window.Identity == entry.Identity;
+        // Current is a best-effort geometry observation. Exact mapping, placement and
+        // NativeIdentity are the monitor ownership boundary; a transient Read/DPI failure
+        // must not turn a live owned window into a monitor lifecycle transition.
+        var live = session?.State == SessionState.Bound && window is { State: not PlacementState.Closed } && window.Identity == entry.Identity;
         var eligible = enabled && !disposed && !entry.Paused && live && window!.State is PlacementState.Visible or PlacementState.Parked;
         // Placement is not monitor identity. A successful PARK/RESTORE keeps the
         // same native owner, transport generation and latest JPEG.
@@ -67,7 +70,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
     private void EnsureNativeWorker(Guid id, Entry entry, WindowSnapshot? window)
     {
         var shouldRun = entry.Eligible && entry.Error is null && options.Mode == CaptureMode.NativeWindow &&
-            window is { WindowId: not null, Current: not null } && window.Identity == entry.Identity;
+            window is { WindowId: not null } && window.Identity == entry.Identity;
         if (!shouldRun)
         {
             entry.NativeCancellation?.Cancel();
@@ -164,9 +167,10 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
             ObjectDisposedException.ThrowIf(disposed, this);
             var restarting = !enabled;
             var modeChanged = enabled && options.Mode != requested.Mode;
+            var regionChanged = enabled && options.Region != requested.Region;
             enabled = true; options = requested;
             if (restarting) foreach (var entry in entries.Values) entry.Paused = false;
-            if (modeChanged) foreach (var entry in entries.Values) Invalidate(entry, keepLatest: entry.Paused);
+            if (modeChanged || regionChanged) foreach (var entry in entries.Values) Invalidate(entry, keepLatest: entry.Paused);
             foreach (var session in sessions.GetAll())
             {
                 var entry = Sync(session.AppSessionId);
@@ -185,7 +189,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
             if (!enabled) throw new InvalidOperationException("Start global monitoring before changing a session.");
             var entry = Sync(id);
             var window = geometry.Get(id);
-            if (sessions.Get(id)?.State != SessionState.Bound || window is not { Current: not null, State: PlacementState.Visible or PlacementState.Parked } ||
+            if (sessions.Get(id)?.State != SessionState.Bound || window is not { State: PlacementState.Visible or PlacementState.Parked } ||
                 window.Identity != entry.Identity)
                 throw new InvalidOperationException("Session monitoring requires a live owned native window.");
             if (entry.Paused == !requested)
@@ -212,7 +216,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
     {
         lock (gate)
         {
-            if (disposed || sessions.Get(id)?.State != SessionState.Bound || geometry.Get(id) is not { Current: not null, State: not PlacementState.Closed }) return false;
+            if (disposed || sessions.Get(id)?.State != SessionState.Bound || geometry.Get(id) is not { State: not PlacementState.Closed }) return false;
             var entry = Sync(id);
             if (entry.Connection is not null) return false;
             entry.Connection = connection;
@@ -236,7 +240,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         lock (gate)
         {
             var entry = Sync(id);
-            return new(entry.Eligible && entry.Error is null && options.Mode == CaptureMode.BrowserViewport, entry.Generation, options, disposed, entry.Identity);
+            return new(entry.Eligible && entry.Error is null && options.Mode == CaptureMode.BrowserViewport, entry.Generation, options, disposed, entry.Identity, entry.SourceSizeRequestId);
         }
     }
     public void Status(Guid id, Guid connection, long frameGeneration, string? failure, bool capturing)
@@ -282,18 +286,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         using var image = Image.FromStream(input, false, true);
         if (image.Width > 8192 || image.Height > 8192 || (long)image.Width * image.Height > 24000000) throw new ArgumentException("Monitor image exceeds bounds.");
         var width = image.Width; var height = image.Height;
-        var ratio = Math.Min(1, Math.Min((double)settings.MaxWidth / width, (double)settings.MaxHeight / height));
-        if (ratio < 1)
-        {
-            width = Math.Max(1, (int)(width * ratio)); height = Math.Max(1, (int)(height * ratio));
-            using var resized = new Bitmap(width, height);
-            using (var graphics = Graphics.FromImage(resized)) { graphics.InterpolationMode = InterpolationMode.HighQualityBilinear; graphics.DrawImage(image, 0, 0, width, height); }
-            using var output = new MemoryStream();
-            using var encoding = new EncoderParameters(1);
-            encoding.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 70L);
-            resized.Save(output, ImageCodecInfo.GetImageEncoders().Single(codec => codec.FormatID == ImageFormat.Jpeg.Guid), encoding);
-            jpeg = output.ToArray();
-        }
+        if (settings.Resize is null && (width > settings.MaxWidth || height > settings.MaxHeight)) throw new ArgumentException("BrowserViewport monitor frame exceeds requested bounds.");
         lock (gate)
         {
             if (!Expected(id, connection, frameGeneration, windowId, identity)) return;
@@ -310,7 +303,7 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         {
             if (!ExpectedNative(id, frameGeneration, windowId, identity)) return;
         }
-        if (frame.Width > requested.MaxWidth || frame.Height > requested.MaxHeight) throw new ArgumentException("NativeWindow monitor frame exceeds requested bounds.");
+        if (requested.Resize is null && (frame.Width > requested.MaxWidth || frame.Height > requested.MaxHeight)) throw new ArgumentException("NativeWindow monitor frame exceeds requested bounds.");
         using (var input = new MemoryStream(frame.Jpeg))
         using (var image = Image.FromStream(input, false, true))
             if (image.Width != frame.Width || image.Height != frame.Height) throw new ArgumentException("NativeWindow JPEG dimensions do not match metadata.");
@@ -328,15 +321,70 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
             entry.Capturing = true;
         }
     }
-    public MonitorFrame? Latest(Guid id) { lock (gate) return Sync(id).Latest; }
+    // Public latest-frame polling is observational. Reconciliation happens only on the
+    // established lifecycle boundaries (geometry change/poll, start/stop, transport and
+    // session controls), never merely because a caller repaints a preview.
+    public MonitorFrame? Latest(Guid id) { lock (gate) return entries.TryGetValue(id, out var entry) ? entry.Latest : null; }
+    public async ValueTask<CaptureSourceSize> GetCaptureSourceSizeAsync(Guid id, CaptureMode mode, CancellationToken token = default)
+    {
+        if (!Enum.IsDefined(mode)) throw new ArgumentException("Unknown capture mode.");
+        if (mode == CaptureMode.NativeWindow)
+        {
+            NativeIdentity identity;
+            lock (gate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                var entry = Sync(id); var window = geometry.Get(id);
+                if (sessions.Get(id)?.State != SessionState.Bound || window is not { State: PlacementState.Visible or PlacementState.Parked } || window.Identity != entry.Identity)
+                    throw new InvalidOperationException("Capture source size requires a live owned native window.");
+                identity = entry.Identity!;
+            }
+            if (geometry.RequireOwned(id) != identity) throw new InvalidOperationException("Native capture identity became stale before size acquisition.");
+            await using var capture = nativeCaptureFactory.Open(identity);
+            var size = await capture.GetSourceSizeAsync(token).ConfigureAwait(false);
+            if (geometry.RequireOwned(id) != identity) throw new InvalidOperationException("Native capture identity became stale during size acquisition.");
+            return size;
+        }
+        Task<CaptureSourceSize> wait;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var entry = Sync(id);
+            if (sessions.Get(id)?.State != SessionState.Bound || entry.Connection is null || entry.Identity is null)
+                throw new InvalidOperationException("BrowserViewport source size requires the owned extension control connection.");
+            if (entry.SourceSize is not null) throw new InvalidOperationException("A source-size query is already active for this session.");
+            entry.SourceSizeRequestId = Guid.NewGuid().ToString("N");
+            entry.SourceSize = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            wait = entry.SourceSize.Task; Signal();
+        }
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        try { return await wait.WaitAsync(timeout.Token).ConfigureAwait(false); }
+        finally { lock (gate) { if (entries.TryGetValue(id, out var entry) && entry.SourceSize?.Task == wait) { entry.SourceSize = null; entry.SourceSizeRequestId = null; Signal(); } } }
+    }
+    public void SourceSize(Guid id, Guid connection, string requestId, double width, double height)
+    {
+        lock (gate)
+        {
+            if (!entries.TryGetValue(id, out var entry) || entry.Connection != connection || entry.SourceSizeRequestId != requestId ||
+                !double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0) return;
+            entry.SourceSize?.TrySetResult(new(width, height));
+        }
+    }
+    public void SourceSizeFailure(Guid id, Guid connection, string requestId, string? error)
+    {
+        lock (gate)
+            if (entries.TryGetValue(id, out var entry) && entry.Connection == connection && entry.SourceSizeRequestId == requestId)
+                entry.SourceSize?.TrySetException(new InvalidOperationException(error ?? "BrowserViewport source-size query failed."));
+    }
     public MonitorSnapshot Snapshot()
     {
         lock (gate)
         {
-            Reconcile();
             var rows = sessions.GetAll().Select(session =>
             {
-                var entry = Sync(session.AppSessionId);
+                if (!entries.TryGetValue(session.AppSessionId, out var entry))
+                    return new SessionMonitorSnapshot(session.AppSessionId, session.WindowId, null, 0, "Unavailable", 0, 0, null, 0, 0, null, false, false)
+                        { Mode = options.Mode };
                 return new SessionMonitorSnapshot(session.AppSessionId, session.WindowId, entry.Identity, entry.Generation, entry.State,
                     entry.Frames, entry.Bytes, entry.Latest?.ReceivedAt, entry.Latest?.Width ?? 0, entry.Latest?.Height ?? 0, entry.Error,
                     entry.Connection is not null, entry.Capturing)

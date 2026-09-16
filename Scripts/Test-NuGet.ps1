@@ -9,7 +9,8 @@ $testExit = 1
 try {
     Push-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
     try {
-        if ((dotnet --version) -ne '10.0.400') { throw 'SDK 10.0.400 is required.' }
+        & (Join-Path $PSScriptRoot 'Internal/AssertSdkPolicy.ps1') 2>&1 | Tee-Object -FilePath $log -Append
+        if ($LASTEXITCODE -ne 0) { throw 'SDK policy check failed.' }
         & dotnet restore ./LazyChromeWindowBridge.sln 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
         & dotnet build ./LazyChromeWindowBridge.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true -warnaserror 2>&1 | Tee-Object -FilePath $log -Append
@@ -20,11 +21,11 @@ try {
         }
         & node --test ./tests/LazyChromeWindowBridge.Extension.Tests/bindings.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/monitor.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/downloads.test.mjs 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed.' }
-        $packageRoot = Join-Path (Get-Location).Path 'artifacts/nuget/0.3.0'
+        $packageRoot = Join-Path (Get-Location).Path 'artifacts/nuget/0.3.1'
         New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
         # Remove only these two known generated outputs, never a directory or Source.
         foreach ($extension in @('nupkg', 'snupkg')) {
-            $oldPackage = Join-Path $packageRoot "LazyChromeWindowBridge.Core.0.3.0.$extension"
+            $oldPackage = Join-Path $packageRoot "LazyChromeWindowBridge.Core.0.3.1.$extension"
             if (Test-Path -LiteralPath $oldPackage) { Remove-Item -LiteralPath $oldPackage -ErrorAction Stop }
         }
         & dotnet pack ./src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj -c Release --no-build --no-restore -p:ContinuousIntegrationBuild=true -warnaserror -o $packageRoot 2>&1 | Tee-Object -FilePath $log -Append

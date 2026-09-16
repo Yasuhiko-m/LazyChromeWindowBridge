@@ -34,7 +34,7 @@ try {
         # Every real-browser mode loads a fresh extraction of the audited distribution ZIP.
         $cwsExtension = Join-Path $sourceRoot ('artifacts/cws/unpacked-' + [Guid]::NewGuid().ToString('N'))
         if ($ChromeExecutable) {
-            [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $sourceRoot 'artifacts/cws/LazyChromeWindowBridge.Extension-0.3.0-cws.zip'), $cwsExtension)
+            [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $sourceRoot 'artifacts/cws/LazyChromeWindowBridge.Extension-0.3.1-cws.zip'), $cwsExtension)
         }
         if ($ChromeExecutable -and -not $Gui) {
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --downloads --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append

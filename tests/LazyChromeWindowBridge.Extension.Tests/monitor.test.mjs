@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MonitorManager } from '../../src/LazyChromeWindowBridge.Extension/monitor.js';
+import { MonitorManager, resolveCaptureTransform } from '../../src/LazyChromeWindowBridge.Extension/monitor.js';
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(read, timeout = 2500) { const end = Date.now() + timeout; while (!read()) { if (Date.now() > end) throw Error('monitor unit timeout'); await pause(10); } }
+const options = (region = undefined, resize = null, maxWidth = 240, maxHeight = 135) => ({ framesPerSecond: 2, maxWidth, maxHeight, mode: 0, ...(region ? { region } : {}), ...(resize !== null ? { resize } : {}) });
 function fixture() {
   const data = {}, attached = new Set(), calls = [], sockets = [];
   let detachEvent, fail = false, screenshotWait = null;
@@ -34,13 +35,33 @@ function fixture() {
       this.onmessage({ data: JSON.stringify({ generation, enabled, closing, options: { mode: 0, ...options } }) });
     }
   }
-  const manager = new MonitorManager(browser, Socket);
+  const processed = [];
+  const manager = new MonitorManager(browser, Socket, async (image, width, height, options) => {
+    processed.push({ image, width, height, options: structuredClone(options) }); return { data: 'processed-jpeg-bytes' };
+  });
   const record = { appSessionId: 'owned-a', windowId: 11, token: 'capability', origin: 'http://127.0.0.1:12345', monitoring: true, closed: false };
-  return { manager, record, sockets, calls, attached, data, tabs, viewport,
+  return { manager, record, sockets, calls, attached, data, tabs, viewport, processed,
     fail(value) { fail = value; }, waitScreenshot(value) { screenshotWait = value; },
     closeTab(id) { tabs.delete(id); attached.delete(id); detachEvent({ tabId: id }, 'target_closed'); },
     cancel() { attached.delete(101); detachEvent({ tabId: 101 }, 'canceled_by_user'); } };
 }
+
+test('production capture transform uses floor-partitioned Full, halves, quadrants and spans', () => {
+  assert.deepEqual(resolveCaptureTransform(101, 99, options()), { x: 0, y: 0, cropWidth: 101, cropHeight: 99, width: 101, height: 99, smoothingEnabled: true, smoothingQuality: 'medium' });
+  assert.deepEqual(resolveCaptureTransform(101, 99, options({ columns: 1, rows: 2, column: 0, row: 1, columnSpan: 1, rowSpan: 1 })), { x: 0, y: 49, cropWidth: 101, cropHeight: 50, width: 101, height: 50, smoothingEnabled: true, smoothingQuality: 'medium' });
+  assert.deepEqual(resolveCaptureTransform(101, 99, options({ columns: 2, rows: 2, column: 1, row: 1, columnSpan: 1, rowSpan: 1 })), { x: 50, y: 49, cropWidth: 51, cropHeight: 50, width: 51, height: 50, smoothingEnabled: true, smoothingQuality: 'medium' });
+  assert.deepEqual(resolveCaptureTransform(101, 99, options({ columns: 3, rows: 3, column: 0, row: 1, columnSpan: 3, rowSpan: 2 })), { x: 0, y: 33, cropWidth: 101, cropHeight: 66, width: 101, height: 66, smoothingEnabled: true, smoothingQuality: 'medium' });
+  const cells = [0, 1, 2].map(column => resolveCaptureTransform(101, 99, options({ columns: 3, rows: 1, column, row: 0, columnSpan: 1, rowSpan: 1 })));
+  assert.deepEqual(cells.map(cell => [cell.x, cell.x + cell.cropWidth]), [[0, 33], [33, 67], [67, 101]]);
+});
+
+test('production capture transform applies explicit resize, upscale, legacy bounds, filters and safety limits', () => {
+  assert.deepEqual(resolveCaptureTransform(120, 80, options(undefined, { width: 80, height: 40, filter: 1 })), { x: 0, y: 0, cropWidth: 120, cropHeight: 80, width: 80, height: 40, smoothingEnabled: true, smoothingQuality: 'medium' });
+  assert.deepEqual(resolveCaptureTransform(120, 80, options(undefined, { width: 300, height: null, filter: 0 })), { x: 0, y: 0, cropWidth: 120, cropHeight: 80, width: 300, height: 200, smoothingEnabled: false, smoothingQuality: 'medium' });
+  assert.deepEqual(resolveCaptureTransform(120, 80, options(undefined, { width: null, height: 300, filter: 2 })), { x: 0, y: 0, cropWidth: 120, cropHeight: 80, width: 450, height: 300, smoothingEnabled: true, smoothingQuality: 'high' });
+  assert.deepEqual(resolveCaptureTransform(1200, 800, options(undefined, null, 240, 135)), { x: 0, y: 0, cropWidth: 1200, cropHeight: 800, width: 202, height: 135, smoothingEnabled: true, smoothingQuality: 'medium' });
+  assert.throws(() => resolveCaptureTransform(120, 80, options(undefined, { width: 8192, height: 8192, filter: 1 })), /safe bounds/);
+});
 
 test('monitor targets the owned window active tab, uses only pixel/viewport commands and stops idempotently', async () => {
   const f = fixture(); f.manager.ensure(f.record); f.manager.ensure(f.record);
@@ -63,6 +84,34 @@ test('NativeWindow control never attaches debugger or requests viewport screensh
   assert.equal(f.attached.size, 0);
   socket.control(3, false, true, { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 1 });
   await until(() => socket.readyState === 3);
+});
+
+test('source-size probe uses layout metrics without a screenshot and detaches its temporary attachment', async () => {
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0];
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false, sourceSizeRequestId: 'a'.repeat(32), options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => socket.sent.some(m => m.type === 'source-size'));
+  assert.deepEqual(socket.sent.find(m => m.type === 'source-size'), { type: 'source-size', requestId: 'a'.repeat(32), width: 1000, height: 600 });
+  assert.equal(f.calls.filter(c => c[0] === 'Page.captureScreenshot').length, 0);
+  await until(() => f.attached.size === 0); socket.close();
+});
+
+test('region and explicit resize options are passed to local processing before final JPEG transport', async () => {
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0];
+  socket.control(1, true, false, { framesPerSecond: 30, maxWidth: 240, maxHeight: 135,
+    region: { columns: 3, rows: 3, column: 0, row: 1, columnSpan: 3, rowSpan: 2 }, resize: { width: 300, height: null, filter: 2 } });
+  await until(() => f.processed.length > 0 && socket.sent.some(m => m.type === 'frame'));
+  assert.deepEqual(f.processed[0].options.region, { columns: 3, rows: 3, column: 0, row: 1, columnSpan: 3, rowSpan: 2 });
+  assert.equal(f.processed[0].options.resize.filter, 2);
+  assert.equal(socket.sent.find(m => m.type === 'frame').data, 'processed-jpeg-bytes');
+  socket.close(); await until(() => f.attached.size === 0);
+});
+
+for (const filter of [0, 1, 2]) test(`extension selects requested resize filter ${filter}`, async () => {
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0];
+  socket.control(1, true, false, { framesPerSecond: 30, maxWidth: 240, maxHeight: 135, resize: { width: 80, height: 40, filter } });
+  await until(() => f.processed.length > 0);
+  assert.equal(f.processed[0].options.resize.filter, filter);
+  socket.close(); await until(() => f.attached.size === 0);
 });
 
 test('session pause isolates peers and resumes using the same waiting socket', async () => {
@@ -215,21 +264,20 @@ test('same-generation options wake a sleeping pump and change JPEG bounds/rate w
     socket.control(7, true, false, { framesPerSecond: 1, maxWidth: 240, maxHeight: 135 });
     await until(() => socket.sent.some(m => m.type === 'frame'));
     const initial = f.calls.find(c => c[0] === 'Page.captureScreenshot')[2];
-    assert.equal(initial.clip.scale, 0.225);
+    assert.deepEqual(initial, { format: 'png', captureBeyondViewport: false });
     const count = socket.sent.filter(m => m.type === 'frame').length;
     socket.control(7, true, false, { framesPerSecond: 30, maxWidth: 640, maxHeight: 360 });
     await until(() => socket.sent.filter(m => m.type === 'frame').length >= count + 3, 500);
     const changed = f.calls.filter(c => c[0] === 'Page.captureScreenshot').at(-1)[2];
-    assert.equal(changed.clip.scale, 0.6);
-    assert.deepEqual([changed.clip.width, changed.clip.height], [1000, 600]);
-    assert.equal(changed.quality, 70); assert.equal(changed.format, 'jpeg'); assert.equal(changed.captureBeyondViewport, false);
+    assert.deepEqual(changed, { format: 'png', captureBeyondViewport: false });
+    assert.equal('clip' in changed || 'scale' in changed, false);
+    assert.equal(f.processed.at(-1).options.maxWidth, 640);
     assert.equal(f.calls.filter(c => c[0] === 'attach').length, 1);
     assert.equal(f.calls.filter(c => c[0] === 'detach').length, 0);
     assert.equal(f.sockets.length, 1); assert.equal(socket.readyState, 1);
     assert(socket.sent.filter(m => m.type === 'frame').every(m => m.generation === 7));
     f.viewport.clientWidth = 100; f.viewport.clientHeight = 60;
-    await until(() => f.calls.some(c => c[0] === 'Page.captureScreenshot' && c[2].clip.width === 100));
-    assert.equal(f.calls.filter(c => c[0] === 'Page.captureScreenshot').at(-1)[2].clip.scale, 1);
+    await until(() => f.processed.some(p => p.width === 100 && p.height === 60));
     assert.deepEqual([...new Set(f.calls.map(c => c[0]))].sort(), ['Page.captureScreenshot', 'Page.getLayoutMetrics', 'attach']);
     socket.control(8, false);
     await until(() => f.attached.size === 0);
@@ -250,7 +298,7 @@ test('options arriving during acquisition apply on the next iteration without lo
   socket.control(4, true, false, { framesPerSecond: 30, maxWidth: 240, maxHeight: 135 });
   f.waitScreenshot(null); release();
   await until(() => socket.sent.filter(m => m.type === 'frame').length >= 2);
-  assert.equal(f.calls.filter(c => c[0] === 'Page.captureScreenshot').at(-1)[2].clip.scale, 0.225);
+  assert.deepEqual(f.calls.filter(c => c[0] === 'Page.captureScreenshot').at(-1)[2], { format: 'png', captureBeyondViewport: false });
   assert.equal(f.calls.filter(c => c[0] === 'detach').length, 0);
   assert.equal(f.calls.filter(c => c[0] === 'attach').length, 1);
   socket.close(); await until(() => f.attached.size === 0);

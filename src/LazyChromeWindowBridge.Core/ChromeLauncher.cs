@@ -16,6 +16,8 @@ internal static class ChromeLauncher
         start.ArgumentList.Add("--no-default-browser-check");
         // Best-effort Chrome UX only; debugger permissions/command boundaries still apply.
         start.ArgumentList.Add("--silent-debugger-extension-api");
+        if (options.PreserveBackgroundRendering) start.ArgumentList.Add("--disable-backgrounding-occluded-windows");
+        foreach (var argument in options.ValidatedAdditionalChromeArguments()) start.ArgumentList.Add(argument);
         start.ArgumentList.Add("--new-window");
         start.ArgumentList.Add(bootstrap.AbsoluteUri);
         return start;

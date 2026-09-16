@@ -39,9 +39,26 @@ foreach (var fps in new[] { 0, 31 })
     Check(rejected, $"public capture rejects {fps} fps");
 }
 Check(typeof(CaptureOptions).GetProperty("JpegQuality") is null, "JPEG quality is fixed rather than a public option");
+var legacyBridgeOptions = new BridgeOptions("chrome.exe", null, "geometry");
+Check(legacyBridgeOptions is { PreserveBackgroundRendering: true } && legacyBridgeOptions.AdditionalChromeArguments.Count == 0,
+    "existing BridgeOptions construction remains valid with default launch policies");
+var callerBridgeOptions = new BridgeOptions("chrome.exe", null)
+{
+    PreserveBackgroundRendering = false,
+    AdditionalChromeArguments = ["--load-extension=C:\\fixture"]
+};
+Check(!callerBridgeOptions.PreserveBackgroundRendering && callerBridgeOptions.AdditionalChromeArguments.SequenceEqual(["--load-extension=C:\\fixture"]),
+    "public BridgeOptions exposes background opt-out and caller Chrome switches");
 Check(typeof(BridgeRuntime).GetMethod("SetSessionMonitoring", [typeof(Guid), typeof(bool)])?.ReturnType == typeof(void), "public session monitoring API is available without policy abstractions");
 Check(typeof(BridgeRuntime).GetMethod("SetShowInTaskbar", [typeof(Guid), typeof(bool)])?.ReturnType == typeof(void), "public exact-session taskbar API is available");
 Check(typeof(MonitorFrame).GetProperty(nameof(MonitorFrame.Mode))?.PropertyType == typeof(CaptureMode), "public frame metadata identifies its capture mode");
+var region = new CaptureRegion(3, 3, 1, 1);
+region.Validate();
+var resize = new CaptureResize(320, null, CaptureResizeFilter.Bicubic); resize.Validate();
+Check(new CaptureOptions { Region = region, Resize = resize }.Region == region && Enum.GetValues<CaptureResizeFilter>().SequenceEqual([CaptureResizeFilter.NearestNeighbor, CaptureResizeFilter.Bilinear, CaptureResizeFilter.Bicubic]),
+    "public immutable grid region and explicit resize/filter contracts are externally consumable");
+Check(typeof(BridgeRuntime).GetMethod("GetCaptureSourceSizeAsync", [typeof(Guid), typeof(CaptureMode), typeof(CancellationToken)])?.ReturnType == typeof(ValueTask<CaptureSourceSize>),
+    "public pre-monitor capture source-size API is available");
 Check(new PixelRect(-1820, 80, 1100, 720).Valid, "public physical rectangles allow negative coordinates");
 
 var data = Path.Combine(Path.GetTempPath(), "LazyChromeWindowBridge-PublicApi-" + Guid.NewGuid().ToString("N"));

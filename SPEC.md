@@ -5,12 +5,16 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M008-R014 — v0.3.0-distribution-publication**, accepted by Chat.
-Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M008 and V0 are
-Complete; V1 remains In Progress. Runtime behavior remains the accepted V1-M007-R013
-0.3.0 contract; R014 establishes Core-only NuGet/GitHub distribution preparation,
-matching Extension fallback guidance and publication-safe package validation.
-Publication itself remains a separate Controller boundary.
+Established baseline: **V1-M011-R021 — sdk-servicing-line-v031**, accepted by Chat.
+Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M011 and V0 are
+Complete; V1 remains In Progress. Source version 0.3.1 is accepted. M009 establishes
+default offscreen rendering preservation and bounded caller launch switches; M010
+establishes capture-region/resize/source-size plus preview-liveness stabilization; M011
+establishes release-ready distribution documentation and package consistency. R019 restores
+only the Controller validation map. R021 adopts the stable .NET 10.0.4xx toolchain policy:
+10.0.401 floor, latestPatch roll-forward and no prerelease SDK. Neither alters the accepted
+0.3.1 specification. Controller validate-revision, Git checkpoint, push and publication
+remain separate boundaries.
 
 R013 preserves the accepted ownership, geometry, PARK/RESTORE, caller-owned monitoring
 and download contracts while adding source-compatible `CaptureMode.BrowserViewport` /
@@ -38,8 +42,8 @@ maintainable product documentation is in README.md and docs/.
   1903+ target, bounded GDI+ JPEG encoding/decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, accepted Source version 0.3.0; not yet published.
-- Core package and SampleCaller product version: accepted Source version 0.3.0; publication remains separate.
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, accepted Source version 0.3.1; publication remains pending checkpoint.
+- Core package and SampleCaller product version: accepted Source version 0.3.1; publication remains a separate Controller operation.
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.

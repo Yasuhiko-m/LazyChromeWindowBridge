@@ -31,7 +31,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Setup pinned .NET SDK
+      - name: Setup .NET SDK from servicing-line policy
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: global.json
@@ -46,7 +46,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $head = git rev-parse HEAD
           if ($LASTEXITCODE -ne 0 -or $head -cne $env:GITHUB_SHA) { throw 'Checkout SHA mismatch.' }
-          if ((dotnet --version) -ne '10.0.400') { throw 'SDK mismatch.' }
+          ./Scripts/Internal/AssertSdkPolicy.ps1
 
       - name: Restore, build Release, test, pack and verify local consumer
         run: ./Scripts/Test-NuGet.ps1
@@ -66,6 +66,6 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'OIDC credential missing.' }
           # The CLI also sends the matching portable-PDB .snupkg beside this file.
           # No wildcard, duplicate suppression, separate symbol push or key persistence.
-          dotnet nuget push ./artifacts/nuget/0.3.0/LazyChromeWindowBridge.Core.0.3.0.nupkg `
+          dotnet nuget push ./artifacts/nuget/0.3.1/LazyChromeWindowBridge.Core.0.3.1.nupkg `
             --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
           if ($LASTEXITCODE -ne 0) { throw 'NuGet push failed; inspect package and symbol status before retrying.' }

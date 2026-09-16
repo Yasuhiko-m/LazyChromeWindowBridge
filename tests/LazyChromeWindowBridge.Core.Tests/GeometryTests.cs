@@ -121,13 +121,20 @@ internal static class GeometryTests
         private readonly Dictionary<string, long> markers = [];
         private readonly Dictionary<long, (NativeIdentity Identity, PixelRect Rect)> windows = [];
         private readonly Dictionary<long, long> styles = [];
+        public int ReadCount { get; private set; }
+        public int FailNextReads { get; set; }
         public MonitorGeometry[] Topology = monitors;
         public void Add(string marker, NativeIdentity identity, PixelRect rect) { markers[marker] = identity.Hwnd; windows[identity.Hwnd] = (identity, rect); styles[identity.Hwnd] = 0x40000; }
         public void Remove(long hwnd) => windows.Remove(hwnd);
         public void ReplaceIdentity(long hwnd, NativeIdentity identity) => windows[hwnd] = (identity, windows[hwnd].Rect);
         public NativeIdentity? FindAndTag(string marker, string chromeExecutable) => markers.TryGetValue(marker, out var hwnd) ? windows[hwnd].Identity : null;
         public bool Alive(NativeIdentity identity) => windows.TryGetValue(identity.Hwnd, out var window) && window.Identity == identity;
-        public PixelRect Read(NativeIdentity identity) => Alive(identity) ? windows[identity.Hwnd].Rect : throw new InvalidOperationException("stale native identity");
+        public PixelRect Read(NativeIdentity identity)
+        {
+            ReadCount++;
+            if (FailNextReads > 0) { FailNextReads--; throw new InvalidOperationException("transient native geometry read failure"); }
+            return Alive(identity) ? windows[identity.Hwnd].Rect : throw new InvalidOperationException("stale native identity");
+        }
         public bool Normal(NativeIdentity identity) => Alive(identity);
         public void Move(NativeIdentity identity, PixelRect rectangle) { _ = Read(identity); windows[identity.Hwnd] = (identity, rectangle); }
         public uint Dpi(NativeIdentity identity) => Topology.FirstOrDefault(m => Read(identity).Intersects(m.Bounds))?.DpiX ?? 96;

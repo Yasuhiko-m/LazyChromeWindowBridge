@@ -3,9 +3,9 @@
 param([Parameter(Mandatory)][string]$SourceRoot)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
-$packageRoot = Join-Path $SourceRoot 'artifacts/nuget/0.3.0'
+$packageRoot = Join-Path $SourceRoot 'artifacts/nuget/0.3.1'
 $packageId = 'LazyChromeWindowBridge.Core'
-$version = '0.3.0'
+$version = '0.3.1'
 $head = git -C $SourceRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot determine repository commit.' }
 $expectedNames = @("$packageId.$version.nupkg", "$packageId.$version.snupkg")
@@ -90,7 +90,7 @@ foreach ($extension in @('nupkg', 'snupkg')) {
                 'Chrome Web Store',
                 'Store review',
                 'GitHub Release',
-                '`v0.3.0`',
+                '`v0.3.1`',
                 'chrome://extensions',
                 'Developer mode',
                 'Load unpacked')) {
@@ -128,7 +128,7 @@ $projectXml = @'
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="LazyChromeWindowBridge.Core" Version="[0.3.0]" />
+    <PackageReference Include="LazyChromeWindowBridge.Core" Version="[0.3.1]" />
   </ItemGroup>
 </Project>
 '@
@@ -155,4 +155,4 @@ $consumerOutput = Join-Path $consumerRoot 'bin/Release/net10.0-windows10.0.18362
 if ((Get-FileHash -LiteralPath (Join-Path $consumerOutput "$packageId.dll")).Hash -ne $dllHashes['net10.0-windows10.0.18362']) { throw 'Consumer loaded another Core binary.' }
 & dotnet (Join-Path $consumerOutput 'NuGetConsumer.dll')
 if ($LASTEXITCODE -ne 0) { throw 'Local nupkg consumer runtime checks failed.' }
-'PASS: local-only 0.3.0 nupkg consumer; external API checks include both CaptureMode values and SetShowInTaskbar.'
+'PASS: local-only 0.3.1 nupkg consumer; external API checks include both CaptureMode values and SetShowInTaskbar.'

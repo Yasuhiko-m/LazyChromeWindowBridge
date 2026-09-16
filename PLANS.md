@@ -185,9 +185,32 @@ Extension packaging, Windows x64 bundle and strict package/README validation are
 accepted. Git checkpoint/push and publication are separate Controller boundaries.
 The submitted CWS 0.2.0 review remains historical and untouched.
 
+### M009 — Chrome Launch Options
+Goal: add bounded caller Chrome launch switches and default offscreen rendering
+preservation without changing ownership, placement, monitoring or extension behavior.
+
+Status: **Complete**. Accepted by Chat at V1-M011-R018 as part of the established 0.3.1
+Source baseline. Git checkpoint/push and publication remain separate Controller boundaries.
+
+### M010 — Capture Pipeline and Preview Stability
+Goal: add shared source-region/resize/source-size monitoring semantics and stabilize
+NativeWindow preview liveness without changing exact ownership or caller-owned policy.
+
+Status: **Complete**. Accepted by Chat at V1-M011-R018 as part of the established 0.3.1
+Source baseline. Git checkpoint/push and publication remain separate Controller boundaries.
+
+### M011 — v0.3.1 Release Preparation
+Goal: prepare the complete 0.3.1 Source baseline for Chat acceptance, checkpoint, GitHub
+Release and Core-only NuGet publication.
+
+Status: **Complete**. Accepted by Chat at V1-M011-R021; R019 is an infrastructure-only
+validation-map repair and R021 is a release-toolchain servicing-policy update. Neither changes
+the established 0.3.1 Source behavior. Publication remains a Controller operation after
+checkpoint; Chrome Web Store is outside this milestone.
+
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M008-R014; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M011-R021; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "projectFallbacks": [
+    {
+      "sourcePrefix": "src/LazyChromeWindowBridge.Core/",
+      "testProjects": [
+        "tests/LazyChromeWindowBridge.Core.Tests/LazyChromeWindowBridge.Core.Tests.csproj",
+        "tests/LazyChromeWindowBridge.PublicApi.Tests/LazyChromeWindowBridge.PublicApi.Tests.csproj"
+      ]
+    },
+    {
+      "sourcePrefix": "src/LazyChromeWindowBridge.Extension/",
+      "testProjects": [
+        "tests/LazyChromeWindowBridge.Core.Tests/LazyChromeWindowBridge.Core.Tests.csproj"
+      ]
+    }
+  ]
+}

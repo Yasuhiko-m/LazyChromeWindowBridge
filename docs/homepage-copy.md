@@ -1,10 +1,9 @@
 # Homepage copy
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
-This copy describes the accepted 0.3.0 R013 runtime. GitHub/NuGet 0.2.0 publication
-and the submitted CWS 0.2.0 review are historical. The authorized 0.3.0 GitHub/NuGet
-publication remains a separate Controller operation; do not present it as completed
-until that operation has occurred.
+This copy describes the 0.3.1 release-preparation working tree built on the accepted
+0.3.0 runtime. Historical publication facts and the submitted CWS 0.2.0 review remain
+historical. Do not present 0.3.1 as publicly released before Controller publication.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.
@@ -31,6 +30,9 @@ LCWB-launched Chrome uses --silent-debugger-extension-api for best-effort infoba
 suppression on supported Chrome. It does not weaken debugger permission; Chrome may
 ignore it and show a notice. BrowserViewport commands remain Page.getLayoutMetrics and
 Page.captureScreenshot; NativeWindow does not attach Chrome debugger for capture.
+LCWB also requests --disable-backgrounding-occluded-windows by default for its fully
+offscreen PARKed windows. Consumers can opt out or pass bounded additional Chrome
+switches, but cannot replace LCWB ownership/bootstrap arguments.
 Taskbar show/hide affects only the selected validated HWND and is independent of
 placement/monitoring; normal release restores LCWB-modified state.
 Read-only Chrome downloads API events report Created, Complete and

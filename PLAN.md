@@ -1,39 +1,31 @@
 # LazyChromeExtension PLAN
 
 - Current Version: `V1`
-- Current Milestone: `M008`
-- Milestone Goal: v0.3.0 Distribution and Publication Preparation
-- Current Revision: `R014`
-- Current Baseline: `V1-M008-R014`
+- Current Milestone: `M011`
+- Milestone Goal: v0.3.1 Release Preparation
+- Current Revision: `R021`
+- Current Baseline: `V1-M011-R021`
 - Milestone Status: **Complete**
 - Version Status: **In Progress**
 
 ## Handoff
 
-Chat accepted `V1-M008-R014` (v0.3.0-distribution-publication). M008 is Complete;
-V1 remains In Progress and V0 remains Complete. Revisions.md establishes
-V1-M008-R014 as Current VMR.
+Chat accepted `V1-M011-R021` (sdk-servicing-line-v031). M009, M010 and M011 are
+Complete; V1 remains In Progress and V0 remains Complete. Revisions.md establishes
+V1-M011-R021 as Current VMR.
 
-Runtime behavior remains the accepted R013 0.3.0 contract. R014 establishes the
-distribution/publication preparation: Core-only NuGet 0.3.0, matching Extension delivery,
-GitHub Release fallback when Chrome Web Store review lags, deterministic Extension ZIP,
-self-contained Windows x64 bundle and strict NuGet package/README verification.
+Source version 0.3.1 is established: caller-controlled Chrome launch/background policy,
+natural BrowserViewport capture with region/resize/source-size APIs, exact-HWND
+NativeWindow GPU processing, and observational preview-liveness hardening are accepted.
+R018 establishes release-ready distribution documentation and package consistency. R019
+is an infrastructure-only validation-map repair. R021 adopts the stable 10.0.4xx
+servicing-line toolchain policy only; 0.3.1 product behavior remains accepted from R018/R019.
 
-Windows validation with SDK 10.0.400 passed Core 179 / external PublicApi 35 / Extension
-40 checks, isolated local-feed consumer, deterministic Extension packaging and Windows
-bundle inventory/extraction. Pre-checkpoint artifact hashes are recorded in Revisions.md
-and must not be published as final bytes because NuGet provenance must identify the
-accepted R014 checkpoint.
-
-The next boundary is the independent R014 Git checkpoint/push, followed by the user's
-already-authorized GitHub v0.3.0 Release and NuGet 0.3.0 publication. Final artifacts
-must be rebuilt from that exact checkpoint before publication.
-
-GitHub/NuGet 0.1.0 and 0.2.0 remain immutable historical releases. CWS 0.2.0 was
-submitted for review with automatic publication requested after approval; its current
-approval/publication state is not asserted here and R014 performs no CWS operation.
-
-The known third-display initial offscreen BrowserViewport timeout remains unresolved.
-The --silent-debugger-extension-api launch flag remains best-effort suppression only.
+The next boundary is Controller validate-revision, then the independent R021 Git checkpoint/push,
+followed by the user's
+authorized GitHub v0.3.1 Release and NuGet Core 0.3.1 publication. Final public artifacts
+must be rebuilt from that exact checkpoint. CWS 0.3.1 is outside this boundary; historical
+submitted CWS 0.2.0 remains untouched. The known third-display initial offscreen
+BrowserViewport timeout and Chrome-dependent silent-debugger suppression remain explicit.
 
 This legacy file mirrors the established baseline.

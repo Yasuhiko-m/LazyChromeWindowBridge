@@ -151,6 +151,9 @@ public sealed class BridgeRuntime : IAsyncDisposable
     public void SetSessionMonitoring(Guid appSessionId, bool enabled) => Monitor.SetSessionMonitoring(appSessionId, enabled);
     public MonitorSnapshot GetMonitorState() => Monitor.Snapshot();
     public MonitorFrame? GetLatestFrame(Guid appSessionId) => Monitor.Latest(appSessionId);
+    /// <summary>Returns the current natural source extent without starting monitoring or publishing a frame.</summary>
+    public ValueTask<CaptureSourceSize> GetCaptureSourceSizeAsync(Guid appSessionId, CaptureMode mode, CancellationToken cancellationToken = default) =>
+        Monitor.GetCaptureSourceSizeAsync(appSessionId, mode, cancellationToken);
     public DownloadLifecycleEvent[] GetDownloads() => downloads.GetAll();
     public DownloadLifecycleEvent? GetDownload(int downloadId) => downloads.Get(downloadId);
     private void RaiseDownloadChanged(DownloadLifecycleEvent value)

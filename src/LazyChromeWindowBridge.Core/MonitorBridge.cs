@@ -43,6 +43,14 @@ internal static class MonitorBridge
                     using var message = await Receive(socket, 3000000, lifetime.Token);
                     if (message is null) break;
                     var root = message.RootElement;
+                    if (root.GetProperty("type").GetString() == "source-size")
+                    {
+                        var requestId = root.GetProperty("requestId").GetString();
+                        if (string.IsNullOrWhiteSpace(requestId)) throw new JsonException("Invalid source-size response.");
+                        if (root.TryGetProperty("error", out var probeError)) host.Monitor.SourceSizeFailure(id, connection, requestId, probeError.GetString());
+                        else host.Monitor.SourceSize(id, connection, requestId, root.GetProperty("width").GetDouble(), root.GetProperty("height").GetDouble());
+                        continue;
+                    }
                     var generation = root.GetProperty("generation").GetInt64();
                     if (root.GetProperty("type").GetString() == "frame")
                     {

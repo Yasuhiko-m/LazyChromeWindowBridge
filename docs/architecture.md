@@ -57,9 +57,15 @@ Each placement transition advances a generation.
 Global monitoring requests every eligible live owned Visible or Parked session independently. Per-session
 entries retain a connection, generation, native identity, latest JPEG, counters and
 error. Either placement can receive fresh JPEGs. Monitor state, native placement and
-taskbar policy are separate. Current Source is the accepted V1-M007-R013 0.3.0 runtime
-baseline. Its GitHub/NuGet publication is a separate Controller operation; historical
-0.2.0 publications remain unchanged.
+taskbar policy are separate. Current Source is the working 0.3.1 release-preparation
+tree, including launch policy, capture refinement and preview-liveness stabilization.
+Its GitHub/NuGet publication remains a separate Controller operation; historical
+publications remain unchanged.
+
+Chrome launch construction keeps LCWB ownership arguments authoritative. It adds
+`--disable-backgrounding-occluded-windows` once by default for fully offscreen PARKed
+windows; callers can opt out or append validated ordered switches without replacing
+LCWB's profile, bootstrap or new-window arguments.
 
 BrowserViewport is the default. The extension queries only the active tab of the already-owned window. It uses
 Page.getLayoutMetrics and Page.captureScreenshot, one acquisition per target at a
