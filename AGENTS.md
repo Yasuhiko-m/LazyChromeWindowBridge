@@ -2,15 +2,19 @@
 
 ## Project
 ProjectID: `LazyChromeExtension`
-SourcePath: `C:\LazyAIDeckProjects\LazyChromeExtension`
 
-Codex is the Source Executor. Its only Project working root is SourcePath.
+Codex is the Source Executor. Its only Project working root is the exact Source working root provided for the Task.
 Project Data under the selected Data Root is Controller-owned and is not a second Codex root. WorkspacePath is legacy migration input only.
 
 ## Current Task
 Work from the current Task purpose, requirements, scope, and completion criteria.
 Inside the established specification boundary, choose implementation details as needed.
 If Task purpose or an external specification boundary must change, stop and report.
+Complete the adopted arrival state, including related implementation, tests and
+necessary UI cleanup. A substantial 30–60 minute Task is sizing guidance, not a
+runtime SLA. Do not turn it into cosmetic micro-Revisions or extra confirmation
+stops; safety comes from design, authority boundaries and validation. Split only
+at a real purpose, authority or deployment boundary.
 
 ## ProjectID Guard
 Before Source changes, compare ProjectID from the Task, this file, and PROJECT.md.
@@ -86,6 +90,11 @@ CHANGELOG.md remains transient and uncommitted.
 ## Build / Test
 Run the Project build/tests required by the current Task after implementation changes.
 Documentation/template-only work does not require unrelated builds unless requested.
+Do not create tests merely because Source changed or validation selection has no owner.
+Prefer existing Contract/Regression tests; add a test only for a durable product/security/data-integrity contract or a concrete recurrence-worthy regression.
+Use Acceptance/Canary for real Windows, browser, WSL, process, packaging, OAuth, tunnel, and filesystem/AV behavior when that environment is the authority.
+Full regression belongs only to an explicit broad boundary such as a milestone close, release candidate, cross-cutting refactor, or test/validation architecture Task.
+Do not repair test/validation architecture outside the current Task scope.
 
 ## Completion handoff
 Completely overwrite Source CHANGELOG.md in UTF-8 with the current Task only:
@@ -112,3 +121,26 @@ The final Codex response must agree with this handoff.
 
 ## Stop
 Stop further Source changes if ProjectID cannot be confirmed, a specification decision is required, an unapproved dependency is required, a deletion cannot be bounded, five attempts are exhausted, or completion cannot be achieved safely.
+
+## Managed Source projection
+
+Windows absolute `SourcePath` is physical Source authority. Managed Codex uses only
+`/LazyAIDeckProjects/<DeckName>/<ProjectID>` as its execution cwd. This WSL
+projection is execution-only state backed by the same Windows directory; it is
+not a second Source or Project Data root. The initial DeckName is `default`.
+The Server converts and checks the Windows backing path, then uses bounded
+`wsl.exe -d <distribution> -u root` operations to establish an idempotent bind
+mount and its exact persistent `/etc/fstab` entry. It rejects conflicting mounts,
+nonempty targets and symlink targets instead of overwriting them. Explicitly
+disabled WSL fstab loading fails projection checks. The normal Codex user executes tasks;
+no sudo password is requested or stored. Direct `/mnt/<drive>/...` managed cwd,
+the retired `/source` contract, temporary resolver bridges and Git-check bypasses
+are not supported. WSL drive paths remain internal backing-path inputs only.
+
+Managed Thread persistence includes DeckName, ProjectID, normalized Windows
+SourcePath, distribution, Codex home/executable and organized projection path.
+A legacy or mismatched mapping bootstraps a new Thread. Persistence is atomically
+replaced only after bootstrap succeeds with a valid Thread ID and completed turn;
+failure preserves the previous entry. Matching mappings still verify the current
+projection before reuse. Sandbox defaults remain `workspace-write` with explicit
+per-Project `danger-full-access` opt-in.

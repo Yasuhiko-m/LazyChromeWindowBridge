@@ -51,6 +51,22 @@ base Revisionを進める。既存の入れ子suffixは歴史的Package互換と
 `toLazy` is display shorthand only and is never routing syntax. Runtime intake
 requires the `_toLazyAIDeck_` discriminator.
 
+## Chat preflight before user handoff
+
+Chat first constructs the intended filename and exact metadata/content, then calls
+the matching read-only MCP preflight itself. `_toLazyAIDeck` uses
+`deck_preflight_controller_package` with `command.json` and logical member/hash
+metadata; `_toCodex` uses `deck_preflight_codex_task` with `task.md` and optional
+attachment metadata. If preflight fails, Chat corrects the prospective package and
+repeats MCP preflight internally. Only PASS permits Chat to generate and present the
+ZIP to the user. The user is never asked to download or run a separate "preflight
+package". Real Server ZIP intake repeats the same authoritative validation and
+remains final authority.
+
+Controller `command.json` has no `Base VMR`; its filename VMR must equal the
+registered Project's current VMR. Codex `task.md` retains required `Base VMR`, which
+must equal the registered Project's current VMR before dispatch.
+
 ## `_toCodex`
 
 A `_toCodex` package contains required `task.md` and optional accepted
@@ -68,47 +84,90 @@ Base VMR:
 After that header, the body is opaque Chat-authored Markdown. The Server validates
 fixed metadata, filename identity, current VMR/base compatibility, model and
 reasoning capability, and accepted attachment boundaries before it gives the body
-to Codex. Attachments never add `WorkspacePath` as a Codex root.
+to Codex. `deck_preflight_codex_task` applies that same metadata validator without
+creating a Task or reading attachment bytes; supplied attachment paths/sizes/hashes
+are bounded, and real intake remains responsible for byte/member validation.
+Attachments never add `WorkspacePath` as a Codex root.
+
+Each accepted `_toCodex` package attempt receives one Server-owned Guid-N
+AttemptID. That exact identity is also the managed Codex TaskID from package
+Detected/Processing through managed Queued/Starting/Running/terminal state, so no
+placeholder binding or second identity exists. Once the exact managed Task exists,
+its state is Task Card authority and later package-finalization notifications cannot
+regress or duplicate it. A later retry receives a new AttemptID/TaskID even when the
+wire filename is unchanged.
+
+For an accepted attachment Task, the Server uses that package attempt's canonical Guid-N TaskID,
+creates `/tmp/lazy-attachments/<taskid>/` in the configured WSL distribution,
+and transfers only the validated files there. The managed Exec keeps its primary
+`--cd` working directory at `/LazyAIDeckProjects/<DeckName>/<ProjectID>` and
+receives exactly that Task-local directory through Codex CLI `--add-dir`.
+The Server validates physical absolute Windows Source authority and establishes
+the persistent execution-only WSL projection with bounded root operations. It
+never adds Project Data, Workspace, an arbitrary host root, or the broader staging
+root. The final persisted Task prompt and Codex input append that exact Linux
+attachment directory. Task-local staging is not terminal-cleaned; Server startup
+performs one safe stale-cache pass for only direct 32-hex directory children at
+least 24 hours old. Attachments never add `WorkspacePath` as a Codex root.
 
 Production managed execution is ProjectID-scoped WSL managed Codex Exec. The
 Server resumes the exact persisted managed Thread for one staged task and fails
 closed for missing/mismatched Thread or lifecycle evidence. There is no automatic
-fallback to Windows Codex App Server, no fresh-thread fallback, and no extra
-writable root.
+fallback to Windows Codex App Server. Legacy or projection-mismatched mappings
+bootstrap a new Thread before Task execution and replace persistence only after
+success; an executing Task never silently switches Threads. The only
+additional managed-Exec directory permitted for an attachment Task is its exact
+Task-local `/tmp/lazy-attachments/<taskid>/` directory; it is never a Project
+Data, Workspace, or arbitrary host root.
 
 ## `_toLazyAIDeck`
 
-A deterministic Controller package contains:
+<!-- BEGIN GENERATED CONTROLLER PACKAGE CONTRACT -->
+Contract version: `2`
+Contract SHA-256 is available from `deck_get_controller_package_contract` and `deck_preflight_controller_package`.
 
-```text
-command.json             required
-params/                  optional bounded command input
-result.md                Server-reserved terminal result
-```
+- Filename: `<ProjectID>_<VMR>_toLazyAIDeck_<purpose>.zip`; filename ProjectID must equal `command.json.projectId`.
+- Dynamic Project check: filename VMR must equal the registered Project's current VMR. Controller `command.json` has no Base VMR field.
+- ZIP top level: only `command.json` and optional `params/`.
+- `command.json`: schemaVersion `1`, exact `projectId`, and a non-empty ordered `commands` array.
+- Command fields: optional/null `id`, required string `type` and `target`, optional string-array `params`, optional `mode`.
+- Omitted/null IDs are completed by Server as `cmd-001`, `cmd-002`, ... without colliding with explicit IDs. Explicit blank or duplicate IDs are invalid.
+- Supported types: `scripts-run`, `deck-command`. Generic `powershell` packages are unsupported; publish a bounded Catalog Script or use an advertised `deck-command`.
+- `scripts-run`: target is a current public Script Catalog `.bat`; optional mode is `wait`; installed Catalog membership is runtime-advertised.
+- Official `git-update.bat` accepts no params; `github-release-publish.bat` accepts one bounded v-prefixed semantic version; `github-workflow-dispatch.bat` accepts an allowlisted workflow key, version, and only declared `name=value` inputs.
+- `deck-command`: params must be empty and mode omitted. Current exact static targets: `migrate-project-data`, `validate-revision`, `lazy-blueprint`.
+- `validate-revision` additionally requires the completed Revision Journal for the exact current package VMR before execution.
+- Apply Patch remains `scripts-run` target `apply-patch.bat` with empty params and payload under `params/apply-patch/`: `manifest.json`, optional `Source/`, plus `ProjectData/` for current Projects or `Workspace/` only for explicitly legacy operational roots.
+- Preflight accepts only package metadata/text, performs no execution or mutation, and uses the same normalizer/validator as intake.
+- Before user handoff, call `deck_preflight_controller_package` with the intended filename, exact command JSON, every logical ZIP member path plus SHA-256 when available, and Apply Patch manifest text when applicable; proceed only when `succeeded` is true and use its normalized command IDs.
+<!-- END GENERATED CONTROLLER PACKAGE CONTRACT -->
 
-`command.json` has `schemaVersion: 1`, exact `projectId`, and a non-empty ordered
-command list. Commands stop at the first failure. Current command types are:
+The Server reserves root `result.md` for the terminal archive and rejects it in
+incoming ZIPs. Commands stop at the first failure.
 
-- `scripts-run` — an exact public Project Data Script Catalog target.
-- `powershell` — a bounded package-local PowerShell file through `-File`.
-- `deck-command` — only an exact Server-advertised operation with `params: []`; it is never a generic command/path route. Current targets are `migrate-project-data`, `validate-revision`, and read-only `lazy-blueprint`, whose Markdown is returned through Standard Output.
-
-The managed intake is `<DataRoot>\Downloads\Inbox`, not ordinary
-Downloads. The Server owns extraction, Project routing, Processing, Completed,
-Failed, and the one Server-generated terminal `result.md` capsule. A package
-success/failure result is Controller execution evidence, not authorization for an
-unbounded local operation.
+The managed intake is the exact current Deck root
+`<DataRoot>\Downloads\<DeckName>\Inbox`. Server resolves ProjectID to current Deck
+membership and owns Inbox, Processing, Completed, Failed, Orphaned, and
+TerminalMetadata beneath that Deck; a package in the wrong Deck fails closed.
+App/Chat must not route new work through the retired flat `Downloads\Inbox`.
+Completed/Failed ZIPs and metadata are disposable transport/cache evidence: the
+durable bounded result/Preview/drag source is the retained TaskCard `result.md`,
+with Revision Journals retaining Revision evidence. Failed-package Explorer
+selection therefore exists only while the matching cache archive still exists.
 
 両方のroutable package discriminatorで、exact wire filenameの重複保護はlifecycle-awareである。
-CompletedまたはProcessingは再実行せずrejectし、保持済みFailed executionは新しいattemptとして再発行できる。
-Failed archiveは不変のhistoryとして残し、duplicate-rejection archiveは最新の実行結果を置き換えない。
+active Processingまたは保持中のCompleted Task Cardは再実行せずrejectし、Downloads ZIPの保持は不要である。保持済みFailed/Interrupted/Orphaned executionは新しいattemptとして再発行できる。
+各accepted Controller executionにはServer-owned attempt identityが割り当てられ、retryは新しいTask Card/resultになる。
+以前のTask Card/resultはbounded historyとして残り、latest resultはterminal attempt時刻で選択される。Completed/Failed archiveとTerminalMetadataは最大5件のterminal Task Cardが表すVMR windowに追従してbest-effort削除される。
+新しく作成する同目的Chat packageは通常どおりflat suffixを進める（例: `R003_1` -> `R003_2`）。
 
 When a valid routable `_toCodex` or `_toLazyAIDeck` package has an exact terminal
 archive below the Server Failed root, its matching Project Client may request
 one-shot Explorer selection using ProjectID, original filename, and Failed archive
 identity. The Server revalidates that exact direct child; selection never opens,
-executes, retries, or mutates the ZIP. A valid duplicate download fails as
-`duplicate_package` without executing its second copy and follows the same rule.
+executes, retries, or mutates the ZIP. Cache cleanup can make that selection
+unavailable without affecting the Task result. A valid duplicate download fails
+as `duplicate_package` without executing its second copy and follows the same rule.
 
 ## Apply Patch
 
@@ -134,12 +193,42 @@ Manifest `schemaVersion` is `1` and it declares exact `projectId`, `sourceFiles`
 only, Project Data-only, and mixed payloads are allowed; deletion is unsupported.
 The Server supplies the registered ProjectID, SourcePath, and exact selected Project operational root;
 validated payload root only to exact `apply-patch.bat`. Ordinary Scripts receive
-no Apply Patch handoff. The Script validates strict membership/hashes and applies
+no Apply Patch payload handoff. Every public Script receives a Server-owned
+`LAZY_AI_DECK_*` context containing exact ProjectID, registered SourcePath,
+selected operational root/kind, current VMR, and DeckName; inherited/caller values
+in that reserved namespace are cleared first. The Script validates strict membership/hashes and applies
 only below those registered roots with bounded rollback. `apply-local` is not a
 current Pack capability.
 
-## Future `_toPwsh`
+### Official Git/GitHub Scripts
 
-`_toPwsh` may become a bounded read-only Windows host-inspection route only after
-separate implementation, tests, and real Windows acceptance. It is never a
-generic shell escape hatch and never a Source/Workspace mutation route.
+The Starter Pack publishes `git-update.bat`, `github-release-publish.bat`, and
+`github-workflow-dispatch.bat` as fixed public capabilities. Git Update has no
+public parameters and checkpoints only the current accepted Revision Journal
+delta before a normal `origin/main` push. It discovers only safe current
+`V*/M*/R*/revision.json` entries plus legacy `Revisions/**/revision.json`, rejects
+ambiguous current evidence, and returns deterministic fresh/idempotent commit,
+remote, committed-path, retained-dirty-path, and log-reference fields. The GitHub Scripts accept only bounded
+version/workflow selectors and manifest-declared inputs. They resolve the
+repository from registered Source `origin` and read the Project-authored fixed
+allowlist `.lazy-ai-deck/github-operations.json`; the Pack installs only its
+schema/example. Generic PowerShell, arbitrary executable/path/repository/URL,
+shell fragment, command, refspec, and workflow passthrough remain unsupported.
+GitHub authentication is owned by the existing `gh` credential store and is
+never accepted through package parameters, manifest data, or logs.
+
+### WSL projection diagnostic
+
+`_toLazyAIDeck` → `scripts-run` → `wsl-projection-diagnostic.bat` is a published
+current Starter Pack Catalog capability. Use `params: []` and optional `mode: wait`.
+The Server binds inspection to the package ProjectID and its current Deck/Windows
+Source/distribution. Bounded read-only WSL processes verify backing visibility,
+organized mount equality and the restart entry; no caller path, distribution,
+credential or shell input is accepted. It creates only the usual disposable Script
+log and never provisions a mount or bootstraps a Thread.
+
+The projection diagnostic reports registered Deck/Project/Windows Source identity,
+distribution, backing and expected projection paths, existence and mount evidence,
+exact fstab persistence, projection Git top-level/HEAD, and legacy `/source` state
+in stdout and its normal `Scripts/Outputs` log. It is read-only, has no public
+parameters, and receives identity only from the Server.

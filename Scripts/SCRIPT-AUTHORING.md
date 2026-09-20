@@ -16,6 +16,8 @@ This document is the portable authority for Source and Project Data Scripts.
 - Preserve structured arguments and the owned child process exit status.
 - Quote and validate ordinary paths, including paths containing spaces.
 - Make PowerShell/.NET overload selection and path usage unambiguous.
+- Controller `scripts-run` clears inherited reserved Script-context values and supplies exact registered ProjectID, SourcePath, operational root/kind, current VMR, and DeckName values through the documented `LAZY_AI_DECK_*` environment contract. Public Scripts must use this context instead of inferring identity from cwd, repository name, filesystem search, or caller-supplied paths.
+- Generic PowerShell, executable, shell-fragment, repository, URL, refspec, and command routes are not public Controller capabilities. Repeatable Windows mutations use a fixed public Catalog `.bat` and its fixed private implementation.
 
 ## Execution log
 
@@ -35,6 +37,7 @@ This document is the portable authority for Source and Project Data Scripts.
 - Always emit one concise logical log reference: `Output: Scripts/Outputs/<filename>`.
 - Do not expose a physical log path through that terminal reference.
 - Script code does not generate or own package `result.md`, Task Card lifecycle, or package lifecycle; those remain Controller responsibilities.
+- Git Update success emits one bounded deterministic stdout contract for both fresh and idempotent checkpoints; Controller copies that stdout into its ordinary Task result.
 
 ## Determinism and safety
 
@@ -42,3 +45,5 @@ This document is the portable authority for Source and Project Data Scripts.
 - Controller-invoked Scripts are non-interactive unless an adopted higher-level product contract explicitly owns interaction.
 - Match mutation validation and rollback to the operation's blast radius.
 - Prefer integration evidence from the actual intended Windows interpreter. When that runtime is unavailable, report the exact Controller-required Windows validation.
+- Pack-wide official Git/GitHub capabilities live in the Starter Pack. LazyAIDeck-specific self operations remain separate and must not be generalized by accepting caller-selected commands or paths.
+- GitHub publication/dispatch reads only the Project-authored Source manifest `.lazy-ai-deck/github-operations.json`, validated against the shipped schema/example. Pack refresh may update the schema/example but never creates or overwrites the mutable Project manifest.
