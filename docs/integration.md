@@ -1,10 +1,10 @@
 # Integration with the public Core API
 
-This describes the published GitHub v0.3.1 Source/API. Use matching Core and
+This describes the published GitHub v0.3.2 Source/API. Use matching Core and
 extension versions; mixed-version compatibility is not guaranteed. CWS may lag or skip
 versions, so use the matching GitHub Release extension ZIP with Developer mode / Load
 unpacked when an exact Store version is unavailable.
-Current Source v0.3.2 is unpublished and adds `SendKeyChordAsync(appSessionId, new BrowserKeyChord(...))` for exactly one allowlisted key/chord to the owned active tab. Completion confirms `Input.dispatchKeyEvent` completed, not a page or browser-UI effect; no macro, text input, JavaScript, DOM inspection, click automation, or post-input inspection is provided.
+v0.3.2 adds `SendKeyChordAsync(appSessionId, new BrowserKeyChord(...))` for exactly one allowlisted key/chord to the owned active tab. Completion confirms `Input.dispatchKeyEvent` completed, not a page or browser-UI effect; no macro, text input, JavaScript, DOM inspection, click automation, or post-input inspection is provided.
 PARK/RESTORE controls native window placement only and does not
 automatically start, stop, pause or resume monitoring. Monitoring policy belongs to
 the Caller, who explicitly chooses it with `SetSessionMonitoring(appSessionId, enabled)`.

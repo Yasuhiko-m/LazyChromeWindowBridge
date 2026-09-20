@@ -4,17 +4,18 @@ Chat accepted the R012 submission preparation for the R010/R011 behavior. CWS 0.
 is now published/general-public. That historical Store build does not match Core or
 Extension 0.3.x. Publisher display name: `yasuhiko-m`. Category: **Tools**.
 
-Chrome Web Store 0.3.1 is not asserted to be approved, uploaded or published. Store
+Chrome Web Store 0.3.2 is not asserted to be approved, uploaded or published. GitHub
+v0.3.2 and NuGet Core 0.3.2 are published. Store
 review can delay a matching extension version, and LCWB does not guarantee every
 GitHub/NuGet version will be submitted to or published on CWS. The Store is convenient,
 not a complete archive; when its version does not match Core, developers obtain
-`LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from Release `v0.3.1`, extract it,
+`LazyChromeWindowBridge.Extension-0.3.2-cws.zip` from Release `v0.3.2`, extract it,
 open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and
 select the extracted directory containing `manifest.json`. This path does not depend on
 CWS review or availability.
-The general-public CWS 0.2.0 build must not be presented as automatically matching Core 0.3.1.
+The general-public CWS 0.2.0 build must not be presented as automatically matching Core 0.3.2.
 This task performs no live dashboard operation.
-Current Source 0.3.2 is unpublished and is not a Chrome Web Store distribution claim.
+Source 0.3.2 is published on GitHub/NuGet but is not a Chrome Web Store distribution claim.
 
 ## Name
 
@@ -59,8 +60,8 @@ and sent only to the authenticated companion on the same computer. There is no
 telemetry, advertising or cloud relay.
 
 This extension does not provide arbitrary webpage input, text macros, click automation,
-DOM access, OCR, network-response inspection or page-completion inference. Current
-unpublished Source 0.3.2 additionally permits one structured allowlisted key/chord to
+DOM access, OCR, network-response inspection or page-completion inference. Source 0.3.2
+additionally permits one structured allowlisted key/chord to
 the exact owned active tab; successful dispatch does not establish page or browser-UI
 handling. It has no toolbar popup: use the Windows companion controls. Windows x64,
 Chrome 120 or later, and the companion are required. The supplied self-contained companion

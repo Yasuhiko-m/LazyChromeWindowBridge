@@ -222,7 +222,7 @@ same-session in-flight bound and five-second timeout; stale/terminal/mismatched 
 fail closed. Temporary attachment is cleaned up and monitor-owned attachment is reused.
 No macro, arbitrary CDP/JavaScript/DOM/Network, click/text automation, OS-global input,
 or product post-input inspection is added; dispatch does not guarantee page or browser-UI
-handling. Source 0.3.2 remains unpublished.
+handling. Source 0.3.2 is published on GitHub/NuGet; CWS 0.3.2 remains unpublished.
 
 ### M013 — Release automation / version-coherent distribution
 Goal: establish a safe release flow for GitHub, NuGet and Chrome Web Store while
@@ -235,11 +235,12 @@ Accepted distribution policy requires matching
 Core/Extension versions and GitHub exact-version fallback when CWS lags or skips a
 version. Version-driven local preparation, bounded v0.3.2 Controller allowlists,
 immutable-tag NuGet OIDC and optional existing-item CWS V2 normal-review dispatch are
-established. Checkpoint/push and all publication operations remain separate.
+established. GitHub v0.3.2 and immutable-tag NuGet OIDC publication are complete; CWS
+0.3.2 remains an optional separate configured operation.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M013-R029; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M013-R032; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

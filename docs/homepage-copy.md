@@ -1,9 +1,8 @@
 # Homepage copy
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
-This copy describes the published GitHub v0.3.1 release built on the accepted
-0.3.0 runtime. CWS 0.2.0 is now general-public but does not match Core/Extension
-0.3.x; CWS 0.3.1 and current Source 0.3.2 remain unpublished.
+This copy describes the published GitHub/NuGet v0.3.2 release. CWS 0.2.0 is
+general-public but does not match Core/Extension 0.3.x; CWS 0.3.2 remains unpublished.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.

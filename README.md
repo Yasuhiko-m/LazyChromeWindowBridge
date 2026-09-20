@@ -18,7 +18,7 @@ integration through a Manifest V3 extension. Unlike DOM-oriented browser automat
 tools, it works with Chrome application/window state and exact native ownership.
 Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
 
-**Current Source v0.3.2 is unpublished:** it adds one bounded, allowlisted key/chord request to the exact owned active tab. GitHub/NuGet v0.3.1 remains the latest published release: [the v0.3.1 release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1). Completion confirms bounded CDP `Input.dispatchKeyEvent`, not a page or Chrome-UI effect; it is not arbitrary JavaScript, text macros, click automation, DOM automation, or general remote control.
+**Current release v0.3.2 is published:** [GitHub v0.3.2](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.2) provides the matching Extension ZIP and Windows bundle, and Core 0.3.2 was published through the successful immutable-tag NuGet OIDC workflow. v0.3.2 adds one bounded, allowlisted key/chord request to the exact owned active tab. Completion confirms bounded CDP `Input.dispatchKeyEvent`, not a page or Chrome-UI effect; it is not arbitrary JavaScript, text macros, click automation, DOM automation, or general remote control.
 
 ## Version matching / Chrome Web Store availability
 
@@ -36,6 +36,14 @@ it, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacke
 select the extracted directory containing `manifest.json`. This path does not depend on
 CWS review or availability.
 
+**v0.3.2:**
+adds bounded `BrowserKey` / `BrowserKeyModifiers` / `BrowserKeyChord` dispatch through
+`SendKeyChordAsync` for the exact owned active tab only. It remains one fixed CDP
+keyDown/keyUp operation, not a macro or general input/automation facility. CWS 0.2.0 is
+the current general-public Store build and does not match 0.3.2; use the matching GitHub
+Extension ZIP through **Developer mode** / **Load unpacked** while CWS lags or skips it.
+See the [0.3.2 release notes](docs/releases/v0.3.2.md).
+
 **v0.3.1:**
 contains the Chrome launch policy, capture-region/resize/source-size, and
 preview-liveness work. It keeps the accepted NativeWindow/taskbar runtime and
@@ -49,9 +57,8 @@ offscreen retain Chrome rendering where Chrome honors that switch. Set
 `BridgeOptions.PreserveBackgroundRendering` to false to omit only that default, or use
 `AdditionalChromeArguments` / repeatable `--chrome-argument` for allowed caller switches.
 `--load-extension=<directory>` is useful with Chrome for Testing/Chromium; branded
-Chrome support is not promised. Use matching Core and Extension versions. The matching
-Core 0.3.1 is visible/indexed on NuGet Gallery. CWS 0.2.0 is general-public but does
-not match Core/Extension 0.3.x; Chrome Web Store 0.3.1 availability is not asserted.
+Chrome support is not promised. Use matching Core and Extension versions. CWS 0.2.0 is
+general-public but does not match Core/Extension 0.3.x.
 See the [0.3.1 release notes](docs/releases/v0.3.1.md).
 
 ## What it does

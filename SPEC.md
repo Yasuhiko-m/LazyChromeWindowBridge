@@ -5,23 +5,22 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M013-R029 — normalize-current-vmr-for-checkpoint**. R027_1 is
-the accepted release-automation implementation/validation endpoint and R028 its first
-authority closeout; R029 changes no product behavior and makes the complete authority
-state checkpointable. Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M013
+Established baseline: **V1-M013-R032 — v0.3.2-publication-closeout**. R027_1 is the
+accepted release-automation implementation/validation endpoint; R032 records the completed
+GitHub/NuGet v0.3.2 publication. Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M013
 and V0 are Complete; V1 remains In Progress. Source version 0.3.2 is accepted. M009 establishes
 default offscreen rendering preservation and bounded caller launch switches; M010
 establishes capture-region/resize/source-size plus preview-liveness stabilization; M011
 establishes release-ready distribution documentation and package consistency. R019 restores
 only the Controller validation map. R021 adopts the stable .NET 10.0.4xx toolchain policy:
 10.0.401 floor, latestPatch roll-forward and no prerelease SDK. R022 records the completed
-GitHub v0.3.1 Release from checkpoint `6ad192376f5d36ddc7d93bf7eba1dae11cd487bd` and
-successful NuGet OIDC workflow/push; Core 0.3.1 is independently visible/indexed on
-NuGet Gallery. M012 adds bounded key-chord input without changing the accepted capture,
+GitHub v0.3.2 Release from checkpoint `d490bdbbfd6c98755388a64e288cc8ac8989a98a` and
+successful immutable-tag NuGet OIDC workflow/push; Gallery indexing for 0.3.2 was not
+independently measured. M012 adds bounded key-chord input without changing the accepted capture,
 ownership, placement, taskbar or download contracts. M013 establishes matching-version
 GitHub Extension fallback, stable three-part version authority resolution, local-only
-preparation and bounded immutable-tag Controller publication routes; it does not publish
-Source 0.3.2 itself.
+preparation and bounded immutable-tag Controller publication routes; its GitHub/NuGet
+v0.3.2 publication is complete.
 
 R013 preserves the accepted ownership, geometry, PARK/RESTORE, caller-owned monitoring
 and download contracts while adding source-compatible `CaptureMode.BrowserViewport` /
@@ -31,8 +30,8 @@ Windows Graphics Capture plus D3D11 bounded resize and no picker/CDP screenshot 
 `SetShowInTaskbar` is runtime-only and restored on normal disposal when LCWB changed it.
 
 Historical GitHub/NuGet 0.1.0 and 0.2.0 releases remain unchanged. CWS 0.2.0 is now
-general-public but does not match Core/Extension 0.3.x; CWS 0.3.1 and Source 0.3.2 are
-unpublished. M013 CWS dispatch is optional and restricted to the existing item:
+general-public but does not match Core/Extension 0.3.x; CWS 0.3.2 remains unpublished.
+M013 CWS dispatch is optional and restricted to the existing item:
 release-environment credentials, fixed V2 endpoints, RS256 OAuth and DEFAULT_PUBLISH are
 used; review completion is asynchronous. R014 accepts 0.3.0 distribution preparation and the user has separately
 authorized GitHub v0.3.0 and NuGet 0.3.0 publication after the accepted checkpoint;
@@ -52,8 +51,8 @@ maintainable product documentation is in README.md and docs/.
   1903+ target, bounded GDI+ JPEG encoding/decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, accepted Source version 0.3.2; GitHub v0.3.1 distribution is published, while CWS 0.3.1 and Source 0.3.2 remain unpublished.
-- Core package and SampleCaller product version: accepted Source version 0.3.2; Core 0.3.1 NuGet OIDC publication succeeded and is independently visible/indexed on NuGet Gallery.
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, Source version 0.3.2; GitHub v0.3.2 distribution is published, while CWS 0.3.2 remains unpublished.
+- Core package and SampleCaller product version: Source version 0.3.2; Core 0.3.2 immutable-tag NuGet OIDC publication succeeded, with Gallery indexing not independently measured.
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.

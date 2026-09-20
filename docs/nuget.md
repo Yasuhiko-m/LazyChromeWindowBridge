@@ -6,7 +6,7 @@ policy and profile-global download lifecycle events.
 
 ## Install Core and the matching extension
 
-NuGet contains **`LazyChromeWindowBridge.Core` only**. Install Core `0.3.1` from NuGet
+NuGet contains **`LazyChromeWindowBridge.Core` only**. Install Core `0.3.2` from NuGet
 and install/use the matching Chrome extension in the Chrome profile that hosts the
 owned windows. The `.nupkg` contains no Chrome extension files or ZIP, SampleCaller,
 or installer. Matching Core and Extension versions are required for the supported
@@ -18,17 +18,18 @@ submitted to or published on CWS. CWS is convenient, not a complete guaranteed v
 archive. When CWS is behind or skips the Core version, obtain the exact matching
 extension ZIP from its GitHub Release instead:
 
-1. Download `LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from GitHub Release
-   `v0.3.1`.
+1. Download `LazyChromeWindowBridge.Extension-0.3.2-cws.zip` from GitHub Release
+   `v0.3.2`.
 2. Extract the ZIP to a dedicated directory.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
    and select that extracted extension directory.
 
 This Developer mode installation path does not depend on CWS review or availability.
-This guidance does not assert that Chrome Web Store 0.3.1 is approved or published.
+This guidance does not assert that Chrome Web Store 0.3.2 is approved or published.
 CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x; historical NuGet
-0.1.0/0.2.0 publications are unaffected. Current Source 0.3.2 is unpublished, so this
-document does not imply that a 0.3.2 package exists on NuGet.
+0.1.0/0.2.0 publications are unaffected. Core 0.3.2 was published through the successful
+immutable-tag NuGet OIDC workflow; Gallery indexing/visibility is not independently
+asserted here.
 
 BrowserViewport consumers can target `net10.0-windows`; NativeWindow consumers target
 `net10.0-windows10.0.18362.0`. The package carries the ASP.NET Core and Windows Desktop
@@ -106,7 +107,7 @@ Run `./Scripts/Test-NuGet.ps1` with PowerShell 7 on Windows. It uses the stable 
 restores and builds Release, runs the complete Core/public API/extension checks, packs
 both Core target assets, inspects both package archives and runs public API checks
 again from an isolated local-feed PackageReference consumer. It never publishes.
-Generated packages and consumer work stay under ignored `artifacts/nuget/0.3.1`; the
+Generated packages and consumer work stay under ignored `artifacts/nuget/0.3.2`; the
 single invocation log stays under `Scripts/Outputs`.
 
 Trusted-publishing policy: `LazyChromeWindowBridge-publish`; NuGet owner `Yasuhiko-m`;
@@ -120,6 +121,7 @@ matching portable-PDB `.snupkg`; there is no wildcard, duplicate suppression, or
 separate symbol-push command.
 
 `Scripts/Test-NuGet.ps1` validates and packs the package; it never publishes. The
-manual OIDC `Publish NuGet` workflow is the publication boundary. For v0.3.1,
-workflow run `35049074171` completed successfully, including its verified Core
-package push. Core 0.3.1 is independently visible/indexed on NuGet Gallery.
+manual immutable-tag OIDC `Publish NuGet` workflow is the publication boundary. For
+v0.3.2, workflow run `35521128215` completed successfully from tag `v0.3.2`, including
+its verified Core package push. This records workflow/push success, not an independent
+NuGet Gallery indexing measurement.

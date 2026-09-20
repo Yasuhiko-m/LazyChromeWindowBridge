@@ -60,9 +60,9 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Accepted Source revisions remain unstaged/uncommitted until the
 independent checkpoint boundary explicitly stages the accepted task delta.
-Current accepted base and Current VMR are V1-M013-R029. R027_1 remains the accepted M013
-implementation/validation endpoint; R028 is the authority closeout and R029 includes that
-authority state for deterministic checkpointing. M009 Chrome launch options,
+Current accepted base and Current VMR are V1-M013-R032. R027_1 remains the accepted M013
+implementation/validation endpoint; R032 closes out its completed v0.3.2 publication.
+M009 Chrome launch options,
 M010 capture pipeline/preview stability, M011 v0.3.1 release preparation, M012 bounded
 key chord input and M013 release automation/version-coherent distribution are Complete;
 V1 remains In Progress. Source version 0.3.2 is established.
@@ -71,11 +71,10 @@ compatibility default; NativeWindow uses exact-HWND WGC/D3D11 capture, taskbar v
 is independent exact-HWND runtime policy, and PARK/RESTORE remains separate from monitoring.
 R019 is an infrastructure-only restoration of the Controller validation map. R021 adopts
 stable .NET SDK 10.0.4xx servicing selection (10.0.401 floor and latestPatch roll-forward)
-for release tooling only. R022 is the documentation-only closeout of the completed GitHub
-v0.3.1 Release and successful NuGet OIDC workflow/push from checkpoint
-`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`; Core 0.3.1 is independently visible/indexed
-on NuGet Gallery. CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x;
-CWS 0.3.1 and Source 0.3.2 remain unpublished. M013 establishes matching-version GitHub
+for release tooling only. GitHub v0.3.2 and immutable-tag NuGet OIDC publication completed
+from checkpoint `d490bdbbfd6c98755388a64e288cc8ac8989a98a`; NuGet Gallery indexing for
+0.3.2 was not independently measured. CWS 0.2.0 is general-public but does not match
+Core/Extension 0.3.x; CWS 0.3.2 remains unpublished. M013 establishes matching-version GitHub
 Extension fallback, local version-driven preparation, immutable-tag Controller
 publication allowlists and optional existing-item CWS V2 normal-review dispatch without
 committed credentials. M012 permits one structured allowlisted

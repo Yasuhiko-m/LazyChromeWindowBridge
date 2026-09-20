@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M013-R029`
+- Current VMR: `V1-M013-R032`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,29 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M013-R032 — v0.3.2-publication-closeout
+
+Purpose / Result:
+Documentation and authority closeout for the completed v0.3.2 publication. GitHub
+`v0.3.2` was published from checkpoint `d490bdbbfd6c98755388a64e288cc8ac8989a98a`:
+https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.2. Published
+assets are Extension ZIP 38,039 bytes
+`EF7BD7DC6140C3DAFD84715F83F7A312C6292BAA8EC0C919D5E44995B3B307EE` and Windows ZIP
+95,134,522 bytes `F360989805790D3537E2D1CF9E71E855E399DDA719E40483178724A259D3CEDC`.
+
+Immutable-tag NuGet OIDC workflow run `35521128215` succeeded from `v0.3.2` at that
+checkpoint. R031 checkpoint-built package evidence is nupkg 142,872 bytes
+`A0004D6023A47F1661881B0059B7E070E222226FF8B7C197B9B810A7BEA35427` and snupkg 62,155
+bytes `27525E8D0DE85A481441CCAF1EEF87D5CA50EE7EEE4F527C5145AE8A7C65CCF8`.
+Gallery indexing/visibility was not independently measured. The first Controller attempt
+failed before dispatch because it compared an annotated tag object SHA with the checkpoint
+commit; the Controller-only tag-peeling fix and retry succeeded. No LCWB Source runtime
+defect was involved.
+
+CWS remains unchanged: 0.2.0 is general-public, while CWS 0.3.2 was not uploaded or
+submitted. Optional configured CWS V2 dispatch remains separate. M013 remains Complete,
+V1 remains In Progress, and Source 0.3.2 is established.
 
 ### V1-M013-R029 — normalize-current-vmr-for-checkpoint
 
