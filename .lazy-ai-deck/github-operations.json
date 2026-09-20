@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "allowedNotesRoots": ["docs/releases"],
+  "allowedAssetRoots": ["artifacts/cws", "artifacts/release/0.3.2"],
+  "releases": {
+    "v0.3.2": {
+      "notes": "docs/releases/v0.3.2.md",
+      "assets": [
+        "artifacts/cws/LazyChromeWindowBridge.Extension-0.3.2-cws.zip",
+        "artifacts/release/0.3.2/LazyChromeWindowBridge-v0.3.2-win-x64.zip"
+      ]
+    }
+  },
+  "workflows": {
+    "publish-nuget": {
+      "file": ".github/workflows/publish-nuget.yml",
+      "ref": "releaseTag",
+      "inputs": { "version": { "source": "version", "required": true, "allowedValues": ["v0.3.2"] } }
+    },
+    "publish-cws": {
+      "file": ".github/workflows/publish-cws.yml",
+      "ref": "releaseTag",
+      "inputs": { "version": { "source": "version", "required": true, "allowedValues": ["v0.3.2"] } }
+    }
+  }
+}

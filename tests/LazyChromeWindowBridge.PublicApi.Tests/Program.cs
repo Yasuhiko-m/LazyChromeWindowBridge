@@ -59,6 +59,14 @@ Check(new CaptureOptions { Region = region, Resize = resize }.Region == region &
     "public immutable grid region and explicit resize/filter contracts are externally consumable");
 Check(typeof(BridgeRuntime).GetMethod("GetCaptureSourceSizeAsync", [typeof(Guid), typeof(CaptureMode), typeof(CancellationToken)])?.ReturnType == typeof(ValueTask<CaptureSourceSize>),
     "public pre-monitor capture source-size API is available");
+var chord = new BrowserKeyChord(BrowserKey.PageDown, BrowserKeyModifiers.Ctrl | BrowserKeyModifiers.Shift);
+chord.Validate();
+Check(typeof(BridgeRuntime).GetMethod("SendKeyChordAsync", [typeof(Guid), typeof(BrowserKeyChord), typeof(CancellationToken)])?.ReturnType == typeof(Task) &&
+    Enum.GetValues<BrowserKeyModifiers>().SequenceEqual([BrowserKeyModifiers.None, BrowserKeyModifiers.Ctrl, BrowserKeyModifiers.Shift, BrowserKeyModifiers.Alt, BrowserKeyModifiers.Meta]),
+    "public bounded BrowserKeyChord API is externally consumable");
+var invalidChord = new BrowserKeyChord((BrowserKey)999);
+var invalidChordRejected = false; try { invalidChord.Validate(); } catch (ArgumentException) { invalidChordRejected = true; }
+Check(invalidChordRejected, "public chord rejects unknown keys without raw CDP input");
 Check(new PixelRect(-1820, 80, 1100, 720).Valid, "public physical rectangles allow negative coordinates");
 
 var data = Path.Combine(Path.GetTempPath(), "LazyChromeWindowBridge-PublicApi-" + Guid.NewGuid().ToString("N"));

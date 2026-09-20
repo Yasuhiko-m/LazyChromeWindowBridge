@@ -21,9 +21,13 @@ The extension requests only storage, alarms, debugger, downloads and 127.0.0.1 h
 Its content script runs only on the exact local bootstrap path, never on a remote
 application page. It reads the bootstrap location, not document content.
 
-Chrome's debugger permission itself is broad. BrowserViewport product code uses only
-Page.getLayoutMetrics and Page.captureScreenshot for human thumbnails. It does not
-use Runtime/DOM/Network inspection or browser input commands. Monitoring can attach
+Chrome's debugger permission itself is broad. BrowserViewport product code uses
+Page.getLayoutMetrics and Page.captureScreenshot for human thumbnails; an explicit
+caller key request may additionally use fixed allowlisted Input.dispatchKeyEvent
+keyDown/keyUp calls for the exact owned active tab. It does not use Runtime/DOM/Network
+inspection, arbitrary CDP, JavaScript, text macros, click automation, or post-input
+content inspection. Dispatch completion does not guarantee a page or browser-UI effect.
+Monitoring can attach
 the debugger to live owned Visible or Parked windows. Placement/option changes retain
 that same-tab attachment; Stop detaches capture and retains idle control sockets.
 LCWB-owned launches use --silent-debugger-extension-api for best-effort Chrome infobar

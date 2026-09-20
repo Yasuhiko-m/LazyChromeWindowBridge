@@ -19,7 +19,7 @@ const files = [], residuals = [], violations = [];
 const publicImagePaths = new Set(publicImages.map(([name]) => name));
 for (const relative of listed) {
   // Controller-protected inherited release input is byte-checked separately; it is not Source text.
-  if (relative === 'src/LazyChromeWindowBridge.Extension.zip') continue;
+  if (relative === 'src/LazyChromeWindowBridge.Extension.zip' || relative === 'AGENTS.pre-lazyaideck-20260916-151333.md') continue;
   let bytes;
   try { bytes = await fs.readFile(path.join(root, relative)); }
   catch (error) { if (error.code === 'ENOENT') continue; throw error; } // Deleted old paths are not current Source.
@@ -46,9 +46,9 @@ const extensionRoot = path.join(root, 'src/LazyChromeWindowBridge.Extension');
 const manifest = JSON.parse(await fs.readFile(path.join(extensionRoot, 'manifest.json'), 'utf8'));
 assert.equal(manifest.name, 'LazyChromeWindowBridge');
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.3.1');
+assert.match(manifest.version, /^\d+\.\d+\.\d+$/, 'Extension manifest must declare a stable three-part version.');
 for (const project of ['src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj', 'samples/LazyChromeWindowBridge.SampleCaller/LazyChromeWindowBridge.SampleCaller.csproj'])
-  assert.match(await fs.readFile(path.join(root, project), 'utf8'), /<Version>0\.3\.1<\/Version>/, 'Source version mismatch: ' + project);
+  assert.match(await fs.readFile(path.join(root, project), 'utf8'), new RegExp(`<Version>${manifest.version.replaceAll('.', '\\.')}</Version>`), 'Source version mismatch: ' + project);
 assert.deepEqual(manifest.icons, Object.fromEntries([16,32,48,128].map(size => [size, `icons/icon-${size}.png`])));
 assert(!Object.hasOwn(manifest, 'action'), 'No unnecessary toolbar action.');
 assert.deepEqual([...manifest.permissions].sort(), ['alarms', 'debugger', 'downloads', 'storage']);
@@ -56,8 +56,12 @@ assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1/*']);
 assert.deepEqual(manifest.content_scripts[0].matches, ['http://127.0.0.1/lazy-chrome-window-bridge/bootstrap*']);
 assert.equal(manifest.content_scripts.length, 1);
 const monitor = await fs.readFile(path.join(extensionRoot, 'monitor.js'), 'utf8');
-const commands = [...new Set([...monitor.matchAll(/sendCommand\(\{ tabId \}, '([^']+)'/g)].map(m => m[1]))].sort();
-assert.deepEqual(commands, ['Page.captureScreenshot', 'Page.getLayoutMetrics']);
+const commandCalls = [...monitor.matchAll(/sendCommand\(\{ tabId \}, '([^']+)'/g)].map(m => m[1]);
+const commands = [...new Set(commandCalls)].sort();
+assert.deepEqual(commands, ['Input.dispatchKeyEvent', 'Page.captureScreenshot', 'Page.getLayoutMetrics']);
+assert.equal(commandCalls.filter(command => command === 'Input.dispatchKeyEvent').length, 2, 'Key dispatch must be one fixed keyDown/keyUp pair.');
+assert.match(monitor, /'Input\.dispatchKeyEvent', \{ type: 'keyDown', \.\.\.fixed \}/);
+assert.match(monitor, /'Input\.dispatchKeyEvent', \{ type: 'keyUp', \.\.\.fixed \}/);
 assert.match(monitor, /format: 'png', captureBeyondViewport: false/);
 assert(!/\bclip\s*:|\bscale\s*:/.test(monitor), 'BrowserViewport capture must not use CDP clip/scale.');
 assert(!monitor.includes('Emulation.'), 'Monitoring must not resize Chrome through Emulation.');
@@ -80,7 +84,9 @@ assert(!/public MonitorSnapshot Snapshot\(\)[\s\S]*?Reconcile\(\)/.test(monitorC
 const downloadCalls = [];
 for (const name of manifest.content_scripts[0].js.concat(['bindings.js', 'monitor.js', 'service-worker.js', 'downloads.js'])) {
   const code = await fs.readFile(path.join(extensionRoot, name), 'utf8');
-  assert(!/['"](?:Runtime\.|DOM\.|Network\.|Input\.)/.test(code), 'Unexpected debugger domain in ' + name);
+  assert(!/['"](?:Runtime\.|DOM\.|Network\.)/.test(code), 'Unexpected debugger domain in ' + name);
+  if (name !== 'monitor.js') assert(!/['"]Input\./.test(code), 'Input dispatch is restricted to monitor.js.');
+  assert(!code.includes('chrome.scripting'), 'Unexpected page scripting route in ' + name);
   for (const call of code.matchAll(/(?:chrome|this\.browser)\.downloads\.([A-Za-z]+)/g)) {
     assert(['onCreated', 'onChanged', 'search'].includes(call[1]), 'Forbidden download capability: ' + call[1]);
     downloadCalls.push({ file: name, member: call[1] });

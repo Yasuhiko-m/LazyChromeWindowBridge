@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M011-R022`
+- Current VMR: `V1-M013-R029`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,99 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M013-R029 — normalize-current-vmr-for-checkpoint
+
+Purpose / Result:
+R027_1 remains the accepted M013 implementation/validation endpoint; R028 was the
+first M013 authority closeout. This documentation-only normalization makes R029 the
+Current VMR so the established Source state includes those authority documents and can be
+checkpointed deterministically. It changes no product/runtime/release-automation behavior.
+Failed Controller checkpoint attempts made no Source or remote mutation.
+
+M013 remains Complete, V1 remains In Progress, and Source version 0.3.2 remains accepted
+but unpublished. Current public state remains GitHub/NuGet 0.3.1 and CWS 0.2.0.
+
+### V1-M013-R027_1 — release-automation-version-coherent-distribution
+
+Purpose / Result:
+Accepted M013 establishes the 0.3.2 distribution policy and Source-owned release
+automation foundation. Matching Core/Extension versions are the supported path; CWS may
+lag or skip versions, so the matching GitHub Release Extension ZIP remains the Developer
+mode / Load unpacked fallback. The CWS extension is a developer companion, not a
+standalone product.
+
+`Resolve-ReleaseVersion.ps1` validates stable Core/Extension/SampleCaller version
+authorities and resolves `0.3.2` / `v0.3.2`; NuGet, Extension and Windows packaging are
+version-driven; `Prepare-Release.ps1` is local-only and inventories artifacts. The
+Source operations manifest allowlists v0.3.2 only. Existing Controller release/dispatch
+operations remain the publication boundary: immutable-tag NuGet uses OIDC; optional CWS
+uses the existing item only through release-environment `CWS_PUBLISHER_ID` and
+`CWS_EXTENSION_ID` variables plus `CWS_SERVICE_ACCOUNT_JSON`, never committed credentials.
+
+CWS uses in-memory RS256 OAuth with the Chrome Web Store scope and fixed V2 upload,
+fetchStatus and DEFAULT_PUBLISH endpoints only. It creates no item and changes no
+visibility, rollout, skip-review setting, URL/method route, or review wait. R027_1
+accepts synchronous `SUCCEEDED` uploads only with matching `crxVersion`, polls async
+`IN_PROGRESS` to `lastAsyncUploadState=SUCCEEDED`, and verifies nested submitted revision
+state/channel version. Only `PENDING_REVIEW` and `PUBLISHED` are accepted; Google review
+completion remains external and asynchronous.
+
+Build / Test:
+Release build PASS with 0 warnings/errors; Core 214 PASS; PublicApi 41 PASS; Extension
+50 PASS; Test-NuGet dynamic package/local consumer, Package-Extension, Package-Windows,
+Prepare-Release and deterministic Test-All PASS. Source/public-release audits,
+workflow/allowlist checks and scoped whitespace PASS. R027_1 synthetic CWS response
+fixtures and ValidateOnly PASS without credentials or network mutation. Real browser was
+not rerun for R027; M012 focused CfT acceptance remains the runtime evidence.
+
+PRE-CHECKPOINT validation artifacts only (rebuild from the accepted checkpoint/tag before
+publication): nupkg 142,874 bytes
+`41B8203D224D5516ED0B954F6E5FB71A3776ECA62A47995E0AB4C7819516D8BA`; snupkg 62,178
+bytes `7273F6C932F41923F3A02EBF0ABC075FB37FBE97EB30B6EE05331EC29366CA0`; Extension ZIP
+38,039 bytes `EF7BD7DC6140C3DAFD84715F83F7A312C6292BAA8EC0C919D5E44995B3B307EE`; Windows ZIP
+95,134,524 bytes `36E39352C046A4F3B8E6007BCF9FCD4E6DBB10B8F5A7C8EE40D9EA286FDD3240`.
+
+Current public state remains GitHub/NuGet 0.3.1 and CWS 0.2.0; accepted Source 0.3.2 is
+unpublished. Next operational boundaries are Controller checkpoint/push, rebuild from
+that tag, GitHub v0.3.2, immutable-tag NuGet, then optional configured CWS dispatch.
+Known third-display, debugger-notice, infobar, restart-takeover and bounded-key-dispatch
+limitations remain unchanged.
+
+### V1-M012-R024 — bounded-key-chord-input
+
+Purpose / Result:
+Accepted M012 establishes Source version 0.3.2 and bounded single key-chord dispatch
+for the exact owned active tab. Public `BrowserKey`, `BrowserKeyModifiers` and
+`BrowserKeyChord` feed `BridgeRuntime.SendKeyChordAsync`. The canonical allowlist is
+PageDown/PageUp, Enter/Tab/Escape/Space, Home/End, arrows, Backspace/Delete, A–Z and
+Digit0–Digit9 with Ctrl/Shift/Alt/Meta. One request uses the authenticated per-session
+control socket, a bounded request ID, explicit acknowledgement, one same-session
+in-flight request and a five-second timeout. Unknown, stale, terminal or mismatched
+targets fail closed. It temporarily attaches the debugger when needed and reuses a
+compatible monitor-owned attachment without detaching it. No macro/sequencer, arbitrary
+CDP/JavaScript/DOM/Network, click/text automation, OS-global input or product post-input
+inspection is introduced. Dispatch completion does not guarantee webpage handling or
+Ctrl+L/Alt Chrome-UI behavior.
+
+Build / Test:
+Windows .NET SDK 10.0.401, Node 24.19.0 and PowerShell 7.6.5: Release build PASS with
+0 warnings/errors; Core 214 PASS; external PublicApi 41 PASS; Extension 50 PASS; scoped
+whitespace/static key-input audit PASS. Production key input is only fixed
+`Input.dispatchKeyEvent` keyDown/keyUp. Deterministic acceptance ZIP
+`artifacts/cws/LazyChromeWindowBridge.Extension-0.3.2-cws.zip` is 38,039 bytes,
+SHA256 `EF7BD7DC6140C3DAFD84715F83F7A312C6292BAA8EC0C919D5E44995B3B307EE`; it is a
+pre-checkpoint acceptance artifact, not a published/final release asset.
+
+Focused Chrome for Testing 153.0.8010.36 acceptance PASS: monitor-OFF PageDown reached
+the exact owned neutral local page and advanced scroll 0 -> 795 while ownership/window/
+native identity/geometry/monitor state stayed unchanged and the temporary debugger
+attachment detached. BrowserViewport-Live Ctrl+Enter reached the neutral page while
+generation 2 and control socket 1 stayed stable, JPEG sequence advanced 1 -> 2, geometry
+and ownership remained unchanged, and normal Stop detached the debugger. Test-only local
+instrumentation observed key/scroll; product code performs no post-input inspection.
+R024 fixed the concrete idle-control defect where optional `keyChord: null` could close
+an authenticated control socket. No publication or remote action occurred.
 
 ### V1-M011-R022 — v0.3.1-publication-closeout
 

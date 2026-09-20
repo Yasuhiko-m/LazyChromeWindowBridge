@@ -5,8 +5,12 @@ and isolated PackageReference checks, and
 Scripts/Package-Windows.ps1 for Release/win-x64 self-contained packaging. To exercise
 the fresh extracted EXE through the existing -Gui fixture, set LCWB_TEST_SAMPLE_EXECUTABLE
 to the inventory.json freshExecutable path. The default still runs the Debug sample.
-The real fixture loads the audited Extension 0.3.1 validation ZIP. Local test scripts
+The real fixture loads the audited extension ZIP matching the current manifest version. Local test scripts
 do not publish.
+
+The 0.3.2 deterministic suites cover the bounded exact-session key-chord protocol and
+fixed CDP mapping. A successful test proves dispatch acknowledgement only, not page
+handling or Chrome browser-UI shortcut behavior.
 
 The stable entry is `Scripts/Test-All.ps1` (PowerShell 7). Node.js 22+ and a stable
 .NET 10.0.4xx SDK (10.0.401 floor with global.json latestPatch roll-forward) are required.
@@ -15,12 +19,17 @@ No historical Revision numbers are needed to run validation.
 ```powershell
 .\Scripts\Test-All.ps1 -Clean
 .\Scripts\Test-All.ps1 -ChromeExecutable $chromeForTesting
+.\Scripts\Test-All.ps1 -ChromeExecutable $chromeForTesting -KeyChord
 .\Scripts\Test-All.ps1 -ChromeExecutable $chromeForTesting -Gui
 ```
 
 The first command cleans, restores, builds and runs deterministic checks. Supplying
 a Chrome for Testing executable enables complete real acceptance. -Gui supplies
 isolated dynamic pages and runs the actual SampleCaller for operator acceptance.
+`-KeyChord` runs the focused 0.3.2 real acceptance: the public key-chord API sends
+PageDown to an exact owned local page while monitoring is off, then Ctrl+Enter while
+BrowserViewport monitoring remains live. The fixture records test-only key and scroll
+evidence; it does not expand the product's no-post-input-inspection contract.
 Each invocation owns one flat timestamped log under Scripts/Outputs and returns a
 nonzero exit code on a failing child. Those disposable logs are ignored.
 
@@ -44,6 +53,10 @@ nonzero exit code on a failing child. Those disposable logs are ignored.
   boundaries and generated/private-file patterns. It emits machine-readable JSON.
 - BrowserAcceptance/GeometryAcceptance: launch, same-URL sessions, navigation, close,
   worker recovery, profile restore, real negative coordinates, exact offscreen PARK.
+- KeyChordAcceptance: public structured key dispatch to the exact owned active tab,
+  temporary debugger attach/detach while capture is off, and attachment/socket/generation
+  continuity while BrowserViewport monitoring is live. Its local page instrumentation is
+  acceptance-only and does not run in product code.
 - MonitorAcceptance: Visible JPEG, repeated placement and option continuity, exact
   monitor generation/socket identity and debugger attach/detach counters, output bounds,
   unchanged native bounds/viewport, single-session30fps measurement, lifecycle/regressions.

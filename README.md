@@ -18,7 +18,25 @@ integration through a Manifest V3 extension. Unlike DOM-oriented browser automat
 tools, it works with Chrome application/window state and exact native ownership.
 Licensed under [MIT](LICENSE). This is an early release, with explicit [support limits](docs/limitations.md).
 
-**v0.3.1 is published on GitHub:** [the v0.3.1 release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1)
+**Current Source v0.3.2 is unpublished:** it adds one bounded, allowlisted key/chord request to the exact owned active tab. GitHub/NuGet v0.3.1 remains the latest published release: [the v0.3.1 release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1). Completion confirms bounded CDP `Input.dispatchKeyEvent`, not a page or Chrome-UI effect; it is not arbitrary JavaScript, text macros, click automation, DOM automation, or general remote control.
+
+## Version matching / Chrome Web Store availability
+
+The extension is a developer companion, not a standalone browser app: by itself it has
+no standalone dashboard or user workflow. It works only with a matching
+LazyChromeWindowBridge Windows/Core companion and its authenticated owned sessions; it
+does not discover, take over, monitor, or control arbitrary Chrome windows or tabs.
+
+Use matching Core and Extension versions. Chrome Web Store review can make an update
+available later than GitHub/NuGet, and LCWB does not guarantee every GitHub/NuGet version
+will be submitted to or published on CWS. GitHub Releases are the exact-version fallback
+when CWS is behind or skips a version: download
+`LazyChromeWindowBridge.Extension-<version>-cws.zip` from the matching release, extract
+it, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and
+select the extracted directory containing `manifest.json`. This path does not depend on
+CWS review or availability.
+
+**v0.3.1:**
 contains the Chrome launch policy, capture-region/resize/source-size, and
 preview-liveness work. It keeps the accepted NativeWindow/taskbar runtime and
 R015 caller-controlled Chrome launch switches, and refines monitoring with
@@ -32,9 +50,9 @@ offscreen retain Chrome rendering where Chrome honors that switch. Set
 `AdditionalChromeArguments` / repeatable `--chrome-argument` for allowed caller switches.
 `--load-extension=<directory>` is useful with Chrome for Testing/Chromium; branded
 Chrome support is not promised. Use matching Core and Extension versions. The matching
-Core 0.3.1 NuGet publication workflow completed successfully; NuGet Gallery indexing
-was not independently measured and may lag. Chrome Web Store 0.3.1 availability is not
-asserted. See the [0.3.1 release notes](docs/releases/v0.3.1.md).
+Core 0.3.1 is visible/indexed on NuGet Gallery. CWS 0.2.0 is general-public but does
+not match Core/Extension 0.3.x; Chrome Web Store 0.3.1 availability is not asserted.
+See the [0.3.1 release notes](docs/releases/v0.3.1.md).
 
 ## What it does
 - Launch independent Chrome windows, including several with the same launch URL.
@@ -45,12 +63,14 @@ asserted. See the [0.3.1 release notes](docs/releases/v0.3.1.md).
 - Read state/bounds and set a Visible window's physical-pixel placement.
 - Monitor all eligible Visible and Parked sessions independently as BrowserViewport or exact-HWND NativeWindow JPEGs.
 - Hide/show only one owned HWND in the taskbar without changing placement or monitoring.
+- Dispatch one structured allowlisted key/chord to the exact owned active tab; completion
+  confirms fixed CDP dispatch, not page or Chrome-UI handling.
 - Observe profile-global Created / Complete / Interrupted downloads once per Bridge.
 
 ## What it intentionally does not do
 - DOM scraping or Runtime.evaluate.
 - OCR, semantic image analysis or page-content analysis.
-- Automated click/input or remote webpage control.
+- Arbitrary click/input, text macros, scripting, or remote webpage control.
 - ChatGPT output/completion extraction or other webpage completion detection.
 - Network response inspection, session recording or cloud relay.
 

@@ -5,17 +5,23 @@ Source: C:\LazyAIDeckProjects\LazyChromeExtension.
 Project Data is Controller-owned and is not another implementation root.
 
 ## Authority
-Established baseline: **V1-M011-R022 — v0.3.1-publication-closeout**, accepted by Chat.
-Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M011 and V0 are
-Complete; V1 remains In Progress. Source version 0.3.1 is accepted. M009 establishes
+Established baseline: **V1-M013-R029 — normalize-current-vmr-for-checkpoint**. R027_1 is
+the accepted release-automation implementation/validation endpoint and R028 its first
+authority closeout; R029 changes no product behavior and makes the complete authority
+state checkpointable. Revisions.md establishes Current VMR; PLAN.md mirrors it. V1 M001–M013
+and V0 are Complete; V1 remains In Progress. Source version 0.3.2 is accepted. M009 establishes
 default offscreen rendering preservation and bounded caller launch switches; M010
 establishes capture-region/resize/source-size plus preview-liveness stabilization; M011
 establishes release-ready distribution documentation and package consistency. R019 restores
 only the Controller validation map. R021 adopts the stable .NET 10.0.4xx toolchain policy:
 10.0.401 floor, latestPatch roll-forward and no prerelease SDK. R022 records the completed
 GitHub v0.3.1 Release from checkpoint `6ad192376f5d36ddc7d93bf7eba1dae11cd487bd` and
-successful NuGet OIDC workflow/push. NuGet Gallery visibility was not independently
-measured. Neither alters the accepted 0.3.1 specification.
+successful NuGet OIDC workflow/push; Core 0.3.1 is independently visible/indexed on
+NuGet Gallery. M012 adds bounded key-chord input without changing the accepted capture,
+ownership, placement, taskbar or download contracts. M013 establishes matching-version
+GitHub Extension fallback, stable three-part version authority resolution, local-only
+preparation and bounded immutable-tag Controller publication routes; it does not publish
+Source 0.3.2 itself.
 
 R013 preserves the accepted ownership, geometry, PARK/RESTORE, caller-owned monitoring
 and download contracts while adding source-compatible `CaptureMode.BrowserViewport` /
@@ -24,8 +30,11 @@ BrowserViewport remains the default two-command CDP path. NativeWindow uses exac
 Windows Graphics Capture plus D3D11 bounded resize and no picker/CDP screenshot fallback.
 `SetShowInTaskbar` is runtime-only and restored on normal disposal when LCWB changed it.
 
-Historical GitHub/NuGet 0.1.0 and 0.2.0 releases and the submitted CWS 0.2.0 review
-remain unchanged. R014 accepts 0.3.0 distribution preparation and the user has separately
+Historical GitHub/NuGet 0.1.0 and 0.2.0 releases remain unchanged. CWS 0.2.0 is now
+general-public but does not match Core/Extension 0.3.x; CWS 0.3.1 and Source 0.3.2 are
+unpublished. M013 CWS dispatch is optional and restricted to the existing item:
+release-environment credentials, fixed V2 endpoints, RS256 OAuth and DEFAULT_PUBLISH are
+used; review completion is asynchronous. R014 accepts 0.3.0 distribution preparation and the user has separately
 authorized GitHub v0.3.0 and NuGet 0.3.0 publication after the accepted checkpoint;
 no Chrome Web Store operation is part of R014.
 
@@ -43,8 +52,8 @@ maintainable product documentation is in README.md and docs/.
   1903+ target, bounded GDI+ JPEG encoding/decoding and encoded frame metadata.
   No WinForms/WPF UI types or controls are referenced by the compiled Core assembly.
   Microsoft.WindowsDesktop.App is the shared imaging runtime, not a sample dependency.
-- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, accepted Source version 0.3.1; GitHub v0.3.1 distribution is published, while CWS 0.3.1 remains unpublished.
-- Core package and SampleCaller product version: accepted Source version 0.3.1; the NuGet OIDC workflow/push completed successfully, while Gallery visibility remains unmeasured.
+- LazyChromeWindowBridge.Extension: Chrome 120+ MV3 extension, accepted Source version 0.3.2; GitHub v0.3.1 distribution is published, while CWS 0.3.1 and Source 0.3.2 remain unpublished.
+- Core package and SampleCaller product version: accepted Source version 0.3.2; Core 0.3.1 NuGet OIDC publication succeeded and is independently visible/indexed on NuGet Gallery.
 - LazyChromeWindowBridge.SampleCaller: separate WinForms consumer using only public API.
 - Core.Tests and PublicApi.Tests: deterministic/friend fixtures and a separate
   external consumer respectively. The sample/public consumer have no friend access.
@@ -52,7 +61,10 @@ maintainable product documentation is in README.md and docs/.
 BridgeRuntime is the public façade: StartAsync, LaunchAsync, GetSessions/GetSession,
 GetWindow, SetWindowBounds, Park, Restore, SetShowInTaskbar,
 StartMonitoring/StopMonitoring, SetSessionMonitoring,
-GetMonitorState, GetLatestFrame and DisposeAsync. Coordinators and transport/native
+GetMonitorState, GetLatestFrame, GetCaptureSourceSizeAsync, SendKeyChordAsync and
+DisposeAsync. `BrowserKey`, flagged `BrowserKeyModifiers` and immutable `BrowserKeyChord`
+are the structured bounded-input contract; callers cannot supply raw CDP/VK/script/text
+payloads. Coordinators and transport/native
 implementation stay internal. Public snapshot/rectangle/options types are immutable
 records; MonitorFrame supplies ReadOnlyMemory<byte> JPEG data rather than UI images.
 DownloadChanged, GetDownloads and GetDownload expose the download contract below.
@@ -166,6 +178,26 @@ Tab close permits same-owned-window reacquisition. User-canceled
 debugging stays blocked until explicit new generation; errors retain their original
 generation. Worker recovery requests currently eligible Visible and Parked targets.
 
+## Bounded key chord input
+`SendKeyChordAsync(appSessionId, BrowserKeyChord, cancellationToken)` requests exactly
+one canonical allowlisted key plus zero or more Ctrl/Shift/Alt/Meta modifiers. Keys are
+PageDown/PageUp, Enter/Tab/Escape/Space, Home/End, arrows, Backspace/Delete, A–Z and
+Digit0–Digit9. The existing authenticated session control socket carries one bounded
+request ID and explicit Extension acknowledgement; only one same-session request may be
+in flight and callers receive a five-second bounded timeout. A live Bound exact-owned
+Visible or Parked window and its exact active WindowId tab are required; unknown, stale,
+closed, failed, disconnected, incognito or mismatched targets fail closed with no
+replacement search.
+
+The Extension sends only fixed `Input.dispatchKeyEvent` keyDown then keyUp fields. It
+temporarily attaches/detaches when BrowserViewport does not own a compatible debugger
+attachment, otherwise reuses that attachment. A request never changes monitor generation,
+options, pause/latest frame, placement/Normal geometry or taskbar policy. Success means
+the validated dispatch completed; it does not guarantee a webpage handled the event or
+that Ctrl+L/Alt Chrome-UI shortcuts took effect. There is no macro/sequencer, arbitrary
+CDP/JavaScript/Runtime.evaluate/DOM/Network route, click/text automation, OS-global input
+or product post-input page/pixel inspection.
+
 SampleCaller renders ~200–300px independent Zoom tiles with identity, placement, monitor state,
 age and error. It replaces only new frames, without deliberately blanking between
 them. Small FPS/width/height/Apply controls exercise live StartMonitoring(options).
@@ -223,17 +255,18 @@ include --silent-debugger-extension-api exactly once, alongside the existing lau
 This is best-effort Chrome-dependent infobar suppression, not an extension permission
 change or a security guarantee. If Chrome ignores it, a notice may appear and the
 monitoring path still works. Reusing an already-running profile may retain that process's
-original flags. BrowserViewport commands remain Page.getLayoutMetrics/Page.captureScreenshot;
-NativeWindow does not use CDP capture.
+original flags. BrowserViewport capture commands remain Page.getLayoutMetrics/
+Page.captureScreenshot; explicit bounded key requests additionally use fixed
+Input.dispatchKeyEvent keyDown/keyUp. NativeWindow does not use CDP capture.
 This is not extension-side suppression, and debugger permission remains broad.
 Visual infobar absence was not established in acceptance and is not guaranteed.
 The known third-display initial offscreen capture timeout remains unresolved;
 passing runs do not establish a fix or justify weaker timeouts/assertions.
 
 No DOM/Runtime/Network extraction, OCR/semantic analysis, webpage completion detection,
-remote input, recording, cloud, telemetry, provider framework, installer or updater.
+arbitrary remote input, recording, cloud, telemetry, provider framework, installer or updater.
 R013 introduces no third-party runtime package. Historical GitHub/NuGet 0.1.0 and
-0.2.0 releases and the submitted CWS 0.2.0 artifact/review remain unchanged.
+0.2.0 releases remain unchanged; CWS 0.2.0 is general-public but is not a matching 0.3.x build.
 
 Scripts/Test-All.ps1 is the stable validation entry. It restores/builds and runs Core,
 external public-API and extension tests. With a supplied Chrome for Testing executable,

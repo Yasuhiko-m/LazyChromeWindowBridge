@@ -69,6 +69,59 @@ internal static class MonitorTests
         var connections = rows.ToDictionary(s => s.AppSessionId, _ => Guid.NewGuid());
         foreach (var s in rows) check(monitor.Connect(s.AppSessionId, connections[s.AppSessionId]), "independent connection " + s.WindowId);
         check(!monitor.Connect(a.AppSessionId, Guid.NewGuid()), "duplicate socket cannot replace an owned connection");
+        var monitorGenerationBeforeKey = monitor.Control(a.AppSessionId).Generation;
+        var keyDispatch = monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.PageDown, BrowserKeyModifiers.Ctrl));
+        var keyRequest = monitor.Control(a.AppSessionId).KeyChord;
+        check(keyRequest is { Key: "PageDown" } && keyRequest.Modifiers.SequenceEqual(["Ctrl"]), "key chord control is canonical and session-local");
+        monitor.KeyResult(a.AppSessionId, Guid.NewGuid(), keyRequest!.RequestId, true, null);
+        check(!keyDispatch.IsCompleted, "wrong connection cannot acknowledge another session key chord");
+        monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], keyRequest.RequestId, true, null);
+        keyDispatch.GetAwaiter().GetResult();
+        check(monitor.Control(a.AppSessionId).KeyChord is null && monitor.Control(a.AppSessionId).Generation == monitorGenerationBeforeKey && monitor.Latest(a.AppSessionId) is null,
+            "key acknowledgement does not mutate monitor generation or latest frame");
+        var first = monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.Enter));
+        check(Reject(() => monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.L)).GetAwaiter().GetResult()), "same-session key dispatch is bounded to one in-flight request");
+        var firstRequest = monitor.Control(a.AppSessionId).KeyChord!;
+        monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], firstRequest.RequestId, false, "dispatch rejected");
+        check(Reject(() => first.GetAwaiter().GetResult()), "extension key-dispatch failure reaches the caller");
+        var keyA = monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.Enter, BrowserKeyModifiers.Ctrl));
+        var keyB = monitor.SendKeyChordAsync(b.AppSessionId, new BrowserKeyChord(BrowserKey.R, BrowserKeyModifiers.Ctrl | BrowserKeyModifiers.Shift));
+        var requestA = monitor.Control(a.AppSessionId).KeyChord!; var requestB = monitor.Control(b.AppSessionId).KeyChord!;
+        check(requestA.RequestId != requestB.RequestId && requestB.Modifiers.SequenceEqual(["Ctrl", "Shift"]), "independent sessions serialize isolated modifier requests");
+        monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], requestB.RequestId, true, null);
+        check(!keyA.IsCompleted && !keyB.IsCompleted, "wrong request ID cannot cross-complete an independent session");
+        monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], requestA.RequestId, true, null);
+        monitor.KeyResult(b.AppSessionId, connections[b.AppSessionId], requestB.RequestId, true, null);
+        Task.WaitAll(keyA, keyB);
+        using (var cancelled = new CancellationTokenSource())
+        {
+            var cancelledDispatch = monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.L, BrowserKeyModifiers.Ctrl), cancelled.Token);
+            var cancelledRequest = monitor.Control(a.AppSessionId).KeyChord!;
+            cancelled.Cancel(); var cancellationObserved = false;
+            try { cancelledDispatch.GetAwaiter().GetResult(); } catch (OperationCanceledException) { cancellationObserved = true; }
+            check(cancellationObserved, "caller cancellation clears the in-flight key request");
+            monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], cancelledRequest.RequestId, true, null);
+            check(monitor.Control(a.AppSessionId).KeyChord is null, "late result cannot resurrect a cancelled key request");
+        }
+        var terminalRegistry = new SessionRegistry(); var terminalMonitor = new MonitorCoordinator(terminalRegistry, geometry);
+        var keyUnbound = terminalRegistry.Create("https://example.test/unbound-key", DateTimeOffset.UtcNow).Session;
+        var failed = terminalRegistry.Create("https://example.test/failed", DateTimeOffset.UtcNow).Session; terminalRegistry.FailLaunch(failed.AppSessionId, "fixture");
+        var closed = terminalRegistry.Create("https://example.test/closed", DateTimeOffset.UtcNow).Session; terminalRegistry.Report(closed.AppSessionId, new(browser, 99, 199), true, DateTimeOffset.UtcNow);
+        var disconnected = terminalRegistry.Create("https://example.test/disconnected", DateTimeOffset.UtcNow).Session;
+        terminalRegistry.Report(disconnected.AppSessionId, new(browser, 98, 198), false, DateTimeOffset.UtcNow.AddSeconds(-101)); terminalRegistry.Sweep(DateTimeOffset.UtcNow);
+        check(new[] { Guid.NewGuid(), keyUnbound.AppSessionId, failed.AppSessionId, closed.AppSessionId, disconnected.AppSessionId }.All(id =>
+            Reject(() => terminalMonitor.SendKeyChordAsync(id, new BrowserKeyChord(BrowserKey.PageDown)).GetAwaiter().GetResult())),
+            "unknown, unbound, failed, closed and disconnected sessions reject key dispatch");
+        monitor.Disconnect(c.AppSessionId, connections[c.AppSessionId]);
+        check(Reject(() => monitor.SendKeyChordAsync(c.AppSessionId, new BrowserKeyChord(BrowserKey.PageDown)).GetAwaiter().GetResult()),
+            "live Bound session without an authenticated control connection rejects key dispatch");
+        connections[c.AppSessionId] = Guid.NewGuid(); check(monitor.Connect(c.AppSessionId, connections[c.AppSessionId]), "disconnected key session can reconnect normally");
+        var timeoutDispatch = monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.PageUp));
+        var timeoutRequest = monitor.Control(a.AppSessionId).KeyChord!; var timedOut = false;
+        try { timeoutDispatch.GetAwaiter().GetResult(); } catch (TimeoutException) { timedOut = true; }
+        check(timedOut && monitor.Control(a.AppSessionId).KeyChord is null, "five-second key timeout clears its in-flight request");
+        monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], timeoutRequest.RequestId, true, null);
+        check(monitor.Control(a.AppSessionId).KeyChord is null, "late timeout result cannot resurrect key completion");
         var sourceProbe = monitor.GetCaptureSourceSizeAsync(a.AppSessionId, CaptureMode.BrowserViewport).AsTask();
         var request = monitor.Control(a.AppSessionId).SourceSizeRequestId;
         check(request is { Length: 32 } && monitor.Latest(a.AppSessionId) is null,
@@ -92,6 +145,14 @@ internal static class MonitorTests
         Frame(a);
         check(monitor.Latest(a.AppSessionId) is { Width: 202, Height: 135 } && monitor.Snapshot().Frames == 1,
             "Visible JPEG is accepted with aspect-preserving default bounds");
+        var keyGeneration = monitor.Control(a.AppSessionId).Generation; var keyLatest = monitor.Latest(a.AppSessionId);
+        var keyOptions = monitor.Control(a.AppSessionId).Options; var keyWindow = geometry.Get(a.AppSessionId);
+        var stableDispatch = monitor.SendKeyChordAsync(a.AppSessionId, new BrowserKeyChord(BrowserKey.PageDown));
+        var stableRequest = monitor.Control(a.AppSessionId).KeyChord!; monitor.KeyResult(a.AppSessionId, connections[a.AppSessionId], stableRequest.RequestId, true, null);
+        stableDispatch.GetAwaiter().GetResult();
+        check(monitor.Control(a.AppSessionId).Generation == keyGeneration && ReferenceEquals(monitor.Latest(a.AppSessionId), keyLatest) &&
+            monitor.Control(a.AppSessionId).Options == keyOptions && geometry.Get(a.AppSessionId) == keyWindow && monitor.Control(a.AppSessionId).Enabled,
+            "successful key dispatch preserves generation/latest/options/enabled state and exact geometry");
         var visibleFrame = monitor.Latest(a.AppSessionId);
         var visibleGeneration = monitor.Control(a.AppSessionId).Generation;
         var visibleNative = geometry.Get(a.AppSessionId);

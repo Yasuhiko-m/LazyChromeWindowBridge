@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MonitorManager, resolveCaptureTransform } from '../../src/LazyChromeWindowBridge.Extension/monitor.js';
+import { MonitorManager, resolveCaptureTransform, validKeyChordRequest } from '../../src/LazyChromeWindowBridge.Extension/monitor.js';
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(read, timeout = 2500) { const end = Date.now() + timeout; while (!read()) { if (Date.now() > end) throw Error('monitor unit timeout'); await pause(10); } }
 const options = (region = undefined, resize = null, maxWidth = 240, maxHeight = 135) => ({ framesPerSecond: 2, maxWidth, maxHeight, mode: 0, ...(region ? { region } : {}), ...(resize !== null ? { resize } : {}) });
 function fixture() {
   const data = {}, attached = new Set(), calls = [], sockets = [];
-  let detachEvent, fail = false, screenshotWait = null;
+  let detachEvent, fail = false, attachFailure = false, screenshotWait = null;
   const viewport = { pageX: 0, pageY: 0, clientWidth: 1000, clientHeight: 600 };
   const tabs = new Map([[101, { id: 101, windowId: 11, active: true }], [102, { id: 102, windowId: 12, active: true }]]);
   const browser = {
@@ -15,7 +15,7 @@ function fixture() {
     tabs: { async query(query) { return [...tabs.values()].filter(t => t.windowId === query.windowId && t.active); }, async get(id) { if (!tabs.has(id)) throw Error('closed'); return structuredClone(tabs.get(id)); } },
     debugger: {
       onDetach: { addListener(handler) { detachEvent = handler; } },
-      async attach(target) { calls.push(['attach', target.tabId]); attached.add(target.tabId); },
+      async attach(target) { calls.push(['attach', target.tabId]); if (attachFailure) throw Error('attach unavailable'); attached.add(target.tabId); },
       async detach(target) { calls.push(['detach', target.tabId]); attached.delete(target.tabId); },
       async sendCommand(target, method, params) {
         calls.push([method, target.tabId, params]);
@@ -41,7 +41,7 @@ function fixture() {
   });
   const record = { appSessionId: 'owned-a', windowId: 11, token: 'capability', origin: 'http://127.0.0.1:12345', monitoring: true, closed: false };
   return { manager, record, sockets, calls, attached, data, tabs, viewport, processed,
-    fail(value) { fail = value; }, waitScreenshot(value) { screenshotWait = value; },
+    fail(value) { fail = value; }, failAttach(value) { attachFailure = value; }, waitScreenshot(value) { screenshotWait = value; },
     closeTab(id) { tabs.delete(id); attached.delete(id); detachEvent({ tabId: id }, 'target_closed'); },
     cancel() { attached.delete(101); detachEvent({ tabId: 101 }, 'canceled_by_user'); } };
 }
@@ -86,6 +86,18 @@ test('NativeWindow control never attaches debugger or requests viewport screensh
   await until(() => socket.readyState === 3);
 });
 
+test('idle null key-chord control retains the authenticated socket for a later bounded request', async () => {
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0];
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false, keyChord: null,
+    options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await pause(20); assert.equal(socket.readyState, 1);
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId: '0'.repeat(32), key: 'PageDown', modifiers: [] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => socket.sent.some(message => message.requestId === '0'.repeat(32)));
+  assert.equal(socket.sent.find(message => message.requestId === '0'.repeat(32)).success, true);
+  await until(() => f.attached.size === 0); socket.close();
+});
+
 test('source-size probe uses layout metrics without a screenshot and detaches its temporary attachment', async () => {
   const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0];
   socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false, sourceSizeRequestId: 'a'.repeat(32), options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
@@ -93,6 +105,72 @@ test('source-size probe uses layout metrics without a screenshot and detaches it
   assert.deepEqual(socket.sent.find(m => m.type === 'source-size'), { type: 'source-size', requestId: 'a'.repeat(32), width: 1000, height: 600 });
   assert.equal(f.calls.filter(c => c[0] === 'Page.captureScreenshot').length, 0);
   await until(() => f.attached.size === 0); socket.close();
+});
+
+test('allowlisted key chords validate and dispatch exactly keyDown/keyUp to the owned active tab', async () => {
+  for (const key of ['PageDown', 'PageUp', 'Enter', 'Tab', 'Escape', 'Space', 'Home', 'End', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ...'0123456789'.split('').map(value => `Digit${value}`)])
+    assert(validKeyChordRequest({ requestId: 'f'.repeat(32), key, modifiers: [] }), `allowlisted ${key}`);
+  assert(validKeyChordRequest({ requestId: 'a'.repeat(32), key: 'PageDown', modifiers: [] }));
+  assert(validKeyChordRequest({ requestId: 'b'.repeat(32), key: 'Enter', modifiers: ['Ctrl'] }));
+  assert(!validKeyChordRequest({ requestId: 'x', key: 'F12', modifiers: [] }));
+  assert(!validKeyChordRequest({ requestId: 'c'.repeat(32), key: 'L', modifiers: ['Ctrl', 'Ctrl'] }));
+  assert(!validKeyChordRequest({ requestId: 'c'.repeat(32), key: 'L', modifiers: ['Control'] }));
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0], requestId = 'd'.repeat(32);
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId, key: 'L', modifiers: ['Ctrl', 'Shift'] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => socket.sent.some(m => m.type === 'key-chord-result'));
+  const calls = f.calls.filter(c => c[0] === 'Input.dispatchKeyEvent');
+  assert.deepEqual(calls.map(c => c[2].type), ['keyDown', 'keyUp']);
+  assert(calls.every(c => c[1] === 101 && c[2].key === 'L' && c[2].code === 'KeyL' && c[2].modifiers === 10));
+  assert.deepEqual(socket.sent.find(m => m.type === 'key-chord-result'), { type: 'key-chord-result', requestId, success: true });
+  const pageRequest = 'e'.repeat(32);
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId: pageRequest, key: 'PageDown', modifiers: ['Alt', 'Meta'] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => socket.sent.some(m => m.requestId === pageRequest));
+  const pageCalls = f.calls.filter(c => c[0] === 'Input.dispatchKeyEvent').slice(2);
+  assert.deepEqual(pageCalls.map(c => [c[2].type, c[2].key, c[2].code, c[2].modifiers]), [['keyDown', 'PageDown', 'PageDown', 5], ['keyUp', 'PageDown', 'PageDown', 5]]);
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId: pageRequest, key: 'PageDown', modifiers: ['Alt', 'Meta'] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await pause(20);
+  assert.equal(f.calls.filter(c => c[0] === 'Input.dispatchKeyEvent').length, 4, 'replayed request is acknowledged without a second dispatch');
+  for (const [requestId, key, modifiers, bits] of [['4'.repeat(32), 'Enter', ['Ctrl'], 2], ['5'.repeat(32), 'L', ['Ctrl'], 2], ['6'.repeat(32), 'R', ['Ctrl', 'Shift'], 10]]) {
+    socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+      keyChord: { requestId, key, modifiers }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+    await until(() => socket.sent.some(m => m.requestId === requestId));
+    const chordCalls = f.calls.filter(c => c[0] === 'Input.dispatchKeyEvent').slice(-2);
+    assert.deepEqual(chordCalls.map(c => [c[2].type, c[2].key, c[2].modifiers]), [['keyDown', key === 'R' ? 'R' : key, bits], ['keyUp', key === 'R' ? 'R' : key, bits]]);
+  }
+  const beforeMismatch = f.calls.filter(c => c[0] === 'Input.dispatchKeyEvent').length;
+  f.tabs.get(101).windowId = 12;
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId: '7'.repeat(32), key: 'PageDown', modifiers: [] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => socket.sent.some(m => m.requestId === '7'.repeat(32)));
+  assert.equal(socket.sent.find(m => m.requestId === '7'.repeat(32)).success, false, 'mismatched active window is rejected');
+  assert.equal(f.calls.filter(c => c[0] === 'Input.dispatchKeyEvent').length, beforeMismatch, 'mismatch never dispatches to a replacement tab');
+  await until(() => f.attached.size === 0); socket.close();
+});
+
+test('key dispatch reuses a monitor attachment and reports attach/dispatch failures without arbitrary commands', async () => {
+  const f = fixture(); f.manager.ensure(f.record); const socket = f.sockets[0]; socket.control(1, true);
+  await until(() => f.attached.has(101)); const attaches = f.calls.filter(c => c[0] === 'attach').length;
+  socket.onmessage({ data: JSON.stringify({ generation: 1, enabled: true, closing: false,
+    keyChord: { requestId: '1'.repeat(32), key: 'Enter', modifiers: ['Ctrl'] }, options: { framesPerSecond: 10, maxWidth: 960, maxHeight: 540, mode: 0 } }) });
+  await until(() => socket.sent.some(m => m.requestId === '1'.repeat(32)));
+  assert.equal(f.calls.filter(c => c[0] === 'attach').length, attaches, 'monitor-owned attachment is reused');
+  socket.control(2, false); await until(() => f.attached.size === 0);
+  const failed = fixture(); failed.failAttach(true); failed.manager.ensure(failed.record); const failedSocket = failed.sockets[0];
+  failedSocket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId: '2'.repeat(32), key: 'R', modifiers: ['Ctrl', 'Shift'] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => failedSocket.sent.some(m => m.requestId === '2'.repeat(32)));
+  assert.equal(failedSocket.sent.find(m => m.requestId === '2'.repeat(32)).success, false);
+  const dispatchFailed = fixture(); dispatchFailed.fail(true); dispatchFailed.manager.ensure(dispatchFailed.record); const dispatchSocket = dispatchFailed.sockets[0];
+  dispatchSocket.onmessage({ data: JSON.stringify({ generation: 1, enabled: false, closing: false,
+    keyChord: { requestId: '3'.repeat(32), key: 'L', modifiers: ['Ctrl'] }, options: { framesPerSecond: 2, maxWidth: 240, maxHeight: 135, mode: 0 } }) });
+  await until(() => dispatchSocket.sent.some(m => m.requestId === '3'.repeat(32)));
+  assert.equal(dispatchSocket.sent.find(m => m.requestId === '3'.repeat(32)).success, false);
+  await until(() => dispatchFailed.attached.size === 0);
+  assert.equal(dispatchFailed.calls.some(c => ['Runtime.evaluate', 'DOM.getDocument', 'Network.enable'].includes(c[0])), false);
+  socket.close(); failedSocket.close(); dispatchSocket.close();
 });
 
 test('region and explicit resize options are passed to local processing before final JPEG transport', async () => {

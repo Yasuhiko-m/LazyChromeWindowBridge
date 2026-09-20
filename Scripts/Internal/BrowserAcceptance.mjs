@@ -28,15 +28,21 @@ async function until(read, accept, label, timeout = 20000) {
   throw Error('Timed out: ' + label);
 }
 async function localPageServer() {
+  const events = [];
   const server = http.createServer((request, response) => {
+    const requestUrl = new URL(request.url, 'http://127.0.0.1');
+    if (requestUrl.pathname === '/key-event') {
+      events.push(Object.fromEntries(requestUrl.searchParams));
+      response.writeHead(204, { 'Cache-Control': 'no-store' }); response.end(); return;
+    }
     response.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
     const letter = /^\/dynamic-([a-e])/.exec(request.url)?.[1] ?? 'a';
     const channels = { a: [1,0,0], b: [0,0,1], c: [0,1,0], d: [1,1,0], e: [1,0,1] }[letter];
-    response.end(request.url.startsWith('/dynamic') ? `<!doctype html><title>Local live monitor fixture</title><style>body{margin:0;background:rgb(${channels.map(c => c ? 150 : 20).join(',')});color:white;font:20px sans-serif}main{padding:12px}</style><main>Neutral ${letter.toUpperCase()} live fixture <span id="tick"></span></main><script>let tick=0;const channels=${JSON.stringify(channels)};setInterval(()=>{let v=60+(++tick*17)%180;document.body.style.background='rgb('+channels.map(c=>c?v:20).join(',')+')';document.getElementById('tick').textContent=tick;},250)</script>` : '<!doctype html><title>Local LCWB acceptance page</title><p>Neutral local navigation target.</p>');
+    response.end(requestUrl.pathname === '/key-chord' ? '<!doctype html><title>Local key chord fixture</title><style>body{margin:0;height:6000px;font:20px sans-serif}main{padding:24px}</style><body tabindex="-1"><main>Neutral key chord fixture</main><script>const report=o=>fetch("/key-event?"+new URLSearchParams(o),{cache:"no-store"}).catch(()=>{});document.body.focus();addEventListener("keydown",e=>{report({kind:"keydown",key:e.key,code:e.code,ctrl:e.ctrlKey,shift:e.shiftKey,alt:e.altKey,meta:e.metaKey,scrollY:scrollY});setTimeout(()=>report({kind:"post-key",key:e.key,scrollY:scrollY}),150)},{capture:true});</script>' : request.url.startsWith('/dynamic') ? `<!doctype html><title>Local live monitor fixture</title><style>body{margin:0;background:rgb(${channels.map(c => c ? 150 : 20).join(',')});color:white;font:20px sans-serif}main{padding:12px}</style><main>Neutral ${letter.toUpperCase()} live fixture <span id="tick"></span></main><script>let tick=0;const channels=${JSON.stringify(channels)};setInterval(()=>{let v=60+(++tick*17)%180;document.body.style.background='rgb('+channels.map(c=>c?v:20).join(',')+')';document.getElementById('tick').textContent=tick;},250)</script>` : '<!doctype html><title>Local LCWB acceptance page</title><p>Neutral local navigation target.</p>');
 
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  return { server, url: `http://127.0.0.1:${server.address().port}` };
+  return { server, events, url: `http://127.0.0.1:${server.address().port}` };
 }
 class Cdp {
   pending = new Map(); events = []; sequence = 0;
@@ -116,9 +122,10 @@ try {
   const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   await cdp.open(version.webSocketDebuggerUrl);
   const manifest = await cdp.extension('chrome.runtime.getManifest()');
+  const expectedManifest = JSON.parse(await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Extension/manifest.json'), 'utf8'));
   assert.equal(manifest.name, 'LazyChromeWindowBridge');
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '0.3.1');
+  assert.equal(manifest.version, expectedManifest.version);
   evidence('browser', { version: version.Browser, profile, manifest, extensionRoot, testWindowPosition });
   if (gui) {
     const sampleExe = process.env.LCWB_TEST_SAMPLE_EXECUTABLE ?? path.join(root, 'samples/LazyChromeWindowBridge.SampleCaller/bin/Debug/net10.0-windows10.0.18362.0/LazyChromeWindowBridge.SampleCaller.exe');
@@ -152,6 +159,9 @@ try {
   } else if (process.argv.includes('--native-window')) {
     const { testNativeWindow } = await import('./NativeWindowAcceptance.mjs');
     await testNativeWindow({ caller, cdp, until, delay, evidence, pageA, pageB });
+  } else if (process.argv.includes('--key-chord')) {
+    const { testKeyChord } = await import('./KeyChordAcceptance.mjs');
+    await testKeyChord({ caller, cdp, until, delay, evidence, pageA });
   } else {
   const a = await caller('launch', pageA.url + '/launch');
   const boundA = (await until(() => caller('sessions'), list => list.find(s => s.appSessionId === a.appSessionId)?.state === 'Bound', 'A binds'))[0];

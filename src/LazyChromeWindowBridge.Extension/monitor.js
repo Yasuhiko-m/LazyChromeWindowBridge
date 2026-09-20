@@ -1,5 +1,23 @@
 // Human-view-only pixel transport. No DOM/Runtime/Network commands or image analysis.
 const TARGET = 'monitor-target:';
+const MODIFIER_BITS = { Alt: 1, Ctrl: 2, Meta: 4, Shift: 8 };
+const SPECIAL_KEYS = {
+  PageDown: ['PageDown', 'PageDown', 34], PageUp: ['PageUp', 'PageUp', 33], Enter: ['Enter', 'Enter', 13], Tab: ['Tab', 'Tab', 9], Escape: ['Escape', 'Escape', 27], Space: [' ', 'Space', 32],
+  Home: ['Home', 'Home', 36], End: ['End', 'End', 35], ArrowUp: ['ArrowUp', 'ArrowUp', 38], ArrowDown: ['ArrowDown', 'ArrowDown', 40], ArrowLeft: ['ArrowLeft', 'ArrowLeft', 37], ArrowRight: ['ArrowRight', 'ArrowRight', 39],
+  Backspace: ['Backspace', 'Backspace', 8], Delete: ['Delete', 'Delete', 46]
+};
+const KEY_ALLOWLIST = Object.freeze(Object.fromEntries([
+  ...Object.entries(SPECIAL_KEYS),
+  ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(key => [key, [key, `Key${key}`, key.charCodeAt(0)]]),
+  ...'0123456789'.split('').map(key => [`Digit${key}`, [key, `Digit${key}`, key.charCodeAt(0)]])
+]));
+const REQUEST_ID = /^[a-f0-9]{32}$/;
+
+export function validKeyChordRequest(request) {
+  return request && typeof request === 'object' && REQUEST_ID.test(request.requestId ?? '') && typeof request.key === 'string' &&
+    Object.hasOwn(KEY_ALLOWLIST, request.key) && Array.isArray(request.modifiers) && request.modifiers.length <= 4 &&
+    request.modifiers.every(value => typeof value === 'string' && Object.hasOwn(MODIFIER_BITS, value)) && new Set(request.modifiers).size === request.modifiers.length;
+}
 export class MonitorManager {
   constructor(browser, Socket = globalThis.WebSocket, processor = processScreenshot) {
     this.browser = browser; this.Socket = Socket; this.processor = processor; this.connections = new Map();
@@ -29,7 +47,7 @@ export class MonitorManager {
   ensure(record) {
     if (!record.monitoring || record.closed || this.connections.has(record.appSessionId)) return;
     const socket = new this.Socket(record.origin.replace('http:', 'ws:') + '/lazy-chrome-window-bridge/monitor');
-    const client = { record, socket, tabId: null, control: null, running: false, removed: false, blocked: null, detaching: false,
+    const client = { record, socket, tabId: null, control: null, running: false, removed: false, blocked: null, detaching: false, keyRequests: new Set(), keyResults: new Map(),
       send: message => { if (socket.readyState === 1) socket.send(JSON.stringify(message)); } };
     this.connections.set(record.appSessionId, client);
     socket.onopen = () => client.send({ appSessionId: record.appSessionId, token: record.token });
@@ -43,6 +61,12 @@ export class MonitorManager {
             !Number.isInteger(settings.mode) || ![0, 1].includes(settings.mode) || (settings.mode === 1 && control.enabled) || !validOptions(settings)) throw Error('Invalid monitor control.');
         const previous = client.control;
         client.control = control;
+        // Core serializes a null optional request while the control socket is idle.
+        // Null is not a request and must keep the authenticated control connection alive.
+        if (control.keyChord !== undefined && control.keyChord !== null) {
+          if (!validKeyChordRequest(control.keyChord)) throw Error('Invalid key chord control.');
+          void this.dispatchKeyChord(client, control.keyChord);
+        }
         if (typeof control.sourceSizeRequestId === 'string' && control.sourceSizeRequestId.length === 32) void this.probeSourceSize(client, control.sourceSizeRequestId);
         if (previous?.generation !== control.generation || previous?.enabled !== control.enabled || control.closing ||
             previous?.options.framesPerSecond !== settings.framesPerSecond || previous?.options.maxWidth !== settings.maxWidth ||
@@ -58,6 +82,38 @@ export class MonitorManager {
       void this.pump(client);
     };
     socket.onerror = () => socket.close();
+  }
+  async dispatchKeyChord(client, request) {
+    const prior = client.keyResults.get(request.requestId);
+    if (prior) { client.send(prior); return; }
+    if (client.keyRequests.has(request.requestId)) return;
+    client.keyRequests.add(request.requestId);
+    const finish = result => {
+      client.keyResults.set(request.requestId, result);
+      if (client.keyResults.size > 16) client.keyResults.delete(client.keyResults.keys().next().value);
+      client.send(result);
+    };
+    let tabId = client.tabId, attachedHere = false;
+    try {
+      let tab;
+      if (tabId === null) {
+        const tabs = await this.browser.tabs.query({ windowId: client.record.windowId, active: true });
+        if (tabs.length !== 1 || tabs[0].windowId !== client.record.windowId || tabs[0].incognito) throw Error('Owned window has no eligible active tab.');
+        tabId = tabs[0].id; await this.browser.debugger.attach({ tabId }, '1.3'); attachedHere = true;
+      }
+      tab = await this.browser.tabs.get(tabId);
+      if (tab.windowId !== client.record.windowId || !tab.active || tab.incognito) throw Error('Owned active tab changed.');
+      const [key, code, virtualKey] = KEY_ALLOWLIST[request.key];
+      const modifiers = request.modifiers.reduce((bits, modifier) => bits | MODIFIER_BITS[modifier], 0);
+      const fixed = { key, code, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, modifiers };
+      await this.browser.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', { type: 'keyDown', ...fixed });
+      await this.browser.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', { type: 'keyUp', ...fixed });
+      finish({ type: 'key-chord-result', requestId: request.requestId, success: true });
+    } catch (error) { finish({ type: 'key-chord-result', requestId: request.requestId, success: false, error: String(error.message).slice(0, 240) }); }
+    finally {
+      if (attachedHere) try { await this.browser.debugger.detach({ tabId }); } catch { }
+      client.keyRequests.delete(request.requestId);
+    }
   }
   async probeSourceSize(client, requestId) {
     let tabId = client.tabId, attachedHere = false;

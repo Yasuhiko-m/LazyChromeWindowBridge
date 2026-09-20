@@ -59,9 +59,11 @@ entries retain a connection, generation, native identity, latest JPEG, counters 
 error. Either placement can receive fresh JPEGs. Monitor state, native placement and
 taskbar policy are separate. GitHub v0.3.1 is published, including launch policy,
 capture refinement and preview-liveness stabilization. The matching NuGet
-publication workflow completed successfully, though Gallery indexing was not
-independently measured. Chrome Web Store 0.3.1 remains unpublished; historical
-publications remain unchanged.
+publication workflow completed successfully and Core 0.3.1 is visible/indexed on
+NuGet Gallery. CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x;
+Chrome Web Store 0.3.1 remains unpublished.
+
+Current unpublished Source v0.3.2 carries one request/result key-chord message on the existing authenticated monitor socket. The extension validates a canonical key/modifier allowlist, resolves only the owned window's active tab, and issues bounded `Input.dispatchKeyEvent` keyDown/keyUp calls. It never accepts arbitrary CDP, JavaScript, DOM, text-macro, or OS-global input; dispatch completion does not infer an observed page effect.
 
 Chrome launch construction keeps LCWB ownership arguments authoritative. It adds
 `--disable-backgrounding-occluded-windows` once by default for fully offscreen PARKed

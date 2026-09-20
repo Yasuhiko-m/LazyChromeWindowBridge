@@ -57,6 +57,7 @@ if (args.FirstOrDefault() == "--browser-driver")
                 "monitor" => host.GetMonitorState(),
                 "monitor-frame" => FrameEvidence(host.GetLatestFrame(command.RootElement.GetProperty("id").GetGuid())),
                 "monitor-frames" => host.GetMonitorState().Sessions.Select(s => FrameEvidence(host.GetLatestFrame(s.AppSessionId))).Where(f => f is not null).ToArray(),
+                "key-chord" => await SendKeyChord(host, command.RootElement),
                 "process-stats" => ProcessStats(command.RootElement),
                 "shutdown-host" => await ShutdownHost(host),
                 "shutdown-geometry" => host.Geometry.ShutdownResults,
@@ -85,6 +86,13 @@ object SetTaskbar(BridgeRuntime host, JsonElement command)
     var id = command.GetProperty("id").GetGuid();
     host.SetShowInTaskbar(id, command.GetProperty("show").GetBoolean());
     return host.Taskbar.Evidence(id);
+}
+async Task<object> SendKeyChord(BridgeRuntime host, JsonElement command)
+{
+    var chord = command.GetProperty("chord").Deserialize<BrowserKeyChord>(json)
+        ?? throw new ArgumentException("A structured browser key chord is required.");
+    await host.SendKeyChordAsync(command.GetProperty("id").GetGuid(), chord);
+    return new { dispatched = true };
 }
 // Consumer test only: the product never opens, validates or moves downloaded files.
 async Task<object> ConsumeDownload(BridgeRuntime host, JsonElement command)

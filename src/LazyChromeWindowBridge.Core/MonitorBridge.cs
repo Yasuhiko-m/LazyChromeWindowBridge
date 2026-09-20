@@ -43,6 +43,14 @@ internal static class MonitorBridge
                     using var message = await Receive(socket, 3000000, lifetime.Token);
                     if (message is null) break;
                     var root = message.RootElement;
+                    if (root.TryGetProperty("type", out var type) && type.GetString() == "key-chord-result")
+                    {
+                        if (!root.TryGetProperty("requestId", out var request) || request.ValueKind != JsonValueKind.String ||
+                            request.GetString() is not { Length: 32 } requestId || !root.TryGetProperty("success", out var success) || success.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                            throw new JsonException("Invalid key chord response.");
+                        host.Monitor.KeyResult(id, connection, requestId, success.GetBoolean(), root.TryGetProperty("error", out var keyError) && keyError.ValueKind == JsonValueKind.String ? keyError.GetString() : null);
+                        continue;
+                    }
                     if (root.GetProperty("type").GetString() == "source-size")
                     {
                         var requestId = root.GetProperty("requestId").GetString();

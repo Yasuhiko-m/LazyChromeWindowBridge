@@ -9,12 +9,14 @@ policy and profile-global download lifecycle events.
 NuGet contains **`LazyChromeWindowBridge.Core` only**. Install Core `0.3.1` from NuGet
 and install/use the matching Chrome extension in the Chrome profile that hosts the
 owned windows. The `.nupkg` contains no Chrome extension files or ZIP, SampleCaller,
-or installer. Matching Core and Extension versions are recommended.
+or installer. Matching Core and Extension versions are required for the supported
+distribution path; mixed-version compatibility is not guaranteed.
 
-The Chrome Web Store is the normal convenient extension distribution path when the
-matching version is available. Store review can delay the newest extension version.
-If the Store version does not match Core `0.3.1`, obtain the matching deterministic
-extension asset from the GitHub Release instead:
+Chrome Web Store review can make an extension available later than the matching
+GitHub/NuGet release, and LCWB does not guarantee every GitHub/NuGet version will be
+submitted to or published on CWS. CWS is convenient, not a complete guaranteed version
+archive. When CWS is behind or skips the Core version, obtain the exact matching
+extension ZIP from its GitHub Release instead:
 
 1. Download `LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from GitHub Release
    `v0.3.1`.
@@ -22,9 +24,11 @@ extension asset from the GitHub Release instead:
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
    and select that extracted extension directory.
 
+This Developer mode installation path does not depend on CWS review or availability.
 This guidance does not assert that Chrome Web Store 0.3.1 is approved or published.
-The submitted CWS 0.2.0 review and historical NuGet 0.1.0/0.2.0 publications are
-unaffected.
+CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x; historical NuGet
+0.1.0/0.2.0 publications are unaffected. Current Source 0.3.2 is unpublished, so this
+document does not imply that a 0.3.2 package exists on NuGet.
 
 BrowserViewport consumers can target `net10.0-windows`; NativeWindow consumers target
 `net10.0-windows10.0.18362.0`. The package carries the ASP.NET Core and Windows Desktop
@@ -77,13 +81,15 @@ FPS requests accept 1–30 inclusive, default 2; 30 is a ceiling, not a throughp
 Default bounds 240x135, aspect preservation, no upscale and JPEG quality 70 remain.
 Options affect JPEG output only, never native size, viewport or zoom. Placement and
 ordinary same-mode options updates preserve the acquisition generation. A mode change
-advances only that target generation. BrowserViewport debugger commands are exactly
-Page.getLayoutMetrics and Page.captureScreenshot. NativeWindow uses exact-HWND WGC,
+advances only that target generation. BrowserViewport capture debugger commands are
+Page.getLayoutMetrics and Page.captureScreenshot; explicit bounded key requests additionally
+use fixed Input.dispatchKeyEvent keyDown/keyUp. NativeWindow uses exact-HWND WGC,
 GPU crop/resize and bounded CPU JPEG encoding; it has no picker or BrowserViewport fallback.
 LCWB launches request --silent-debugger-extension-api as Chrome-dependent best-effort
 notice suppression only. Permission remains broad; existing profiles may retain old
 flags and Chrome may ignore it. Capture does not require suppression. Visual infobar
-absence was not established as a guarantee. No DOM/Runtime/Network inspection or input automation.
+absence was not established as a guarantee. No DOM/Runtime/Network inspection or arbitrary
+input automation is provided; bounded key dispatch does not guarantee page or browser-UI handling.
 
 Downloads belong to the Chrome profile, not an application session. Consumers own
 filesystem checks after Complete. Monitoring is for human viewing only; there is no
@@ -116,5 +122,4 @@ separate symbol-push command.
 `Scripts/Test-NuGet.ps1` validates and packs the package; it never publishes. The
 manual OIDC `Publish NuGet` workflow is the publication boundary. For v0.3.1,
 workflow run `35049074171` completed successfully, including its verified Core
-package push. NuGet Gallery indexing/visibility was not independently measured
-and may lag.
+package push. Core 0.3.1 is independently visible/indexed on NuGet Gallery.

@@ -3,9 +3,10 @@
 param([Parameter(Mandatory)][string]$SourceRoot)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
-$packageRoot = Join-Path $SourceRoot 'artifacts/nuget/0.3.1'
 $packageId = 'LazyChromeWindowBridge.Core'
-$version = '0.3.1'
+$release = & (Join-Path $PSScriptRoot 'Resolve-ReleaseVersion.ps1') -SourceRoot $SourceRoot
+$version = $release.Version
+$packageRoot = Join-Path $SourceRoot "artifacts/nuget/$version"
 $head = git -C $SourceRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot determine repository commit.' }
 $expectedNames = @("$packageId.$version.nupkg", "$packageId.$version.snupkg")
@@ -84,13 +85,13 @@ foreach ($extension in @('nupkg', 'snupkg')) {
                 $readmeHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($readmePayload))
             } finally { $readmeStream.Dispose() }
             if ($readmeHash -cne (Get-FileHash -LiteralPath (Join-Path $SourceRoot 'docs/nuget.md')).Hash) { throw 'Package README differs from Source.' }
+            if (-not $readmeText.Contains($version)) { throw 'Package README does not identify the resolved product version.' }
             foreach ($requiredReadmeText in @(
                 'NuGet contains **`LazyChromeWindowBridge.Core` only**.',
                 'matching Chrome extension',
                 'Chrome Web Store',
                 'Store review',
                 'GitHub Release',
-                '`v0.3.1`',
                 'chrome://extensions',
                 'Developer mode',
                 'Load unpacked')) {
@@ -128,10 +129,11 @@ $projectXml = @'
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="LazyChromeWindowBridge.Core" Version="[0.3.1]" />
+    <PackageReference Include="LazyChromeWindowBridge.Core" Version="[__VERSION__]" />
   </ItemGroup>
 </Project>
 '@
+$projectXml = $projectXml.Replace('__VERSION__', $version)
 [IO.File]::WriteAllText($consumerProject, $projectXml, [Text.UTF8Encoding]::new($false))
 Copy-Item -LiteralPath (Join-Path $SourceRoot 'tests/LazyChromeWindowBridge.PublicApi.Tests/Program.cs') -Destination (Join-Path $consumerRoot 'Program.cs')
 $windowsSdkCache = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.nuget/packages/microsoft.windows.sdk.net.ref'
@@ -155,4 +157,4 @@ $consumerOutput = Join-Path $consumerRoot 'bin/Release/net10.0-windows10.0.18362
 if ((Get-FileHash -LiteralPath (Join-Path $consumerOutput "$packageId.dll")).Hash -ne $dllHashes['net10.0-windows10.0.18362']) { throw 'Consumer loaded another Core binary.' }
 & dotnet (Join-Path $consumerOutput 'NuGetConsumer.dll')
 if ($LASTEXITCODE -ne 0) { throw 'Local nupkg consumer runtime checks failed.' }
-'PASS: local-only 0.3.1 nupkg consumer; external API checks include both CaptureMode values and SetShowInTaskbar.'
+"PASS: local-only $version nupkg consumer; external API checks use the resolved product package."

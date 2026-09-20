@@ -58,8 +58,13 @@
   A hung peer can exceed graceful shutdown bounds; callers should still await disposal.
 - The pre-release product rename starts a new geometry directory. Legacy pre-release
   data is not a supported migration contract; no migration subsystem is provided.
-- No installer or updater is established. GitHub/NuGet 0.1.0 and 0.2.0 publication and
-  the already-submitted CWS 0.2.0 artifact/review are historical. GitHub v0.3.1 is
-  published; Store review can lag, so use its matching GitHub Release extension ZIP
-  while Chrome Web Store 0.3.1 is unavailable. Chrome may ignore its supported
+- No installer or updater is established. GitHub/NuGet 0.1.0 and 0.2.0 publication are
+  historical. CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x.
+  GitHub v0.3.1 is published; Store review can lag or skip versions, so use its matching
+  GitHub Release extension ZIP while Chrome Web Store 0.3.1 is unavailable. CWS is not
+  a guaranteed archive of every LCWB version. Chrome may ignore its supported
   background-rendering switch; PreserveBackgroundRendering is not a rendering SLA.
+- Current unpublished Source 0.3.2 permits one allowlisted `Input.dispatchKeyEvent`
+  chord for an exact owned active tab. It is not a macro, text-entry, click, JavaScript,
+  DOM, or remote-control API; successful dispatch does not establish page handling or
+  browser shortcut behavior.

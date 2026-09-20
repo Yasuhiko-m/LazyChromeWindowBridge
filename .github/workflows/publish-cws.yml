@@ -1,4 +1,4 @@
-name: Publish NuGet
+name: Publish Chrome Web Store
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: publish-nuget-${{ inputs.version }}
+  group: publish-cws-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
@@ -25,7 +25,6 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write
     defaults:
       run:
         shell: pwsh
@@ -48,32 +47,24 @@ jobs:
           $release = ./Scripts/Internal/Resolve-ReleaseVersion.ps1 -SourceRoot $PWD
           if ($release.Tag -cne $tag) { throw 'Source product version does not match requested tag.' }
 
-      - name: Setup .NET SDK from servicing-line policy
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
-        with:
-          global-json-file: global.json
-
       - name: Setup Node for deterministic extension tests
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24.19.0'
 
-      - name: Restore, build Release, test, pack and verify local consumer
-        run: ./Scripts/Test-NuGet.ps1
-
-      - name: NuGet login with OIDC
-        id: login
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
-        with:
-          user: Yasuhiko-m
-
-      - name: Push the verified Core package
-        env:
-          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+      - name: Test and package matching extension
         run: |
           $ErrorActionPreference = 'Stop'
-          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'OIDC credential missing.' }
-          $version = '${{ inputs.version }}'.Substring(1)
-          dotnet nuget push "./artifacts/nuget/$version/LazyChromeWindowBridge.Core.$version.nupkg" `
-            --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
-          if ($LASTEXITCODE -ne 0) { throw 'NuGet push failed; inspect package and symbol status before retrying.' }
+          node --test ./tests/LazyChromeWindowBridge.Extension.Tests/bindings.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/monitor.test.mjs ./tests/LazyChromeWindowBridge.Extension.Tests/downloads.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed.' }
+          ./Scripts/Package-Extension.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Extension package failed.' }
+          node ./Scripts/Internal/AuditPublicRelease.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Extension/package audit failed.' }
+
+      - name: Upload and submit existing CWS item for normal review
+        env:
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+        run: ./Scripts/Internal/Publish-Cws.ps1 -SourceRoot $PWD -Version '${{ inputs.version }}'

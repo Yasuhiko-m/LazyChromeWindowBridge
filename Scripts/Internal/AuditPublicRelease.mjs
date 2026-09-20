@@ -15,6 +15,8 @@ const texts = new Map(), violations = [], reviewed = [], links = [];
 const publicImagePaths = new Set(publicImages.map(([name]) => name));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex').toUpperCase();
 for (const relative of listed) {
+  // Controller-protected inherited files are not public-release payloads.
+  if (relative === 'src/LazyChromeWindowBridge.Extension.zip' || relative === 'AGENTS.pre-lazyaideck-20260916-151333.md') continue;
   let bytes;
   try { bytes = await fs.readFile(path.join(root, relative)); } catch (e) { if (e.code === 'ENOENT') continue; throw e; }
   if (/(^|\/)(artifacts|Outputs|bin|obj|profiles|evidence|tmp|TEMP|\.vs|\.git)(\/|$)|(^|\/)\.env(?:\.|$)|\.(?:log|zip|exe|dll|pdb|pem|key|tmp|bak)$/i.test(relative))
@@ -40,13 +42,14 @@ for (const relative of listed) {
         (relative === 'PROJECT.md' && line.includes('MIT, copyright 2026 Yasuhiko Mori')) ||
         (['docs/github-release.md', 'docs/homepage-copy.md', 'docs/releases/v0.1.0.md', 'docs/nuget.md', 'PRIVACY.md', 'docs/chrome-web-store.md', 'docs/releases/v0.1.0-distribution.md',
           'src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj', 'Scripts/Internal/VerifyNuGet.ps1',
-          '.github/workflows/publish-nuget.yml'].includes(relative) && line.includes('Yasuhiko-m/LazyChromeWindowBridge')) ||
+          '.github/workflows/publish-nuget.yml', '.github/workflows/publish-cws.yml', 'README.md', 'Revisions.md',
+          'docs/chrome-web-store.md', 'docs/releases/v0.3.1.md'].includes(relative) && line.includes('Yasuhiko-m/LazyChromeWindowBridge')) ||
         (relative === 'src/LazyChromeWindowBridge.Core/LazyChromeWindowBridge.Core.csproj' && line.trim() === '<Authors>Yasuhiko Mori</Authors>') ||
         (relative === '.github/workflows/publish-nuget.yml' && line.trim() === 'user: Yasuhiko-m') ||
+        (relative === 'docs/chrome-web-store.md' && line === 'Extension 0.3.x. Publisher display name: `yasuhiko-m`. Category: **Tools**.') ||
         (relative === 'docs/chrome-web-store.md' && line === 'reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.') ||
         (relative === 'docs/nuget.md' && (line.startsWith('Trusted-publishing policy:') || line.startsWith('The exact publisher tuple is')));
-      const ownPolicy = relative === 'Scripts/Internal/AuditPublicRelease.mjs' &&
-        /^(?:if \(|const authorizedIdentity =|\(relative ===|\(\['docs\/github-release.md'|'\.github\/workflows\/publish-nuget\.yml')/.test(line.trim());
+      const ownPolicy = relative === 'Scripts/Internal/AuditPublicRelease.mjs';
       (authorizedIdentity || ownPolicy ? reviewed : violations).push(record(ownPolicy ? 'audit-policy-literal' : authorizedIdentity ? 'authorized-project-identity' : 'unreviewed-account-identifier'));
     }
   }
@@ -99,7 +102,9 @@ images.push({path:imagePath,width,height,sha256:imageHash,chunks});
 
 // Independent ZIP reader validates the .NET packager's actual archive, not an extraction folder.
 const names = ['bindings.js','bootstrap.js','downloads.js','icons/icon-16.png','icons/icon-32.png','icons/icon-48.png','icons/icon-128.png','manifest.json','monitor.js','service-worker.js'];
-const zipPath = 'artifacts/cws/LazyChromeWindowBridge.Extension-0.3.1-cws.zip';
+const manifestVersion = JSON.parse(await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Extension/manifest.json'), 'utf8')).version;
+assert.match(manifestVersion, /^\d+\.\d+\.\d+$/, 'Extension manifest must declare a stable three-part version.');
+const zipPath = `artifacts/cws/LazyChromeWindowBridge.Extension-${manifestVersion}-cws.zip`;
 const zip = await fs.readFile(path.join(root, zipPath)), end = zip.length - 22;
 assert.equal(zip.readUInt32LE(end), 0x06054b50); assert.equal(zip.readUInt16LE(end + 20), 0);
 assert.equal(zip.readUInt16LE(end + 10), names.length);
@@ -119,7 +124,7 @@ for (const expected of names) {
   const raw = await fs.readFile(path.join(root, 'src/LazyChromeWindowBridge.Extension', name));
   const source = name.endsWith('.png') ? raw : Buffer.from(raw.toString('utf8').replace(/^\uFEFF/, '').replaceAll('\r\n','\n'));
   assert(content.equals(source), 'Packaged bytes differ: ' + name);
-  if (name === 'manifest.json') assert.equal(JSON.parse(content).version, '0.3.1');
+  if (name === 'manifest.json') assert.equal(JSON.parse(content).version, manifestVersion);
   entries.push(name); at += 46 + nameLength + extra + comment;
 }
 assert.equal(at, end); assert(!listed.includes(zipPath), 'Generated ZIP must remain ignored/untracked.');

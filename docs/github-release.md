@@ -4,8 +4,8 @@ GitHub `v0.3.1` was published from checkpoint
 `6ad192376f5d36ddc7d93bf7eba1dae11cd487bd` on 2026-09-16T02:43:20Z. It is a
 non-draft, non-prerelease release:
 <https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.1>.
-GitHub/NuGet 0.1.0–0.3.0 remain historical releases; the submitted CWS 0.2.0
-review remains untouched. Chrome Web Store publication is outside this record.
+GitHub/NuGet 0.1.0–0.3.0 remain historical releases. CWS 0.2.0 is general-public but
+does not match Core/Extension 0.3.x; Chrome Web Store publication is outside this record.
 
 ## Published release assets
 
@@ -26,9 +26,8 @@ successfully, including exact checkout verification, SDK and Node setup,
 | `LazyChromeWindowBridge.Core.0.3.1.snupkg` | 60,507 | `21FAC31D39AD8DA54845843253D5EC4EADA1D870EFBFDBF39DD4FA53BFF4B6FE` |
 
 The package repository commit is
-`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`. NuGet Gallery indexing was not
-independently measured; this records successful workflow/push evidence, not a
-stronger Gallery-visibility claim.
+`6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`. Core 0.3.1 is independently visible/indexed
+on NuGet Gallery; this record preserves the successful workflow/push evidence.
 
 ## Reproducibility procedure
 

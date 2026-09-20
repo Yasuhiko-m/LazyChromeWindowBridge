@@ -12,7 +12,8 @@ try {
     try {
         & (Join-Path $PSScriptRoot 'Internal/AssertSdkPolicy.ps1') 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw 'SDK policy check failed.' }
-        $version = '0.3.1'
+        $release = & (Join-Path $PSScriptRoot 'Internal/Resolve-ReleaseVersion.ps1') -SourceRoot $sourceRoot
+        $version = $release.Version
         $name = "LazyChromeWindowBridge-v$version-win-x64"
         $artifactRoot = Join-Path $sourceRoot "artifacts/release/$version"
         $work = Join-Path $artifactRoot ('build-' + [Guid]::NewGuid().ToString('N'))
@@ -66,7 +67,7 @@ try {
             $relative = [IO.Path]::GetRelativePath($bundle,$file.FullName)
             if ((Get-FileHash -LiteralPath $file.FullName).Hash -cne (Get-FileHash -LiteralPath (Join-Path (Join-Path $fresh $name) $relative)).Hash) { throw 'Extracted payload differs.' }
         }
-        $record = [ordered]@{check='windows-package';result='PASS';version=$version;path=[IO.Path]::GetRelativePath($sourceRoot,$archivePath);bytes=(Get-Item $archivePath).Length;sha256=(Get-FileHash $archivePath).Hash;entries=$inventory;freshExecutable=[IO.Path]::GetRelativePath($sourceRoot,(Join-Path $fresh "$name/SampleCaller/LazyChromeWindowBridge.SampleCaller.exe"));launchSmoke='Required separately through the real GUI fixture';frameworks=$runtime.runtimeOptions.includedFrameworks}
+        $record = [ordered]@{check='windows-package';result='PASS';version=$version;path=[IO.Path]::GetRelativePath($sourceRoot,$archivePath).Replace('\','/');bytes=(Get-Item $archivePath).Length;sha256=(Get-FileHash $archivePath).Hash;entries=$inventory;freshExecutable=[IO.Path]::GetRelativePath($sourceRoot,(Join-Path $fresh "$name/SampleCaller/LazyChromeWindowBridge.SampleCaller.exe")).Replace('\','/');launchSmoke='Required separately through the real GUI fixture';frameworks=$runtime.runtimeOptions.includedFrameworks}
         $record | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $artifactRoot 'inventory.json') -Encoding utf8
         $record | ConvertTo-Json -Depth 6 -Compress | Tee-Object -FilePath $log -Append
         $packageExit = 0

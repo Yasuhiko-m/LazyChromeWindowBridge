@@ -1,6 +1,6 @@
 #requires -Version 7.0
 # Source-owned validation. Real isolated browser acceptance is opt-in by executable.
-param([string]$ChromeExecutable, [switch]$Gui, [switch]$Clean)
+param([string]$ChromeExecutable, [switch]$Gui, [switch]$Clean, [switch]$KeyChord)
 $ErrorActionPreference = 'Stop'
 $scriptOutputRoot = Join-Path $PSScriptRoot 'Outputs'
 New-Item -ItemType Directory -Path $scriptOutputRoot -Force | Out-Null
@@ -28,15 +28,20 @@ try {
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Extension rehydration tests failed.' }
         & node (Join-Path $PSScriptRoot 'Internal\AuditSource.mjs') 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Source name/security/hygiene audit failed.' }
+        & (Join-Path $PSScriptRoot 'Internal\Test-ReleaseAutomation.ps1') -SourceRoot $sourceRoot 2>&1 | Tee-Object -FilePath $scriptLog -Append
+        if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Release automation contract checks failed.' }
         & (Join-Path $PSScriptRoot 'Internal\PackageExtension.ps1') -SourceRoot $sourceRoot 2>&1 | Tee-Object -FilePath $scriptLog -Append
         & node (Join-Path $PSScriptRoot 'Internal\AuditPublicRelease.mjs') 2>&1 | Tee-Object -FilePath $scriptLog -Append
         if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Public release/image/link/package audit failed.' }
         # Every real-browser mode loads a fresh extraction of the audited distribution ZIP.
+        $extensionManifest = Get-Content -LiteralPath (Join-Path $sourceRoot 'src/LazyChromeWindowBridge.Extension/manifest.json') -Raw | ConvertFrom-Json
+        if ($extensionManifest.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Extension manifest must declare a stable three-part version.' }
+        $cwsArtifact = Join-Path $sourceRoot ("artifacts/cws/LazyChromeWindowBridge.Extension-$($extensionManifest.version)-cws.zip")
         $cwsExtension = Join-Path $sourceRoot ('artifacts/cws/unpacked-' + [Guid]::NewGuid().ToString('N'))
         if ($ChromeExecutable) {
-            [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $sourceRoot 'artifacts/cws/LazyChromeWindowBridge.Extension-0.3.1-cws.zip'), $cwsExtension)
+            [IO.Compression.ZipFile]::ExtractToDirectory($cwsArtifact, $cwsExtension)
         }
-        if ($ChromeExecutable -and -not $Gui) {
+        if ($ChromeExecutable -and -not $Gui -and -not $KeyChord) {
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --downloads --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
             if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Download lifecycle acceptance failed.' }
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --geometry --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
@@ -46,8 +51,13 @@ try {
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --native-window --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
             if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'NativeWindow/taskbar acceptance failed.' }
         }
+        if ($ChromeExecutable -and $KeyChord) {
+            & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable --key-chord --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
+            if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Bounded key-chord acceptance failed.' }
+        }
         if ($ChromeExecutable) {
-            $testMode = if ($Gui) { '--gui' } else { '--multi-monitor' }
+            $testMode = if ($Gui) { '--gui' } elseif ($KeyChord) { $null } else { '--multi-monitor' }
+            if ($null -eq $testMode) { $scriptExit = 0; return }
             & node (Join-Path $PSScriptRoot 'Internal\BrowserAcceptance.mjs') $ChromeExecutable $testMode --extension-directory $cwsExtension 2>&1 | Tee-Object -FilePath $scriptLog -Append
             if ($LASTEXITCODE -ne 0) { $scriptExit = $LASTEXITCODE; throw 'Browser/sample acceptance failed.' }
         } else {

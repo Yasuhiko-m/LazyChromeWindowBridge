@@ -3,6 +3,7 @@
 param([Parameter(Mandatory)][string]$SourceRoot)
 $ErrorActionPreference = 'Stop'
 $packageRoot = [IO.Path]::GetFullPath($SourceRoot)
+$release = & (Join-Path $PSScriptRoot 'Resolve-ReleaseVersion.ps1') -SourceRoot $packageRoot
 $extensionRoot = Join-Path $packageRoot 'src/LazyChromeWindowBridge.Extension'
 $packageNames = @('bindings.js','bootstrap.js','downloads.js','icons/icon-16.png','icons/icon-32.png','icons/icon-48.png','icons/icon-128.png','manifest.json','monitor.js','service-worker.js')
 $actualNames = @(Get-ChildItem -LiteralPath $extensionRoot -File -Recurse | ForEach-Object { [IO.Path]::GetRelativePath($extensionRoot, $_.FullName).Replace('\','/') } | Sort-Object)
@@ -32,10 +33,11 @@ $firstHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($fi
 $secondHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($secondArchive))
 if ($firstHash -cne $secondHash) { throw 'Reproducibility check failed.' }
 $manifest = Get-Content -LiteralPath (Join-Path $extensionRoot 'manifest.json') -Raw | ConvertFrom-Json
-if ($manifest.version -cne '0.3.1') { throw 'Unexpected CWS version.' }
+if ($manifest.version -cne $release.Version) { throw 'Extension manifest and resolved product version disagree.' }
 $artifactRoot = Join-Path $packageRoot 'artifacts/cws'
 New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
-$artifact = Join-Path $artifactRoot 'LazyChromeWindowBridge.Extension-0.3.1-cws.zip'
+$artifactName = "LazyChromeWindowBridge.Extension-$($release.Version)-cws.zip"
+$artifact = Join-Path $artifactRoot $artifactName
 [IO.File]::WriteAllBytes($artifact, $firstArchive)
-[pscustomobject]@{check='extension-package';result='PASS';artifact='artifacts/cws/LazyChromeWindowBridge.Extension-0.3.1-cws.zip';files=$packageNames;bytes=$firstArchive.Length;sha256=$firstHash;repeatIdentical=$true;manifestVersion=$manifest.version;releaseVersion='0.3.1'} |
+[pscustomobject]@{check='extension-package';result='PASS';artifact=(Join-Path 'artifacts/cws' $artifactName).Replace('\','/');files=$packageNames;bytes=$firstArchive.Length;sha256=$firstHash;repeatIdentical=$true;manifestVersion=$manifest.version;releaseVersion=$release.Version} |
     ConvertTo-Json -Compress

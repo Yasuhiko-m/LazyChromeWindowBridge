@@ -9,9 +9,9 @@
     <PackageProjectUrl>https://github.com/Yasuhiko-m/LazyChromeWindowBridge</PackageProjectUrl>
     <PackageTags>chrome;windows;win32;browser-integration;window-management;multi-monitor</PackageTags>
     <PackageIcon>icon-128.png</PackageIcon>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Authors>Yasuhiko Mori</Authors>
-    <Description>Windows-to-Chrome session ownership, native PARK/RESTORE, human-only monitoring and read-only download lifecycle events.</Description>
+    <Description>Windows-to-Chrome session ownership, native PARK/RESTORE and human-only monitoring. Requires a matching Chrome extension; matching assets are on GitHub Releases when CWS lags.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/Yasuhiko-m/LazyChromeWindowBridge</RepositoryUrl>

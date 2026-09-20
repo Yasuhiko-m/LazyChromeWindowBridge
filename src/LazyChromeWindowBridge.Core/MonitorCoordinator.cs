@@ -2,7 +2,8 @@ using System.Drawing;
 
 namespace LazyChromeWindowBridge.Core;
 
-internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing, NativeIdentity? Identity, string? SourceSizeRequestId = null);
+internal sealed record KeyChordControl(string RequestId, string Key, string[] Modifiers);
+internal sealed record MonitorControl(bool Enabled, long Generation, CaptureOptions Options, bool Closing, NativeIdentity? Identity, string? SourceSizeRequestId = null, KeyChordControl? KeyChord = null);
 internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoordinator geometry, INativeCaptureFactory? captureFactory = null)
 {
     private sealed class Entry
@@ -19,7 +20,9 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         public long NativeGeneration;
         public string? SourceSizeRequestId;
         public TaskCompletionSource<CaptureSourceSize>? SourceSize;
+        public KeyRequest? KeyRequest;
     }
+    private sealed record KeyRequest(string Id, BrowserKeyChord Chord, TaskCompletionSource Completion);
     private readonly object gate = new();
     private readonly Dictionary<Guid, Entry> entries = [];
     private bool enabled, disposed;
@@ -240,7 +243,44 @@ internal sealed class MonitorCoordinator(SessionRegistry sessions, GeometryCoord
         lock (gate)
         {
             var entry = Sync(id);
-            return new(entry.Eligible && entry.Error is null && options.Mode == CaptureMode.BrowserViewport, entry.Generation, options, disposed, entry.Identity, entry.SourceSizeRequestId);
+            var request = entry.KeyRequest;
+            return new(entry.Eligible && entry.Error is null && options.Mode == CaptureMode.BrowserViewport, entry.Generation, options, disposed, entry.Identity,
+                entry.SourceSizeRequestId, request is null ? null : new(request.Id, request.Chord.Key.ToString(), Modifiers(request.Chord.Modifiers)));
+        }
+    }
+    private static string[] Modifiers(BrowserKeyModifiers value) => Enum.GetValues<BrowserKeyModifiers>()
+        .Where(flag => flag != BrowserKeyModifiers.None && value.HasFlag(flag)).Select(flag => flag.ToString()).ToArray();
+    public async Task SendKeyChordAsync(Guid id, BrowserKeyChord chord, CancellationToken token = default)
+    {
+        ArgumentNullException.ThrowIfNull(chord); chord.Validate();
+        KeyRequest request;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var session = sessions.Get(id); var window = geometry.Get(id);
+            if (session?.State != SessionState.Bound || window is not { State: PlacementState.Visible or PlacementState.Parked })
+                throw new InvalidOperationException("Key dispatch requires a live owned session.");
+            if (!entries.TryGetValue(id, out var entry) || entry.Connection is null)
+                throw new InvalidOperationException("Key dispatch requires a live authenticated control connection.");
+            if (entry.KeyRequest is not null) throw new InvalidOperationException("A key chord is already in flight for this session.");
+            request = new(Guid.NewGuid().ToString("N"), chord, new(TaskCreationOptions.RunContinuationsAsynchronously));
+            entry.KeyRequest = request; Signal();
+        }
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        try { await request.Completion.Task.WaitAsync(timeout.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) { throw new TimeoutException("The Extension did not complete key dispatch within five seconds."); }
+        finally { lock (gate) if (entries.TryGetValue(id, out var entry) && entry.KeyRequest?.Id == request.Id) { entry.KeyRequest = null; Signal(); } }
+    }
+    public void KeyResult(Guid id, Guid connection, string requestId, bool success, string? error)
+    {
+        lock (gate)
+        {
+            if (!entries.TryGetValue(id, out var entry) || entry.Connection != connection || entry.KeyRequest is not { } request || request.Id != requestId) return;
+            entry.KeyRequest = null;
+            if (success) request.Completion.TrySetResult();
+            else request.Completion.TrySetException(new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "Extension rejected key dispatch." : error[..Math.Min(240, error.Length)]));
+            Signal();
         }
     }
     public void Status(Guid id, Guid connection, long frameGeneration, string? failure, bool capturing)

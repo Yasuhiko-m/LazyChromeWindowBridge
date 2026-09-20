@@ -154,6 +154,9 @@ public sealed class BridgeRuntime : IAsyncDisposable
     /// <summary>Returns the current natural source extent without starting monitoring or publishing a frame.</summary>
     public ValueTask<CaptureSourceSize> GetCaptureSourceSizeAsync(Guid appSessionId, CaptureMode mode, CancellationToken cancellationToken = default) =>
         Monitor.GetCaptureSourceSizeAsync(appSessionId, mode, cancellationToken);
+    /// <summary>Requests exactly one allowlisted key chord for the exact owned window's active tab. Completion confirms CDP dispatch, not page or browser-UI effect.</summary>
+    public Task SendKeyChordAsync(Guid appSessionId, BrowserKeyChord chord, CancellationToken cancellationToken = default) =>
+        Monitor.SendKeyChordAsync(appSessionId, chord, cancellationToken);
     public DownloadLifecycleEvent[] GetDownloads() => downloads.GetAll();
     public DownloadLifecycleEvent? GetDownload(int downloadId) => downloads.Get(downloadId);
     private void RaiseDownloadChanged(DownloadLifecycleEvent value)

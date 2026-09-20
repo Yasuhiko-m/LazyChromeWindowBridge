@@ -206,12 +206,40 @@ Release and Core-only NuGet publication.
 Status: **Complete**. Accepted by Chat at V1-M011-R022; R019 is an infrastructure-only
 validation-map repair, R021 is a release-toolchain servicing-policy update, and R022 is the
 documentation-only publication closeout. GitHub v0.3.1 is published and the manual NuGet
-OIDC workflow/push succeeded; Gallery visibility was not independently measured. Chrome Web
-Store 0.3.1 is outside this milestone and remains unpublished.
+OIDC workflow/push succeeded; Core 0.3.1 is independently visible/indexed on NuGet Gallery.
+Chrome Web Store 0.3.1 is outside this milestone and remains unpublished.
+
+### M012 — Bounded key chord input
+Goal: allow exactly one structured allowlisted key/chord request for one already-owned
+Browser Session, targeting only its exact WindowId active tab through fixed CDP
+`Input.dispatchKeyEvent` keyDown/keyUp.
+
+Status: **Complete** at V1-M012-R024. Public `BrowserKey`, `BrowserKeyModifiers`,
+`BrowserKeyChord` and `BridgeRuntime.SendKeyChordAsync` provide PageDown/PageUp,
+Enter/Tab/Escape/Space, Home/End, arrows, Backspace/Delete, A–Z and Digit0–Digit9 with
+Ctrl/Shift/Alt/Meta. One authenticated control-socket request has an acknowledgement,
+same-session in-flight bound and five-second timeout; stale/terminal/mismatched targets
+fail closed. Temporary attachment is cleaned up and monitor-owned attachment is reused.
+No macro, arbitrary CDP/JavaScript/DOM/Network, click/text automation, OS-global input,
+or product post-input inspection is added; dispatch does not guarantee page or browser-UI
+handling. Source 0.3.2 remains unpublished.
+
+### M013 — Release automation / version-coherent distribution
+Goal: establish a safe release flow for GitHub, NuGet and Chrome Web Store while
+preserving exact-version fallback through GitHub when CWS review lags or a version is
+not published to CWS.
+
+Status: **Complete**. R027_1 is the accepted implementation/validation endpoint; R028
+is the first authority closeout and R029 is the checkpointable established baseline.
+Accepted distribution policy requires matching
+Core/Extension versions and GitHub exact-version fallback when CWS lags or skips a
+version. Version-driven local preparation, bounded v0.3.2 Controller allowlists,
+immutable-tag NuGet OIDC and optional existing-item CWS V2 normal-review dispatch are
+established. Checkpoint/push and all publication operations remain separate.
 
 ## Planning rules
 - This file contains Version/Milestone roadmap only; no moving Current VMR.
-- Revisions.md establishes accepted V1-M011-R022; PLAN.md mirrors it. V0 is complete.
+- Revisions.md establishes accepted V1-M013-R029; PLAN.md mirrors it. V0 is complete.
 - Chat defines revisions during milestone execution; future numbers are not predefined.
 - Same-purpose retries use a flat issuance suffix, never nested suffixes.
 - At milestone boundaries review evidence, remaining issues, and discoveries.

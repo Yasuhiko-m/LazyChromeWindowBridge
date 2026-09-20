@@ -1,18 +1,20 @@
 # Chrome Web Store submission record — 0.2.0
 
-Chat accepted the R012 submission preparation for the R010/R011 behavior, and its
-0.2.0 artifact was subsequently uploaded/submitted for review. That historical artifact
-and review are not changed by R014 distribution preparation. Publisher setup was
-reported complete by the owner; publisher display name: `yasuhiko-m`. Category: **Tools**.
-Approval/publication status is not inferred here.
+Chat accepted the R012 submission preparation for the R010/R011 behavior. CWS 0.2.0
+is now published/general-public. That historical Store build does not match Core or
+Extension 0.3.x. Publisher display name: `yasuhiko-m`. Category: **Tools**.
 
 Chrome Web Store 0.3.1 is not asserted to be approved, uploaded or published. Store
-review can delay a matching extension version. The convenient path is the Store only
-when its version matches Core; otherwise, users obtain
+review can delay a matching extension version, and LCWB does not guarantee every
+GitHub/NuGet version will be submitted to or published on CWS. The Store is convenient,
+not a complete archive; when its version does not match Core, developers obtain
 `LazyChromeWindowBridge.Extension-0.3.1-cws.zip` from Release `v0.3.1`, extract it,
-open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**.
-The submitted CWS 0.2.0 build must not be presented as automatically matching Core 0.3.1.
+open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and
+select the extracted directory containing `manifest.json`. This path does not depend on
+CWS review or availability.
+The general-public CWS 0.2.0 build must not be presented as automatically matching Core 0.3.1.
 This task performs no live dashboard operation.
+Current Source 0.3.2 is unpublished and is not a Chrome Web Store distribution claim.
 
 ## Name
 
@@ -20,13 +22,29 @@ LazyChromeWindowBridge
 
 ## Summary
 
-Connect a Windows companion to its Chrome windows for local window management and continuous human-view JPEG previews.
+Developer companion extension for LazyChromeWindowBridge; not a standalone browser product.
 
 ## Detailed description
 
+This is a developer companion extension for LazyChromeWindowBridge, not a standalone
+browser product. Installing it by itself provides no standalone user-facing function or
+workflow. It has no standalone dashboard or toolbar workflow and works only with a
+matching LazyChromeWindowBridge Windows/Core companion and authenticated owned sessions.
+The companion initiates the workflow; the extension participates only in exact sessions
+and windows bound through LCWB, and does not independently discover, take over, monitor,
+or control arbitrary Chrome windows or tabs.
+
+Chrome Web Store review can lag matching GitHub/NuGet versions, and LCWB does not
+guarantee every version will be submitted to or published on CWS. Developers needing an
+exact matching extension can download `LazyChromeWindowBridge.Extension-<version>-cws.zip`
+from the matching GitHub Release, extract it, open `chrome://extensions`, enable
+**Developer mode**, choose **Load unpacked**, and select the extracted directory with
+`manifest.json`; this does not depend on CWS review. CWS 0.2.0 is currently
+general-public but does not match Core/Extension 0.3.x. Source 0.3.2 remains unpublished
+to CWS.
+
 LazyChromeWindowBridge connects a Windows companion application to the Chrome windows
-that companion launches. It requires the LazyChromeWindowBridge Windows companion;
-installing the extension alone does not provide a standalone dashboard.
+that companion launches.
 
 From the companion you can launch a URL in an owned Chrome window, save and restore
 normal placement, and explicitly PARK or RESTORE that window. With monitoring enabled,
@@ -40,10 +58,13 @@ Absolute filenames and thumbnail pixels can be sensitive. They are handled local
 and sent only to the authenticated companion on the same computer. There is no
 telemetry, advertising or cloud relay.
 
-This extension does not automate webpage input, read the DOM, run OCR, inspect network
-responses or infer page completion. It has no toolbar popup: use the Windows companion
-controls. Windows x64, Chrome 120 or later, and the companion are required. The supplied
-self-contained companion needs no separate .NET installation or account sign-in.
+This extension does not provide arbitrary webpage input, text macros, click automation,
+DOM access, OCR, network-response inspection or page-completion inference. Current
+unpublished Source 0.3.2 additionally permits one structured allowlisted key/chord to
+the exact owned active tab; successful dispatch does not establish page or browser-UI
+handling. It has no toolbar popup: use the Windows companion controls. Windows x64,
+Chrome 120 or later, and the companion are required. The supplied self-contained companion
+needs no separate .NET installation or account sign-in.
 
 Use the matching 0.2.0 companion bundle built from the same Source as the extension.
 The already published v0.1.0 companion does not contain continuous monitoring.
@@ -82,10 +103,12 @@ or background webpage automation.
 ### debugger
 
 Captures JPEG previews only for exact live owned Visible and Parked targets after the user enables
-monitoring in the companion. Product commands are exactly Page.getLayoutMetrics and
-Page.captureScreenshot. This supports live offscreen human viewing across several
+monitoring in the companion. Product commands are Page.getLayoutMetrics,
+Page.captureScreenshot, and caller-requested fixed allowlisted Input.dispatchKeyEvent
+keyDown/keyUp pairs. This supports live offscreen human viewing across several
 windows, including offscreen ones; activeTab permission alone cannot provide this behavior.
-There is no DOM, Runtime.evaluate, network-response inspection, OCR or automated page input.
+There is no DOM, Runtime.evaluate, network-response inspection, OCR, arbitrary input,
+macro sequencing, text automation, or page-effect inspection.
 Restoring or updating capture options retains the same-tab debugger attachment.
 The caller owns monitoring policy: PARK/RESTORE never automatically switches Monitor
 ON/OFF. Session pause detaches only that target and retains its last JPEG as a frozen
@@ -145,8 +168,10 @@ and user controls. These answers do not constitute Store approval.
 
 ## Reviewer instructions
 
-1. Use Windows x64 with Chrome 120+ and the extension version 0.2.0 under review enabled.
-   No ChatGPT, OpenAI or other website credentials are needed.
+1. This is not a standalone extension test: use Windows x64 with Chrome 120+ and the
+   matching LazyChromeWindowBridge Windows companion. Installing/opening the extension
+   alone is not expected to present a standalone UI. No ChatGPT, OpenAI or other website
+   credentials are needed.
 2. Extract LazyChromeWindowBridge-v0.2.0-win-x64.zip and run its SampleCaller with
    the bundled Extension under review in the same Chrome profile. The prepared bundle
    must be published through a separately authorized operation before Store submission.
