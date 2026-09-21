@@ -3,15 +3,16 @@
 - Current Version: `V1`
 - Current Milestone: `M013`
 - Milestone Goal: Release automation / version-coherent distribution
-- Current Revision: `R032`
-- Current Baseline: `V1-M013-R032`
+- Current Revision: `R033`
+- Current Baseline: `V1-M013-R033`
 - Milestone Status: **Complete**
 - Version Status: **In Progress**
 
 ## Handoff
 
-R032 closes out the completed v0.3.2 publication. M009–M013 are Complete; V1 remains In
-Progress and V0 remains Complete. Revisions.md establishes V1-M013-R032 as Current VMR.
+R033 records the manual existing-item CWS 0.3.2 submission, now pending review. M009–M013
+are Complete; V1 remains In Progress and V0 remains Complete. Revisions.md establishes
+V1-M013-R033 as Current VMR.
 
 Source version 0.3.2 is established. It retains the accepted 0.3.1 caller-controlled Chrome launch/background policy,
 natural BrowserViewport capture with region/resize/source-size APIs, exact-HWND
@@ -23,13 +24,15 @@ R022 closes out the accepted documentation update for the completed GitHub v0.3.
 Release and successful NuGet OIDC workflow/push from checkpoint
 `6ad192376f5d36ddc7d93bf7eba1dae11cd487bd`; Core 0.3.1 is now independently confirmed
 visible/indexed on NuGet Gallery. CWS 0.2.0 is general-public but does not match Core/
-Extension 0.3.x; CWS 0.3.2 remains unpublished. GitHub v0.3.2 and NuGet Core 0.3.2 are
-published; NuGet Gallery indexing was not independently measured. M012 adds one bounded
+Extension 0.3.x; CWS 0.3.2 is submitted/pending review and CWS 0.2.0 remains public.
+GitHub v0.3.2 and NuGet Core 0.3.2 are published; NuGet Gallery indexing was not
+independently measured. M012 adds one bounded
 structured allowlisted key/chord request for the exact owned active tab only, with no
 macro, arbitrary automation or observed page effect. The known third-display initial offscreen
 BrowserViewport timeout and Chrome-dependent silent-debugger suppression remain explicit.
 M013 adds accepted local version-driven preparation and bounded Controller publication
-allowlists. GitHub v0.3.2 and immutable-tag NuGet OIDC publication completed; optional
-configured existing-item CWS V2 submission remains separate.
+allowlists. GitHub v0.3.2 and immutable-tag NuGet OIDC publication completed. CWS
+submission is manual for the current operating path; optional existing-item V2 automation
+remains dormant and separate.
 
 This legacy file mirrors the established baseline.

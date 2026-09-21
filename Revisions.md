@@ -1,6 +1,6 @@
 # Revisions
 
-- Current VMR: `V1-M013-R032`
+- Current VMR: `V1-M013-R033`
 
 ## Purpose
 Source semantic Revision history and, after governance migration, Current VMR authority.
@@ -17,6 +17,19 @@ Workspace Revisions/ is separate Controller-owned rollback/evidence data.
 - Same-purpose retries use suffixes such as R001_1.
 
 ## History
+
+### V1-M013-R033 — CWS-v0.3.2-manual-submission-closeout
+
+Purpose / Result:
+Record the manual existing-item Chrome Web Store submission of Extension 0.3.2 on
+2026-09-21. The dashboard status is pending review; CWS 0.2.0 remains the public Store
+version until Google approval/publication. GitHub v0.3.2 and NuGet Core 0.3.2 remain
+published.
+
+The adopted operating policy is manual CWS submission. Existing CWS service-account/V2
+automation remains available but unused and dormant for this submission; no new Google
+Cloud, billing, or service-account setup was used. This Revision changes documentation and
+authority only: no product/runtime/package/workflow/publication code changed.
 
 ### V1-M013-R032 — v0.3.2-publication-closeout
 
@@ -37,9 +50,9 @@ failed before dispatch because it compared an annotated tag object SHA with the 
 commit; the Controller-only tag-peeling fix and retry succeeded. No LCWB Source runtime
 defect was involved.
 
-CWS remains unchanged: 0.2.0 is general-public, while CWS 0.3.2 was not uploaded or
-submitted. Optional configured CWS V2 dispatch remains separate. M013 remains Complete,
-V1 remains In Progress, and Source 0.3.2 is established.
+CWS status superseded by R033: 0.3.2 was manually submitted and is pending review; 0.2.0
+remains general-public. M013 remains Complete, V1 remains In Progress, and Source 0.3.2
+is established.
 
 ### V1-M013-R029 — normalize-current-vmr-for-checkpoint
 

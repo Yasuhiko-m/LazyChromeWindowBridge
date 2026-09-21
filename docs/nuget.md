@@ -25,7 +25,8 @@ extension ZIP from its GitHub Release instead:
    and select that extracted extension directory.
 
 This Developer mode installation path does not depend on CWS review or availability.
-This guidance does not assert that Chrome Web Store 0.3.2 is approved or published.
+Chrome Web Store 0.3.2 is manually submitted and pending review; this guidance does not
+assert that it is approved or published.
 CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x; historical NuGet
 0.1.0/0.2.0 publications are unaffected. Core 0.3.2 was published through the successful
 immutable-tag NuGet OIDC workflow; Gallery indexing/visibility is not independently

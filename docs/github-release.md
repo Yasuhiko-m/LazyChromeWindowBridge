@@ -4,7 +4,8 @@ GitHub `v0.3.2` was published from clean checkpoint
 `d490bdbbfd6c98755388a64e288cc8ac8989a98a`:
 <https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.2>.
 GitHub/NuGet 0.1.0–0.3.1 remain historical releases. CWS 0.2.0 is general-public but
-does not match Core/Extension 0.3.x; Chrome Web Store 0.3.2 was not submitted here.
+does not match Core/Extension 0.3.x; Chrome Web Store 0.3.2 is manually submitted and
+pending review, not yet public.
 
 ## Published release assets
 

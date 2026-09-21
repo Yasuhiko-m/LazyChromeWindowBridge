@@ -1,11 +1,11 @@
-# Chrome Web Store submission record — 0.2.0
+# Chrome Web Store submission record — 0.3.2 pending review
 
-Chat accepted the R012 submission preparation for the R010/R011 behavior. CWS 0.2.0
-is now published/general-public. That historical Store build does not match Core or
-Extension 0.3.x. Publisher display name: `yasuhiko-m`. Category: **Tools**.
+Chrome Web Store 0.3.2 was manually submitted on 2026-09-21 as an update to the existing
+LazyChromeWindowBridge item and is pending review. It is not approved or public. CWS 0.2.0
+remains the general-public Store build and does not match Core or Extension 0.3.x.
+Publisher display name: `yasuhiko-m`. Category: **Tools**.
 
-Chrome Web Store 0.3.2 is not asserted to be approved, uploaded or published. GitHub
-v0.3.2 and NuGet Core 0.3.2 are published. Store
+GitHub v0.3.2 and NuGet Core 0.3.2 are published. Store
 review can delay a matching extension version, and LCWB does not guarantee every
 GitHub/NuGet version will be submitted to or published on CWS. The Store is convenient,
 not a complete archive; when its version does not match Core, developers obtain
@@ -14,8 +14,8 @@ open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
 select the extracted directory containing `manifest.json`. This path does not depend on
 CWS review or availability.
 The general-public CWS 0.2.0 build must not be presented as automatically matching Core 0.3.2.
-This task performs no live dashboard operation.
-Source 0.3.2 is published on GitHub/NuGet but is not a Chrome Web Store distribution claim.
+This record does not claim CWS approval/publication. Source 0.3.2 is published on
+GitHub/NuGet; its CWS existing-item update is pending review.
 
 ## Name
 
@@ -41,8 +41,8 @@ exact matching extension can download `LazyChromeWindowBridge.Extension-<version
 from the matching GitHub Release, extract it, open `chrome://extensions`, enable
 **Developer mode**, choose **Load unpacked**, and select the extracted directory with
 `manifest.json`; this does not depend on CWS review. CWS 0.2.0 is currently
-general-public but does not match Core/Extension 0.3.x. Source 0.3.2 remains unpublished
-to CWS.
+general-public but does not match Core/Extension 0.3.x. CWS 0.3.2 is submitted/pending
+review and is not public.
 
 LazyChromeWindowBridge connects a Windows companion application to the Chrome windows
 that companion launches.
@@ -173,11 +173,10 @@ and user controls. These answers do not constitute Store approval.
    matching LazyChromeWindowBridge Windows companion. Installing/opening the extension
    alone is not expected to present a standalone UI. No ChatGPT, OpenAI or other website
    credentials are needed.
-2. Extract LazyChromeWindowBridge-v0.2.0-win-x64.zip and run its SampleCaller with
-   the bundled Extension under review in the same Chrome profile. The prepared bundle
-   must be published through a separately authorized operation before Store submission.
-   The historical [v0.1.0 Release](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.1.0)
-   and NuGet 0.1.0 do not implement the accepted R010/R011 monitor contract.
+2. Download/extract the published
+   [LazyChromeWindowBridge-v0.3.2-win-x64.zip](https://github.com/Yasuhiko-m/LazyChromeWindowBridge/releases/tag/v0.3.2)
+   and run its SampleCaller with the 0.3.2 Extension under review in the same Chrome
+   profile. The historical v0.2.0 Store build does not implement this matching release.
 3. Replace the sample's default launch URL with `https://example.com/?window=a`.
    Click Launch and wait for Bound. Repeat with query values b, c, d and e. These
    public neutral pages require no login, SDK, local test server or developer fixture.
@@ -194,7 +193,9 @@ and user controls. These answers do not constitute Store approval.
    freezes and its state becomes Paused. Peers remain LIVE. Park/Restore that paused
    session and Apply new output options: it stays Paused. Resume preview obtains fresh
    frames for only that session. These are caller controls, independent of placement.
-6. Optional download check: manually save a harmless page through Chrome's normal Save
+6. Use the public `SendKeyChordAsync` path once to send allowed `PageDown` to a Bound
+   neutral-page session; completion confirms only fixed CDP dispatch, not a page/browser-UI
+   effect. Then perform the optional download check: manually save a harmless page through Chrome's normal Save
    command. The bridge observes Chrome's lifecycle; it never initiates the download.
    SampleCaller is primarily a placement/thumbnail UI; download events are exposed by
    the companion's Core API, not a separate SampleCaller download panel.
@@ -204,18 +205,18 @@ and user controls. These answers do not constitute Store approval.
 
 ## Submission files
 
-- ZIP: `artifacts/cws/LazyChromeWindowBridge.Extension-0.2.0-cws.zip` (10 files).
+- ZIP: `artifacts/cws/LazyChromeWindowBridge.Extension-0.3.2-cws.zip` (10 files).
 - Icon: `src/LazyChromeWindowBridge.Extension/icons/icon-128.png`.
 - Screenshot: [real 0.2.0 monitor view](store-assets/screenshot-monitor-0.2.0-1280x800.png), 1280×800.
 - Small promo: [original brand artwork](store-assets/promo-small-440x280.png), 440×280.
 - [Current asset privacy review](store-assets/privacy-review-0.2.0.md).
 
-The 0.2.0 screenshot is a real current SampleCaller capture with a separate privacy
+The 0.2.0 screenshot is retained as historical Store artwork with a separate privacy
 review. The original 0.1.0 screenshot and its evidence remain historical and unchanged.
-No asset or dashboard upload is part of R012 preparation.
+The 0.3.2 ZIP was manually uploaded/submitted; review is pending.
 
 Prepared against Chrome's [image requirements](https://developer.chrome.com/docs/webstore/images),
 [privacy field guidance](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)
 and [User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq).
 The local-only design still requires a privacy policy. Submission and policy acceptance
-remain publisher/Store actions after Chat acceptance and separate submission authorization.
+remain publisher/Store actions; this 0.3.2 existing-item submission is pending review.

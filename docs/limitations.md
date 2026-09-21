@@ -61,7 +61,8 @@
 - No installer or updater is established. GitHub/NuGet 0.1.0 and 0.2.0 publication are
   historical. CWS 0.2.0 is general-public but does not match Core/Extension 0.3.x.
   GitHub v0.3.2 is published; Store review can lag or skip versions, so use its matching
-  GitHub Release extension ZIP while Chrome Web Store 0.3.2 is unavailable. CWS is not
+  GitHub Release extension ZIP while Chrome Web Store 0.3.2 is pending review and not
+  public. CWS is not
   a guaranteed archive of every LCWB version. Chrome may ignore its supported
   background-rendering switch; PreserveBackgroundRendering is not a rendering SLA.
 - Source 0.3.2 permits one allowlisted `Input.dispatchKeyEvent`

@@ -14,6 +14,10 @@ For an accepted, clean checkpoint tagged `vX.Y.Z`, use this sequence:
    same immutable tag.
 4. Optionally dispatch `publish-cws` for that tag through the same Controller route.
 
+For the current operating policy, Chrome Web Store submission is manual. The existing
+`publish-cws` capability remains available but dormant; no Google Cloud, billing, or
+service-account setup is required for the manual path.
+
 GitHub Releases remain the exact-version Extension fallback. Chrome Web Store review
 can lag or a product version can be intentionally skipped; it is not a complete archive
 of every LazyChromeWindowBridge version.

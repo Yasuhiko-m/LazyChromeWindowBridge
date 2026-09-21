@@ -2,7 +2,8 @@
 
 Text for a separate site to reuse later. This file does not deploy or modify a website.
 This copy describes the published GitHub/NuGet v0.3.2 release. CWS 0.2.0 is
-general-public but does not match Core/Extension 0.3.x; CWS 0.3.2 remains unpublished.
+general-public but does not match Core/Extension 0.3.x; CWS 0.3.2 is pending review and
+is not yet public.
 
 ## One-line tagline
 Control the Chrome window, not the webpage.

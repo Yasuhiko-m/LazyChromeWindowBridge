@@ -60,8 +60,9 @@ CHATGPT-PARAMS.md contains the inherited model-selection policy.
 
 Local Git is enabled. Accepted Source revisions remain unstaged/uncommitted until the
 independent checkpoint boundary explicitly stages the accepted task delta.
-Current accepted base and Current VMR are V1-M013-R032. R027_1 remains the accepted M013
-implementation/validation endpoint; R032 closes out its completed v0.3.2 publication.
+Current accepted base and Current VMR are V1-M013-R033. R027_1 remains the accepted M013
+implementation/validation endpoint; R033 records its manual CWS 0.3.2 submission/pending
+review state.
 M009 Chrome launch options,
 M010 capture pipeline/preview stability, M011 v0.3.1 release preparation, M012 bounded
 key chord input and M013 release automation/version-coherent distribution are Complete;
@@ -74,10 +75,12 @@ stable .NET SDK 10.0.4xx servicing selection (10.0.401 floor and latestPatch rol
 for release tooling only. GitHub v0.3.2 and immutable-tag NuGet OIDC publication completed
 from checkpoint `d490bdbbfd6c98755388a64e288cc8ac8989a98a`; NuGet Gallery indexing for
 0.3.2 was not independently measured. CWS 0.2.0 is general-public but does not match
-Core/Extension 0.3.x; CWS 0.3.2 remains unpublished. M013 establishes matching-version GitHub
+Core/Extension 0.3.x; CWS 0.3.2 is submitted/pending review while CWS 0.2.0 remains
+general-public. M013 establishes matching-version GitHub
 Extension fallback, local version-driven preparation, immutable-tag Controller
-publication allowlists and optional existing-item CWS V2 normal-review dispatch without
-committed credentials. M012 permits one structured allowlisted
+publication allowlists and dormant optional existing-item CWS V2 normal-review dispatch
+without committed credentials; manual CWS submission is the current operating path.
+M012 permits one structured allowlisted
 key/chord only for the exact owned active tab: acknowledgement confirms fixed CDP dispatch,
 not page or Chrome-UI handling; no arbitrary automation or macro is provided.
 The third-display initial offscreen capture timeout remains unresolved; silent launch

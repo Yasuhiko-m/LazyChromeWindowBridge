@@ -39,9 +39,10 @@ CWS review or availability.
 **v0.3.2:**
 adds bounded `BrowserKey` / `BrowserKeyModifiers` / `BrowserKeyChord` dispatch through
 `SendKeyChordAsync` for the exact owned active tab only. It remains one fixed CDP
-keyDown/keyUp operation, not a macro or general input/automation facility. CWS 0.2.0 is
-the current general-public Store build and does not match 0.3.2; use the matching GitHub
-Extension ZIP through **Developer mode** / **Load unpacked** while CWS lags or skips it.
+keyDown/keyUp operation, not a macro or general input/automation facility. CWS 0.3.2 is
+submitted and pending review; CWS 0.2.0 remains the current general-public Store build
+and does not match 0.3.2. Use the matching GitHub Extension ZIP through **Developer mode**
+/ **Load unpacked** until Google approval/publication.
 See the [0.3.2 release notes](docs/releases/v0.3.2.md).
 
 **v0.3.1:**
